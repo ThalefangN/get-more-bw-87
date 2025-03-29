@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Mail, Lock, User, Shield } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminSignUp = () => {
   const navigate = useNavigate();
@@ -18,7 +19,6 @@ const AdminSignUp = () => {
     email: "",
     password: "",
     confirmPassword: "",
-    securityKey: "",
     notes: ""
   });
   
@@ -33,18 +33,13 @@ const AdminSignUp = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword || !formData.securityKey) {
+    if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
       toast.error("Please fill in all required fields");
       return;
     }
     
     if (formData.password !== formData.confirmPassword) {
       toast.error("Passwords do not match");
-      return;
-    }
-    
-    if (formData.securityKey !== "admin123") { // This is just for demo purposes
-      toast.error("Invalid security key");
       return;
     }
     
@@ -56,25 +51,36 @@ const AdminSignUp = () => {
     setIsLoading(true);
     
     try {
-      // In a real app, this would call an API to register the admin
-      // For this demo, we'll simulate it with localStorage
-      
-      const newAdmin = {
-        id: `admin-${Date.now()}`,
-        name: formData.name,
+      // Register the admin with Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
         email: formData.email,
-        role: "admin",
-        notes: formData.notes
-      };
+        password: formData.password,
+        options: {
+          data: {
+            name: formData.name,
+            role: "admin",
+            notes: formData.notes
+          }
+        }
+      });
       
-      // Store the admin data
-      localStorage.setItem('adminInfo', JSON.stringify(newAdmin));
+      if (error) throw error;
       
-      toast.success("Admin account created successfully!");
-      navigate("/admin-dashboard");
-    } catch (error) {
+      toast.success("Admin account created successfully!", {
+        description: "Please check your email for verification link."
+      });
+      
+      navigate("/admin-signin");
+    } catch (error: any) {
       console.error("Error creating admin account:", error);
-      toast.error("Something went wrong. Please try again.");
+      
+      if (error.message.includes('User already registered')) {
+        toast.error("This email is already registered");
+      } else {
+        toast.error("Failed to create account", {
+          description: error.message || "Please try again later",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -172,28 +178,6 @@ const AdminSignUp = () => {
                     required
                   />
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="securityKey" className="text-sm font-medium text-gray-700">
-                  Admin Security Key *
-                </label>
-                <div className="relative">
-                  <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                  <Input
-                    id="securityKey"
-                    name="securityKey"
-                    type="password"
-                    value={formData.securityKey}
-                    onChange={handleChange}
-                    placeholder="Enter the admin security key"
-                    className="pl-10"
-                    required
-                  />
-                </div>
-                <p className="text-xs text-gray-500">
-                  For this demo, use: admin123
-                </p>
               </div>
               
               <div className="space-y-2">

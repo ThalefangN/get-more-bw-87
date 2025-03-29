@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -43,10 +42,11 @@ const AdminSignIn = () => {
       
       if (error) throw error;
       
-      // Check if user has admin role
-      // In a real app, you would check for admin role in a user_roles table
-      // For this demo, let's assume that admins use a specific email domain
-      if (formData.email.endsWith('@admin.getmore.bw')) {
+      // Check user metadata for admin role
+      const user = data.user;
+      const userRole = user?.user_metadata?.role;
+      
+      if (userRole === 'admin') {
         toast.success("Signed in as admin successfully!");
         navigate("/admin-dashboard");
       } else {
