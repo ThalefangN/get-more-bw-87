@@ -1,5 +1,7 @@
 
 import { Smartphone, Clock, Box } from "lucide-react";
+import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 const steps = [
   {
@@ -23,6 +25,12 @@ const steps = [
 ];
 
 const HowItWorks = () => {
+  const handleDownloadClick = () => {
+    toast.info("The GetMore BW app is coming soon! We'll notify you when it's available.", {
+      duration: 4000,
+    });
+  };
+
   return (
     <section id="how-it-works" className="py-16 bg-getmore-purple text-white">
       <div className="container-custom">
@@ -51,7 +59,10 @@ const HowItWorks = () => {
         </div>
         
         <div className="mt-12 text-center">
-          <button className="btn-secondary">
+          <button 
+            className="btn-secondary"
+            onClick={handleDownloadClick}
+          >
             Download the App
           </button>
         </div>

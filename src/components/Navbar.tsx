@@ -37,8 +37,8 @@ const Navbar = () => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             <Link to="/" className="text-gray-700 hover:text-getmore-purple">Home</Link>
-            <a href="#categories" className="text-gray-700 hover:text-getmore-purple">Categories</a>
-            <a href="#how-it-works" className="text-gray-700 hover:text-getmore-purple">How it Works</a>
+            <Link to="/categories" className="text-gray-700 hover:text-getmore-purple">Categories</Link>
+            <Link to="/how-it-works" className="text-gray-700 hover:text-getmore-purple">How it Works</Link>
             
             {isAuthenticated ? (
               <div className="relative group">
@@ -99,8 +99,8 @@ const Navbar = () => {
             </div>
             <nav className="flex flex-col space-y-3">
               <Link to="/" className="text-gray-700 py-2 px-3 rounded-md hover:bg-gray-100">Home</Link>
-              <a href="#categories" className="text-gray-700 py-2 px-3 rounded-md hover:bg-gray-100">Categories</a>
-              <a href="#how-it-works" className="text-gray-700 py-2 px-3 rounded-md hover:bg-gray-100">How it Works</a>
+              <Link to="/categories" className="text-gray-700 py-2 px-3 rounded-md hover:bg-gray-100">Categories</Link>
+              <Link to="/how-it-works" className="text-gray-700 py-2 px-3 rounded-md hover:bg-gray-100">How it Works</Link>
               
               {isAuthenticated ? (
                 <>

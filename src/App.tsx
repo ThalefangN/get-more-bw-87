@@ -10,6 +10,9 @@ import LearnMore from "./pages/LearnMore";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
+import CategoriesPage from "./pages/CategoriesPage";
+import HowItWorksPage from "./pages/HowItWorksPage";
+import CourierPage from "./pages/CourierPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 
@@ -29,6 +32,9 @@ const App = () => (
               <Route path="/learn-more" element={<LearnMore />} />
               <Route path="/sign-in" element={<SignIn />} />
               <Route path="/sign-up" element={<SignUp />} />
+              <Route path="/categories" element={<CategoriesPage />} />
+              <Route path="/how-it-works" element={<HowItWorksPage />} />
+              <Route path="/become-courier" element={<CourierPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

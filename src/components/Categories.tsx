@@ -1,5 +1,6 @@
 
 import { ShoppingBag, Coffee, Apple, Pizza, Gift, Beef, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const categories = [
   {
@@ -49,10 +50,10 @@ const Categories = () => {
             <h2 className="text-3xl font-bold">Categories</h2>
             <p className="text-gray-600 mt-2">Browse products by category</p>
           </div>
-          <a href="#" className="flex items-center text-getmore-purple hover:underline">
+          <Link to="/categories" className="flex items-center text-getmore-purple hover:underline">
             View All
             <ChevronRight size={16} className="ml-1" />
-          </a>
+          </Link>
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">

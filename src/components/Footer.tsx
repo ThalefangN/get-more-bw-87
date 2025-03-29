@@ -1,5 +1,6 @@
 
 import { Facebook, Twitter, Instagram, MapPin, Phone, Mail } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   return (
@@ -32,19 +33,19 @@ const Footer = () => {
             <h3 className="text-lg font-semibold mb-6">Quick Links</h3>
             <ul className="space-y-3">
               <li>
-                <a href="#" className="text-gray-400 hover:text-getmore-turquoise">Home</a>
+                <Link to="/" className="text-gray-400 hover:text-getmore-turquoise">Home</Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-getmore-turquoise">About Us</a>
+                <Link to="/learn-more" className="text-gray-400 hover:text-getmore-turquoise">About Us</Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-getmore-turquoise">Categories</a>
+                <Link to="/categories" className="text-gray-400 hover:text-getmore-turquoise">Categories</Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-getmore-turquoise">How it Works</a>
+                <Link to="/how-it-works" className="text-gray-400 hover:text-getmore-turquoise">How it Works</Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-getmore-turquoise">Become a Courier</a>
+                <Link to="/become-courier" className="text-gray-400 hover:text-getmore-turquoise">Become a Courier</Link>
               </li>
             </ul>
           </div>
@@ -53,19 +54,19 @@ const Footer = () => {
             <h3 className="text-lg font-semibold mb-6">Categories</h3>
             <ul className="space-y-3">
               <li>
-                <a href="#" className="text-gray-400 hover:text-getmore-turquoise">Groceries</a>
+                <Link to="/categories" className="text-gray-400 hover:text-getmore-turquoise">Groceries</Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-getmore-turquoise">Fruits & Vegetables</a>
+                <Link to="/categories" className="text-gray-400 hover:text-getmore-turquoise">Fruits & Vegetables</Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-getmore-turquoise">Beverages</a>
+                <Link to="/categories" className="text-gray-400 hover:text-getmore-turquoise">Beverages</Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-getmore-turquoise">Meat & Poultry</a>
+                <Link to="/categories" className="text-gray-400 hover:text-getmore-turquoise">Meat & Poultry</Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-getmore-turquoise">Ready Meals</a>
+                <Link to="/categories" className="text-gray-400 hover:text-getmore-turquoise">Ready Meals</Link>
               </li>
             </ul>
           </div>
