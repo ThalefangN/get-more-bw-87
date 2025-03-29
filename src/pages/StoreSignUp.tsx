@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,20 @@ const StoreSignUp = () => {
     setIsLoading(true);
     
     try {
+      // First create the user account with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            store_name: formData.name,
+          }
+        }
+      });
+      
+      if (authError) throw authError;
+      
+      // Then create the store record
       const { data: storeData, error: storeError } = await supabase
         .from('stores')
         .insert({
@@ -92,11 +107,13 @@ const StoreSignUp = () => {
       
       if (storeError) throw storeError;
       
+      // Store the data in the context
       login(storeData);
       
       toast.success("Store created successfully!", {
-        description: "Please continue to sign in with your credentials",
+        description: "Please check your email for verification link and continue to sign in.",
       });
+      
       navigate("/store-signin");
     } catch (error: any) {
       console.error("Error creating store:", error);

@@ -31,7 +31,15 @@ const StoreSignIn = () => {
     setIsLoading(true);
     
     try {
-      // First, check if the store exists with the provided email
+      // Sign in with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (authError) throw authError;
+      
+      // If sign in successful, fetch the store data
       const { data: storeData, error: storeError } = await supabase
         .from('stores')
         .select('*')
@@ -39,19 +47,20 @@ const StoreSignIn = () => {
         .single();
       
       if (storeError) {
-        // Store doesn't exist or other error
-        toast.error("No store found with this email address");
-        setIsLoading(false);
-        return;
+        // If store doesn't exist, sign out and show error
+        await supabase.auth.signOut();
+        throw new Error("No store found with this email address");
       }
       
-      // If store exists, login with the store's data
+      // Store the data in the context
       login(storeData);
       toast.success("Signed in successfully!");
       navigate("/store-dashboard");
     } catch (error: any) {
       console.error("Error signing in:", error);
-      toast.error("Invalid email or password. Please try again.");
+      toast.error("Sign in failed", {
+        description: error.message || "Please check your credentials and try again."
+      });
     } finally {
       setIsLoading(false);
     }
