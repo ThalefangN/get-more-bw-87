@@ -1,22 +1,36 @@
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Categories from "@/components/Categories";
 import ProductGrid from "@/components/ProductGrid";
 import Footer from "@/components/Footer";
 import Cart from "@/components/Cart";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const Shop = () => {
   const [isLoading, setIsLoading] = useState(true);
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      toast.error("Please sign in to browse products", {
+        description: "You need to be logged in to shop",
+      });
+      navigate("/sign-in");
+      return;
+    }
+
     // Simulate loading data
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 500);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [isAuthenticated, navigate]);
 
   if (isLoading) {
     return (

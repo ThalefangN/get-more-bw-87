@@ -1,54 +1,46 @@
 
-import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
-import Categories from "@/components/Categories";
-import ProductGrid from "@/components/ProductGrid";
 import HowItWorks from "@/components/HowItWorks";
 import Footer from "@/components/Footer";
-import Cart from "@/components/Cart";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const { isAuthenticated, user } = useAuth();
-
-  useEffect(() => {
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-4xl font-bold mb-2">
-            <span className="text-getmore-purple">Get</span>
-            <span className="text-getmore-turquoise">More</span>
-            <span className="text-gray-700">BW</span>
-          </div>
-          <div className="mt-4 text-gray-600">Loading amazing products...</div>
-          <div className="mt-6 w-12 h-12 rounded-full border-4 border-getmore-purple border-t-transparent animate-spin mx-auto"></div>
-        </div>
-      </div>
-    );
-  }
-
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  
+  const handleShopNow = () => {
+    if (isAuthenticated) {
+      navigate("/shop");
+    } else {
+      navigate("/sign-in");
+    }
+  };
+  
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-grow">
         <Hero />
-        <Categories />
-        <ProductGrid />
-        {!isAuthenticated && <HowItWorks />}
+        <section className="bg-white py-12">
+          <div className="container-custom text-center">
+            <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to start shopping?</h2>
+            <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
+              Browse our wide selection of products from local stores and get them delivered to your doorstep in minutes.
+            </p>
+            <Button 
+              className="bg-getmore-purple hover:bg-purple-700 text-white px-8 py-6 text-lg rounded-lg shadow-lg"
+              onClick={handleShopNow}
+            >
+              Shop Now
+            </Button>
+          </div>
+        </section>
+        <HowItWorks />
       </main>
       <Footer />
-      <Cart />
     </div>
   );
 };

@@ -56,8 +56,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setIsAuthenticated(true);
           } catch (error) {
             console.error('Error fetching user profile:', error);
-            setUser(null);
-            setIsAuthenticated(false);
+            // If profile fetch fails, still set basic user info
+            const userProfile: User = {
+              name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+              email: session.user.email || '',
+            };
+            setUser(userProfile);
+            setIsAuthenticated(true);
           }
         } else {
           setUser(null);
@@ -92,7 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else {
       setUser(null);
       setIsAuthenticated(false);
-      window.location.reload();
+      toast.success('Signed out successfully');
     }
   };
 

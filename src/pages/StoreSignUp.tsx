@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { Mail, Lock, Building, Phone, MapPin, Tag } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useStore } from "@/contexts/StoreContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const StoreSignUp = () => {
   const navigate = useNavigate();
@@ -76,28 +76,33 @@ const StoreSignUp = () => {
     setIsLoading(true);
     
     try {
-      // In a real app, this would call an API to register the store
-      // For this demo, we'll simulate it with localStorage
+      const { data: storeData, error: storeError } = await supabase
+        .from('stores')
+        .insert({
+          name: formData.name,
+          email: formData.email,
+          address: formData.address,
+          phone: formData.phone,
+          description: formData.description,
+          categories: formData.categories,
+          logo: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=8B5CF6&color=fff`
+        })
+        .select()
+        .single();
       
-      const newStore = {
-        id: `store-${Date.now()}`,
-        name: formData.name,
-        email: formData.email,
-        address: formData.address,
-        phone: formData.phone,
-        description: formData.description,
-        categories: formData.categories,
-        logo: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=8B5CF6&color=fff`
-      };
+      if (storeError) throw storeError;
       
-      // Store the store data
-      login(newStore);
+      login(storeData);
       
-      toast.success("Store created successfully!");
-      navigate("/store-dashboard");
-    } catch (error) {
+      toast.success("Store created successfully!", {
+        description: "Please continue to sign in with your credentials",
+      });
+      navigate("/store-signin");
+    } catch (error: any) {
       console.error("Error creating store:", error);
-      toast.error("Something went wrong. Please try again.");
+      toast.error("Failed to create store", {
+        description: error.message || "Please try again later"
+      });
     } finally {
       setIsLoading(false);
     }

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Mail, Lock, Building } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useStore } from "@/contexts/StoreContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const StoreSignIn = () => {
   const navigate = useNavigate();
@@ -30,33 +31,28 @@ const StoreSignIn = () => {
     setIsLoading(true);
     
     try {
-      // In a real app, this would call an API to authenticate the store
-      // For this demo, we'll simulate a successful login
+      // First, check if the store exists with the provided email
+      const { data: storeData, error: storeError } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('email', email)
+        .single();
       
-      // Normally we'd check the credentials with a backend
-      // For demo purposes, we'll create a mock store
-      
-      const mockStore = {
-        id: `store-${Date.now()}`,
-        name: `Store ${email.split('@')[0]}`,
-        email: email,
-        address: "123 Store Street, Gaborone",
-        phone: "+267 71234567",
-        description: "This is a demo store for Get More BW.",
-        categories: ["Groceries", "Beverages"],
-        logo: `https://ui-avatars.com/api/?name=${encodeURIComponent(email.split('@')[0])}&background=8B5CF6&color=fff`
-      };
-      
-      setTimeout(() => {
-        login(mockStore);
-        toast.success("Signed in successfully!");
-        navigate("/store-dashboard");
+      if (storeError) {
+        // Store doesn't exist or other error
+        toast.error("No store found with this email address");
         setIsLoading(false);
-      }, 1000);
+        return;
+      }
       
-    } catch (error) {
+      // If store exists, login with the store's data
+      login(storeData);
+      toast.success("Signed in successfully!");
+      navigate("/store-dashboard");
+    } catch (error: any) {
       console.error("Error signing in:", error);
       toast.error("Invalid email or password. Please try again.");
+    } finally {
       setIsLoading(false);
     }
   };
