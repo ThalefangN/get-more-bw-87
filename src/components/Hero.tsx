@@ -1,5 +1,6 @@
 
 import { ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Hero = () => {
   return (
@@ -15,13 +16,13 @@ const Hero = () => {
               Get More BW delivers groceries, food, and household essentials to your doorstep in minutes. Shop from thousands of products at supermarket prices.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <button className="btn-primary flex items-center justify-center">
+              <Link to="/shop" className="btn-primary flex items-center justify-center">
                 Shop Now
                 <ArrowRight className="ml-2" size={18} />
-              </button>
-              <button className="btn-secondary flex items-center justify-center">
+              </Link>
+              <Link to="/learn-more" className="btn-secondary flex items-center justify-center">
                 Learn More
-              </button>
+              </Link>
             </div>
             <div className="flex items-center space-x-4 pt-4">
               <div className="flex -space-x-2">

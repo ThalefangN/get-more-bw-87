@@ -1,23 +1,19 @@
 
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
-import Hero from "@/components/Hero";
 import Categories from "@/components/Categories";
 import ProductGrid from "@/components/ProductGrid";
-import HowItWorks from "@/components/HowItWorks";
 import Footer from "@/components/Footer";
 import Cart from "@/components/Cart";
-import { useAuth } from "@/contexts/AuthContext";
 
-const Index = () => {
+const Shop = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
     // Simulate loading data
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 1000);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, []);
@@ -31,7 +27,7 @@ const Index = () => {
             <span className="text-getmore-turquoise">More</span>
             <span className="text-gray-700">BW</span>
           </div>
-          <div className="mt-4 text-gray-600">Loading amazing products...</div>
+          <div className="mt-4 text-gray-600">Loading products...</div>
           <div className="mt-6 w-12 h-12 rounded-full border-4 border-getmore-purple border-t-transparent animate-spin mx-auto"></div>
         </div>
       </div>
@@ -42,10 +38,14 @@ const Index = () => {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-grow">
-        <Hero />
+        <div className="bg-gray-50 py-12">
+          <div className="container-custom">
+            <h1 className="text-3xl md:text-4xl font-bold mb-6">Shop All Products</h1>
+            <p className="text-gray-600 mb-8">Browse our full catalog of products and get what you need delivered in minutes.</p>
+          </div>
+        </div>
         <Categories />
         <ProductGrid />
-        {!isAuthenticated && <HowItWorks />}
       </main>
       <Footer />
       <Cart />
@@ -53,4 +53,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default Shop;
