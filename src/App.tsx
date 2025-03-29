@@ -13,6 +13,11 @@ import NotFound from "./pages/NotFound";
 import CategoriesPage from "./pages/CategoriesPage";
 import HowItWorksPage from "./pages/HowItWorksPage";
 import CourierPage from "./pages/CourierPage";
+import StoreSignUp from "./pages/StoreSignUp";
+import StoreSignIn from "./pages/StoreSignIn";
+import StoreDashboard from "./pages/StoreDashboard";
+import CourierLogin from "./pages/CourierLogin";
+import CourierDashboard from "./pages/CourierDashboard";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 
@@ -35,6 +40,11 @@ const App = () => (
               <Route path="/categories" element={<CategoriesPage />} />
               <Route path="/how-it-works" element={<HowItWorksPage />} />
               <Route path="/become-courier" element={<CourierPage />} />
+              <Route path="/store-signup" element={<StoreSignUp />} />
+              <Route path="/store-signin" element={<StoreSignIn />} />
+              <Route path="/store-dashboard/*" element={<StoreDashboard />} />
+              <Route path="/courier-login" element={<CourierLogin />} />
+              <Route path="/courier-dashboard/*" element={<CourierDashboard />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

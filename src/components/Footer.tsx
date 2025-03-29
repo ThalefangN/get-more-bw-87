@@ -47,6 +47,12 @@ const Footer = () => {
               <li>
                 <Link to="/become-courier" className="text-gray-400 hover:text-getmore-turquoise">Become a Courier</Link>
               </li>
+              <li>
+                <Link to="/store-signup" className="text-gray-400 hover:text-getmore-turquoise">Host Your Store</Link>
+              </li>
+              <li>
+                <Link to="/courier-login" className="text-gray-400 hover:text-getmore-turquoise">Courier Login</Link>
+              </li>
             </ul>
           </div>
           
