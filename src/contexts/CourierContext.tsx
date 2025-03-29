@@ -1,6 +1,4 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Order } from './StoreContext';
 
 export interface Courier {
   id: string;
@@ -52,7 +50,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
   const [deliveryRequests, setDeliveryRequests] = useState<DeliveryRequest[]>([]);
   const [allCouriers, setAllCouriers] = useState<Courier[]>([]);
 
-  // Load stored data on mount
   useEffect(() => {
     const storedCourierInfo = localStorage.getItem('courierInfo');
     if (storedCourierInfo) {
@@ -61,7 +58,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
         setCurrentCourier(parsedCourier);
         setIsAuthenticated(true);
         
-        // Load this courier's delivery requests
         loadCourierDeliveries(parsedCourier.id);
       } catch (error) {
         console.error('Failed to parse courier info from localStorage:', error);
@@ -69,7 +65,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    // Load all couriers
     const storedAllCouriers = localStorage.getItem('allCouriers');
     if (storedAllCouriers) {
       try {
@@ -86,7 +81,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
       try {
         const allDeliveries = JSON.parse(storedDeliveries);
         
-        // Filter for this courier's deliveries and pending ones
         const courierDeliveries = allDeliveries.filter(
           (d: DeliveryRequest) => 
             (d.courierId === courierId) || 
@@ -105,7 +99,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
     setIsAuthenticated(true);
     localStorage.setItem('courierInfo', JSON.stringify(courierData));
     
-    // Update all couriers list if this is a new courier
     const existingCourierIndex = allCouriers.findIndex(c => c.id === courierData.id);
     if (existingCourierIndex === -1) {
       const updatedCouriers = [...allCouriers, courierData];
@@ -118,7 +111,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('allCouriers', JSON.stringify(updatedCouriers));
     }
     
-    // Load this courier's deliveries
     loadCourierDeliveries(courierData.id);
   };
 
@@ -136,7 +128,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
     setCurrentCourier(updatedCourier);
     localStorage.setItem('courierInfo', JSON.stringify(updatedCourier));
     
-    // Update in all couriers list
     const updatedCouriers = allCouriers.map(courier => 
       courier.id === currentCourier.id ? { ...courier, isAvailable } : courier
     );
@@ -151,7 +142,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
     setCurrentCourier(updatedCourier);
     localStorage.setItem('courierInfo', JSON.stringify(updatedCourier));
     
-    // Update in all couriers list
     const updatedCouriers = allCouriers.map(courier => 
       courier.id === currentCourier.id ? updatedCourier : courier
     );
@@ -174,7 +164,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
     
     setDeliveryRequests(updatedRequests);
     
-    // Update in localStorage
     const storedDeliveries = localStorage.getItem('deliveryRequests');
     if (storedDeliveries) {
       try {
@@ -193,7 +182,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    // Also update the order status in the store orders
     const storedOrders = localStorage.getItem('storeOrders');
     if (storedOrders) {
       try {
@@ -232,7 +220,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
     
     setDeliveryRequests(updatedRequests);
     
-    // Update in localStorage
     const storedDeliveries = localStorage.getItem('deliveryRequests');
     if (storedDeliveries) {
       try {
@@ -258,7 +245,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    // Also update the order status in store orders if delivered
     if (status === 'delivered') {
       const storedOrders = localStorage.getItem('storeOrders');
       if (storedOrders) {
@@ -277,7 +263,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
         }
       }
       
-      // Update courier completed deliveries count
       if (currentCourier) {
         const updatedCourier = { 
           ...currentCourier, 
@@ -286,7 +271,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
         setCurrentCourier(updatedCourier);
         localStorage.setItem('courierInfo', JSON.stringify(updatedCourier));
         
-        // Update in all couriers list
         const updatedCouriers = allCouriers.map(courier => 
           courier.id === currentCourier.id ? updatedCourier : courier
         );
@@ -304,7 +288,6 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
     return allCouriers.filter(courier => courier.isAvailable);
   };
 
-  // Filter delivery requests into categories
   const activeDeliveries = deliveryRequests.filter(
     delivery => 
       (delivery.courierId === currentCourier?.id) && 

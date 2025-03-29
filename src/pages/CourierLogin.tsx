@@ -77,7 +77,7 @@ const CourierLogin = () => {
               name: courier.name,
               email: courier.email,
               phone: courier.phone,
-              vehicleType: courier.vehicle_type || courier.vehicle,
+              vehicleType: courier.vehicle_type || courier.vehicle as "car" | "motorcycle" | "bicycle",
               isAvailable: true,
               rating: courier.rating || 0,
               completedDeliveries: courier.deliveries || 0
@@ -102,7 +102,7 @@ const CourierLogin = () => {
         name: courierData.name,
         email: courierData.email,
         phone: courierData.phone,
-        vehicleType: courierData.vehicle_type,
+        vehicleType: courierData.vehicle_type as "car" | "motorcycle" | "bicycle",
         isAvailable: true,
         rating: courierData.rating || 0,
         completedDeliveries: courierData.deliveries || 0

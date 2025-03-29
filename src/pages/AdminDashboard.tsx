@@ -298,6 +298,7 @@ const CouriersTab = () => {
           
         if (!error && data) {
           setApplications(data);
+          localStorage.setItem('courierApplications', JSON.stringify(data));
         }
       } catch (error) {
         console.error("Error fetching applications:", error);
