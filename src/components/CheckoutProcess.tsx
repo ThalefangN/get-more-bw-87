@@ -1,500 +1,616 @@
 
 import { useState } from "react";
-import { useCart } from "@/contexts/CartContext";
-import { useCourier } from "@/contexts/CourierContext";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, CreditCard, Smartphone, X } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-
-type CheckoutStep = "courier" | "payment" | "details" | "confirmation" | "complete";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Truck, CreditCard, Check, Star, Clock, MapPin, Phone, User, Calendar, CreditCard as CardIcon } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface CheckoutProcessProps {
   onClose: () => void;
 }
 
-const CheckoutProcess = ({ onClose }: CheckoutProcessProps) => {
-  const { clearCart, totalPrice } = useCart();
-  const { getAvailableCouriers } = useCourier();
-  
-  const [currentStep, setCurrentStep] = useState<CheckoutStep>("courier");
-  const [selectedCourier, setSelectedCourier] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<string>("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showThankYou, setShowThankYou] = useState(false);
-  
-  // Form fields for mobile money payments
-  const [fullName, setFullName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [proofOfPayment, setProofOfPayment] = useState("");
-  
-  // Form fields for card payments
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvc, setCardCvc] = useState("");
-  const [cardName, setCardName] = useState("");
+const Couriers = [
+  {
+    id: 'courier-1',
+    name: 'Express Delivery',
+    eta: '30-45 min',
+    fee: 25,
+    rating: 4.8,
+    ratingsCount: 120,
+    image: 'https://ui-avatars.com/api/?name=Express&background=8B5CF6&color=fff'
+  },
+  {
+    id: 'courier-2',
+    name: 'Standard Delivery',
+    eta: '1-2 hours',
+    fee: 15,
+    rating: 4.5,
+    ratingsCount: 85,
+    image: 'https://ui-avatars.com/api/?name=Standard&background=0EA5E9&color=fff'
+  },
+  {
+    id: 'courier-3',
+    name: 'Economy Delivery',
+    eta: '2-3 hours',
+    fee: 10,
+    rating: 4.2,
+    ratingsCount: 65,
+    image: 'https://ui-avatars.com/api/?name=Economy&background=2DD4BF&color=fff'
+  }
+];
 
-  const availableCouriers = getAvailableCouriers();
+const PaymentMethods = [
+  {
+    id: 'card',
+    name: 'Debit/Credit Card',
+    icon: <CreditCard className="h-5 w-5" />,
+    description: 'Pay securely with your card'
+  },
+  {
+    id: 'orange',
+    name: 'Orange Money',
+    icon: <div className="h-5 w-5 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-xs">O</div>,
+    description: 'Pay using Orange Money'
+  },
+  {
+    id: 'myzaka',
+    name: 'MyZaka',
+    icon: <div className="h-5 w-5 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-xs">M</div>,
+    description: 'Pay using MyZaka'
+  },
+  {
+    id: 'smega',
+    name: 'Smega',
+    icon: <div className="h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs">S</div>,
+    description: 'Pay using Smega'
+  }
+];
+
+const CheckoutProcess = ({ onClose }: CheckoutProcessProps) => {
+  const { cartItems, totalPrice, clearCart } = useCart();
+  const { user } = useAuth();
   
-  const handleCourierSelect = (courierId: string) => {
-    setSelectedCourier(courierId);
+  const [step, setStep] = useState<'address' | 'courier' | 'payment' | 'confirmation' | 'success'>('address');
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  const [address, setAddress] = useState({
+    street: user?.address?.street || '',
+    city: user?.address?.city || '',
+    instructions: ''
+  });
+  
+  const [selectedCourier, setSelectedCourier] = useState<string | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  
+  const [cardDetails, setCardDetails] = useState({
+    cardNumber: '',
+    cardholderName: '',
+    expiryDate: '',
+    cvv: ''
+  });
+  
+  const [mobilePaymentDetails, setMobilePaymentDetails] = useState({
+    fullName: '',
+    phoneNumber: '',
+    reference: '',
+    proofOfPayment: ''
+  });
+  
+  const handleAddressSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!address.street || !address.city) {
+      toast.error("Please provide your delivery address");
+      return;
+    }
+    
+    setStep('courier');
   };
   
-  const handlePaymentMethodSelect = (method: string) => {
-    setPaymentMethod(method);
+  const handleCourierSelection = () => {
+    if (!selectedCourier) {
+      toast.error("Please select a delivery method");
+      return;
+    }
+    
+    setStep('payment');
   };
   
-  const handleNextStep = () => {
-    if (currentStep === "courier") {
-      if (!selectedCourier) {
-        toast.error("Please select a courier");
+  const handlePaymentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedPaymentMethod) {
+      toast.error("Please select a payment method");
+      return;
+    }
+    
+    if (selectedPaymentMethod === 'card') {
+      if (!cardDetails.cardNumber || !cardDetails.cardholderName || !cardDetails.expiryDate || !cardDetails.cvv) {
+        toast.error("Please fill in all card details");
         return;
       }
-      setCurrentStep("payment");
-    } else if (currentStep === "payment") {
-      if (!paymentMethod) {
-        toast.error("Please select a payment method");
+      
+      // Basic validation
+      if (cardDetails.cardNumber.length < 16) {
+        toast.error("Please enter a valid card number");
         return;
       }
-      
-      if (paymentMethod === "card") {
-        setCurrentStep("details");
-      } else {
-        // For mobile money options
-        setCurrentStep("details");
+    } else {
+      if (!mobilePaymentDetails.fullName || !mobilePaymentDetails.phoneNumber) {
+        toast.error("Please provide your name and phone number");
+        return;
       }
-    } else if (currentStep === "details") {
-      // Validate form based on payment method
-      if (paymentMethod === "card") {
-        if (!cardNumber || !cardExpiry || !cardCvc || !cardName) {
-          toast.error("Please fill in all card details");
-          return;
-        }
-        
-        if (cardNumber.length !== 16 || !/^\d+$/.test(cardNumber)) {
-          toast.error("Please enter a valid card number");
-          return;
-        }
-        
-        if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) {
-          toast.error("Please enter expiry in MM/YY format");
-          return;
-        }
-        
-        if (cardCvc.length !== 3 || !/^\d+$/.test(cardCvc)) {
-          toast.error("Please enter a valid CVC");
-          return;
-        }
-      } else {
-        // Validate mobile money payment details
-        if (!fullName || !phoneNumber || !proofOfPayment) {
-          toast.error("Please fill in all payment details");
-          return;
-        }
-        
-        if (!/^\d{8}$/.test(phoneNumber)) {
-          toast.error("Please enter a valid phone number (8 digits)");
-          return;
-        }
-      }
-      
-      setIsProcessing(true);
-      
-      // Simulate payment processing
-      setTimeout(() => {
-        setIsProcessing(false);
-        setCurrentStep("confirmation");
-      }, 2000);
-    } else if (currentStep === "confirmation") {
-      setShowThankYou(true);
+    }
+    
+    setStep('confirmation');
+  };
+  
+  const handleConfirmOrder = () => {
+    setIsProcessing(true);
+    
+    // Simulate order processing
+    setTimeout(() => {
+      setIsProcessing(false);
+      setStep('success');
       clearCart();
-      
-      // Close the thank you message after 5 seconds
-      setTimeout(() => {
-        setShowThankYou(false);
-        onClose();
-      }, 5000);
-    }
+    }, 2000);
   };
   
-  const getStepTitle = () => {
-    switch (currentStep) {
-      case "courier":
-        return "Select a Courier";
-      case "payment":
-        return "Choose Payment Method";
-      case "details":
-        return paymentMethod === "card" 
-          ? "Enter Card Details" 
-          : "Enter Payment Information";
-      case "confirmation":
-        return "Confirm Your Order";
-      default:
-        return "";
-    }
+  const selectedCourierData = selectedCourier ? Couriers.find(c => c.id === selectedCourier) : null;
+  const deliveryFee = selectedCourierData ? selectedCourierData.fee : 0;
+  const finalTotal = totalPrice + deliveryFee;
+  
+  const renderStepIndicator = () => {
+    return (
+      <div className="flex items-center justify-center mb-6">
+        <div className="flex items-center">
+          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${step === 'address' || step === 'courier' || step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-500'}`}>
+            1
+          </div>
+          <div className={`h-1 w-10 ${step === 'courier' || step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple' : 'bg-gray-200'}`}></div>
+          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${step === 'courier' || step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-500'}`}>
+            2
+          </div>
+          <div className={`h-1 w-10 ${step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple' : 'bg-gray-200'}`}></div>
+          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-500'}`}>
+            3
+          </div>
+          <div className={`h-1 w-10 ${step === 'confirmation' || step === 'success' ? 'bg-getmore-purple' : 'bg-gray-200'}`}></div>
+          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${step === 'confirmation' || step === 'success' ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-500'}`}>
+            4
+          </div>
+        </div>
+      </div>
+    );
   };
   
   return (
-    <div className="space-y-6 py-4">
-      <div className="flex items-center justify-between border-b pb-4">
-        <h2 className="text-xl font-semibold">{getStepTitle()}</h2>
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-          <X size={24} />
-        </button>
-      </div>
-      
-      {currentStep === "courier" && (
-        <div className="space-y-4">
-          {availableCouriers.length > 0 ? (
-            <RadioGroup value={selectedCourier} onValueChange={handleCourierSelect} className="space-y-2">
-              {availableCouriers.map((courier) => (
-                <div 
-                  key={courier.id}
-                  className={`flex items-center space-x-4 p-4 border rounded-lg cursor-pointer transition-colors ${
-                    selectedCourier === courier.id ? "border-getmore-purple bg-getmore-purple/5" : "border-gray-200 hover:border-getmore-purple/50"
-                  }`}
-                  onClick={() => handleCourierSelect(courier.id)}
-                >
-                  <RadioGroupItem value={courier.id} id={`courier-${courier.id}`} />
-                  <Label htmlFor={`courier-${courier.id}`} className="flex-1 cursor-pointer">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium">{courier.name}</p>
-                        <p className="text-sm text-gray-500">{courier.vehicleType}</p>
+    <div className="max-h-[80vh] overflow-auto">
+      {step !== 'success' && (
+        <div className="p-6">
+          {renderStepIndicator()}
+          
+          <h2 className="text-2xl font-bold mb-4 text-center">
+            {step === 'address' && 'Delivery Address'}
+            {step === 'courier' && 'Choose Delivery Method'}
+            {step === 'payment' && 'Payment Method'}
+            {step === 'confirmation' && 'Confirm Order'}
+          </h2>
+          
+          {step === 'address' && (
+            <form onSubmit={handleAddressSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="street" className="text-sm font-medium">Street Address</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3 text-gray-400" size={16} />
+                  <Input
+                    id="street"
+                    placeholder="Enter your street address"
+                    value={address.street}
+                    onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="city" className="text-sm font-medium">City</label>
+                <Input
+                  id="city"
+                  placeholder="Enter your city"
+                  value={address.city}
+                  onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="instructions" className="text-sm font-medium">Delivery Instructions (Optional)</label>
+                <Textarea
+                  id="instructions"
+                  placeholder="Apartment number, gate code, etc."
+                  value={address.instructions}
+                  onChange={(e) => setAddress({ ...address, instructions: e.target.value })}
+                  rows={3}
+                />
+              </div>
+              
+              <div className="flex justify-between pt-4">
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Continue
+                </Button>
+              </div>
+            </form>
+          )}
+          
+          {step === 'courier' && (
+            <div className="space-y-4">
+              <RadioGroup 
+                value={selectedCourier || ''} 
+                onValueChange={setSelectedCourier}
+                className="space-y-3"
+              >
+                {Couriers.map((courier) => (
+                  <div key={courier.id} className={`border rounded-lg p-4 cursor-pointer hover:border-getmore-purple transition-colors ${selectedCourier === courier.id ? 'border-getmore-purple bg-getmore-purple/5' : ''}`}>
+                    <RadioGroupItem value={courier.id} id={courier.id} className="sr-only" />
+                    <Label htmlFor={courier.id} className="flex items-start cursor-pointer">
+                      <div className="flex-shrink-0 mr-4">
+                        <img 
+                          src={courier.image} 
+                          alt={courier.name} 
+                          className="w-12 h-12 rounded-full"
+                        />
                       </div>
-                      <div className="flex items-center">
-                        <div className="flex items-center mr-4">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <svg 
-                              key={star} 
-                              className={`w-4 h-4 ${star <= courier.rating ? "text-yellow-500" : "text-gray-300"}`} 
-                              fill="currentColor" 
-                              viewBox="0 0 20 20"
-                            >
-                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118l-2.799-2.034c-.784-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                          ))}
+                      <div className="flex-1">
+                        <div className="flex justify-between">
+                          <h3 className="font-medium">{courier.name}</h3>
+                          <span className="font-semibold">P{courier.fee.toFixed(2)}</span>
                         </div>
-                        <span className="text-sm text-gray-500">
-                          {courier.completedDeliveries} deliveries
-                        </span>
+                        <div className="flex items-center text-sm text-gray-500 mt-1">
+                          <Clock size={14} className="mr-1" />
+                          <span>{courier.eta}</span>
+                        </div>
+                        <div className="flex items-center text-sm mt-1">
+                          <div className="flex items-center text-yellow-500">
+                            <Star size={14} className="fill-yellow-500" />
+                            <span className="ml-1 text-gray-700">{courier.rating}</span>
+                          </div>
+                          <span className="text-gray-500 text-xs ml-1">({courier.ratingsCount} ratings)</span>
+                        </div>
                       </div>
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+              
+              <div className="flex justify-between pt-4">
+                <Button type="button" variant="outline" onClick={() => setStep('address')}>
+                  Back
+                </Button>
+                <Button onClick={handleCourierSelection}>
+                  Continue
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {step === 'payment' && (
+            <div className="space-y-4">
+              <RadioGroup 
+                value={selectedPaymentMethod || ''} 
+                onValueChange={setSelectedPaymentMethod}
+                className="space-y-3 mb-6"
+              >
+                {PaymentMethods.map((method) => (
+                  <div key={method.id} className={`border rounded-lg p-4 cursor-pointer hover:border-getmore-purple transition-colors ${selectedPaymentMethod === method.id ? 'border-getmore-purple bg-getmore-purple/5' : ''}`}>
+                    <RadioGroupItem value={method.id} id={method.id} className="sr-only" />
+                    <Label htmlFor={method.id} className="flex items-center cursor-pointer">
+                      <div className="mr-3">
+                        {method.icon}
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{method.name}</h3>
+                        <p className="text-sm text-gray-500">{method.description}</p>
+                      </div>
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+              
+              {selectedPaymentMethod && (
+                <form onSubmit={handlePaymentSubmit}>
+                  {selectedPaymentMethod === 'card' && (
+                    <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
+                      <h3 className="font-medium">Card Details</h3>
+                      
+                      <div className="space-y-2">
+                        <label htmlFor="cardNumber" className="text-sm font-medium">Card Number</label>
+                        <div className="relative">
+                          <CardIcon className="absolute left-3 top-3 text-gray-400" size={16} />
+                          <Input
+                            id="cardNumber"
+                            placeholder="1234 5678 9012 3456"
+                            value={cardDetails.cardNumber}
+                            onChange={(e) => setCardDetails({ ...cardDetails, cardNumber: e.target.value })}
+                            className="pl-10"
+                            required
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label htmlFor="cardholderName" className="text-sm font-medium">Cardholder Name</label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-3 text-gray-400" size={16} />
+                          <Input
+                            id="cardholderName"
+                            placeholder="John Doe"
+                            value={cardDetails.cardholderName}
+                            onChange={(e) => setCardDetails({ ...cardDetails, cardholderName: e.target.value })}
+                            className="pl-10"
+                            required
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label htmlFor="expiryDate" className="text-sm font-medium">Expiry Date</label>
+                          <div className="relative">
+                            <Calendar className="absolute left-3 top-3 text-gray-400" size={16} />
+                            <Input
+                              id="expiryDate"
+                              placeholder="MM/YY"
+                              value={cardDetails.expiryDate}
+                              onChange={(e) => setCardDetails({ ...cardDetails, expiryDate: e.target.value })}
+                              className="pl-10"
+                              required
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label htmlFor="cvv" className="text-sm font-medium">CVV</label>
+                          <Input
+                            id="cvv"
+                            placeholder="123"
+                            value={cardDetails.cvv}
+                            onChange={(e) => setCardDetails({ ...cardDetails, cvv: e.target.value })}
+                            required
+                          />
+                        </div>
+                      </div>
+                      
+                      <Alert className="bg-blue-50 border-blue-100">
+                        <AlertDescription className="text-blue-700 text-xs">
+                          This is a demo. No real payment will be processed. You can enter any test data.
+                        </AlertDescription>
+                      </Alert>
                     </div>
-                  </Label>
+                  )}
+                  
+                  {(selectedPaymentMethod === 'orange' || selectedPaymentMethod === 'myzaka' || selectedPaymentMethod === 'smega') && (
+                    <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
+                      <h3 className="font-medium">
+                        {selectedPaymentMethod === 'orange' && 'Orange Money'}
+                        {selectedPaymentMethod === 'myzaka' && 'MyZaka'}
+                        {selectedPaymentMethod === 'smega' && 'Smega'}
+                        {' '}Payment
+                      </h3>
+                      
+                      <Tabs defaultValue="details">
+                        <TabsList className="w-full grid grid-cols-2">
+                          <TabsTrigger value="details">Your Details</TabsTrigger>
+                          <TabsTrigger value="instructions">Payment Instructions</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="details" className="space-y-4 pt-4">
+                          <div className="space-y-2">
+                            <label htmlFor="fullName" className="text-sm font-medium">Full Name</label>
+                            <div className="relative">
+                              <User className="absolute left-3 top-3 text-gray-400" size={16} />
+                              <Input
+                                id="fullName"
+                                placeholder="Enter your full name"
+                                value={mobilePaymentDetails.fullName}
+                                onChange={(e) => setMobilePaymentDetails({ ...mobilePaymentDetails, fullName: e.target.value })}
+                                className="pl-10"
+                                required
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <label htmlFor="phoneNumber" className="text-sm font-medium">Phone Number</label>
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-3 text-gray-400" size={16} />
+                              <Input
+                                id="phoneNumber"
+                                placeholder="e.g. +267 71234567"
+                                value={mobilePaymentDetails.phoneNumber}
+                                onChange={(e) => setMobilePaymentDetails({ ...mobilePaymentDetails, phoneNumber: e.target.value })}
+                                className="pl-10"
+                                required
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <label htmlFor="reference" className="text-sm font-medium">Reference Number (Optional)</label>
+                            <Input
+                              id="reference"
+                              placeholder="Enter payment reference"
+                              value={mobilePaymentDetails.reference}
+                              onChange={(e) => setMobilePaymentDetails({ ...mobilePaymentDetails, reference: e.target.value })}
+                            />
+                          </div>
+                        </TabsContent>
+                        
+                        <TabsContent value="instructions" className="space-y-4 pt-4">
+                          <div className="bg-blue-50 p-4 rounded-lg text-sm space-y-3">
+                            <h4 className="font-medium text-blue-800">Payment Instructions:</h4>
+                            <ol className="list-decimal list-inside space-y-1 text-blue-700">
+                              <li>Open your mobile money app</li>
+                              <li>Select "Pay" or "Send Money"</li>
+                              <li>Enter the merchant number: <span className="font-medium">71234567</span></li>
+                              <li>Enter amount: <span className="font-medium">P{finalTotal.toFixed(2)}</span></li>
+                              <li>Use reference: <span className="font-medium">GetMore</span></li>
+                              <li>Complete the payment in your app</li>
+                              <li>Enter your details in the form</li>
+                            </ol>
+                            <p className="text-xs text-blue-600 italic">For this demo, no actual payment is required.</p>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between pt-4 mt-4">
+                    <Button type="button" variant="outline" onClick={() => setStep('courier')}>
+                      Back
+                    </Button>
+                    <Button type="submit">
+                      Continue
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
+          
+          {step === 'confirmation' && (
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="border rounded-lg p-4 space-y-3">
+                  <h3 className="font-medium">Order Summary</h3>
+                  
+                  <div className="space-y-2">
+                    {cartItems.map((item) => (
+                      <div key={item.id} className="flex justify-between text-sm">
+                        <span>{item.quantity} × {item.name}</span>
+                        <span>P{(item.price * item.quantity).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Subtotal</span>
+                      <span>P{totalPrice.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Delivery Fee</span>
+                      <span>P{deliveryFee.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-medium mt-2">
+                      <span>Total</span>
+                      <span>P{finalTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </RadioGroup>
-          ) : (
-            <div className="text-center p-8 border border-dashed rounded-lg">
-              <p className="text-gray-500">No couriers are available at the moment.</p>
-              <p className="text-sm text-gray-400 mt-1">Please try again later.</p>
+                
+                <div className="border rounded-lg p-4 space-y-3">
+                  <h3 className="font-medium">Delivery Details</h3>
+                  
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-gray-500">Address:</span>
+                      <p>{address.street}, {address.city}</p>
+                      {address.instructions && (
+                        <p className="text-xs text-gray-500 mt-1">{address.instructions}</p>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <span className="text-gray-500">Delivery Method:</span>
+                      <p>{selectedCourierData?.name}</p>
+                      <p className="text-xs text-gray-500">{selectedCourierData?.eta}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border rounded-lg p-4 space-y-3">
+                  <h3 className="font-medium">Payment Method</h3>
+                  
+                  <div className="text-sm">
+                    <p>{PaymentMethods.find(m => m.id === selectedPaymentMethod)?.name}</p>
+                    {selectedPaymentMethod === 'card' && (
+                      <p className="text-gray-500">
+                        Card ending in {cardDetails.cardNumber.slice(-4)}
+                      </p>
+                    )}
+                    {(selectedPaymentMethod === 'orange' || selectedPaymentMethod === 'myzaka' || selectedPaymentMethod === 'smega') && (
+                      <p className="text-gray-500">
+                        Phone: {mobilePaymentDetails.phoneNumber}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-between pt-4">
+                <Button type="button" variant="outline" onClick={() => setStep('payment')}>
+                  Back
+                </Button>
+                <Button 
+                  onClick={handleConfirmOrder}
+                  disabled={isProcessing}
+                  className="min-w-[120px]"
+                >
+                  {isProcessing ? (
+                    <span className="flex items-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing...
+                    </span>
+                  ) : "Confirm Order"}
+                </Button>
+              </div>
             </div>
           )}
         </div>
       )}
       
-      {currentStep === "payment" && (
-        <div className="space-y-4">
-          <RadioGroup value={paymentMethod} onValueChange={handlePaymentMethodSelect} className="space-y-3">
-            <div 
-              className={`flex items-center space-x-4 p-4 border rounded-lg cursor-pointer transition-colors ${
-                paymentMethod === "card" ? "border-getmore-purple bg-getmore-purple/5" : "border-gray-200 hover:border-getmore-purple/50"
-              }`}
-              onClick={() => handlePaymentMethodSelect("card")}
-            >
-              <RadioGroupItem value="card" id="payment-card" />
-              <Label htmlFor="payment-card" className="flex-1 cursor-pointer">
-                <div className="flex items-center">
-                  <CreditCard className="mr-2 h-5 w-5 text-getmore-purple" />
-                  <span>Bank Card</span>
-                </div>
-              </Label>
-            </div>
-            
-            <div 
-              className={`flex items-center space-x-4 p-4 border rounded-lg cursor-pointer transition-colors ${
-                paymentMethod === "orange" ? "border-getmore-purple bg-getmore-purple/5" : "border-gray-200 hover:border-getmore-purple/50"
-              }`}
-              onClick={() => handlePaymentMethodSelect("orange")}
-            >
-              <RadioGroupItem value="orange" id="payment-orange" />
-              <Label htmlFor="payment-orange" className="flex-1 cursor-pointer">
-                <div className="flex items-center">
-                  <Smartphone className="mr-2 h-5 w-5 text-orange-500" />
-                  <span>Orange Money</span>
-                </div>
-              </Label>
-            </div>
-            
-            <div 
-              className={`flex items-center space-x-4 p-4 border rounded-lg cursor-pointer transition-colors ${
-                paymentMethod === "myzaka" ? "border-getmore-purple bg-getmore-purple/5" : "border-gray-200 hover:border-getmore-purple/50"
-              }`}
-              onClick={() => handlePaymentMethodSelect("myzaka")}
-            >
-              <RadioGroupItem value="myzaka" id="payment-myzaka" />
-              <Label htmlFor="payment-myzaka" className="flex-1 cursor-pointer">
-                <div className="flex items-center">
-                  <Smartphone className="mr-2 h-5 w-5 text-blue-500" />
-                  <span>MyZaka</span>
-                </div>
-              </Label>
-            </div>
-            
-            <div 
-              className={`flex items-center space-x-4 p-4 border rounded-lg cursor-pointer transition-colors ${
-                paymentMethod === "smega" ? "border-getmore-purple bg-getmore-purple/5" : "border-gray-200 hover:border-getmore-purple/50"
-              }`}
-              onClick={() => handlePaymentMethodSelect("smega")}
-            >
-              <RadioGroupItem value="smega" id="payment-smega" />
-              <Label htmlFor="payment-smega" className="flex-1 cursor-pointer">
-                <div className="flex items-center">
-                  <Smartphone className="mr-2 h-5 w-5 text-green-500" />
-                  <span>Smega</span>
-                </div>
-              </Label>
-            </div>
-          </RadioGroup>
-        </div>
-      )}
-      
-      {currentStep === "details" && paymentMethod === "card" && (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="card-name">Name on Card</Label>
-            <Input 
-              id="card-name" 
-              placeholder="John Smith" 
-              value={cardName}
-              onChange={(e) => setCardName(e.target.value)}
-            />
+      {step === 'success' && (
+        <div className="p-6 text-center h-full flex flex-col justify-center items-center space-y-6 py-12">
+          <div className="rounded-full bg-green-100 p-4 inline-flex">
+            <Check size={48} className="text-green-600" />
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="card-number">Card Number</Label>
-            <Input 
-              id="card-number" 
-              placeholder="4242 4242 4242 4242" 
-              value={cardNumber}
-              onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').slice(0, 16))}
-            />
+          <h2 className="text-2xl font-bold text-green-600">Order Placed Successfully!</h2>
+          
+          <p className="text-gray-700 max-w-md">
+            Thank you for shopping with GetMore BW. Your order has been received and will be processed shortly.
+          </p>
+          
+          <div className="bg-gray-50 p-4 rounded-lg w-full max-w-md">
+            <p className="text-sm text-gray-500 mb-2">Your order details:</p>
+            <p className="font-medium">Order #ORD-{Date.now().toString().substring(5, 13)}</p>
+            <p className="text-sm text-gray-700">
+              Estimated delivery time: {selectedCourierData?.eta}
+            </p>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="card-expiry">Expiry Date</Label>
-              <Input 
-                id="card-expiry" 
-                placeholder="MM/YY"
-                value={cardExpiry}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '');
-                  if (value.length <= 4) {
-                    if (value.length <= 2) {
-                      setCardExpiry(value);
-                    } else {
-                      setCardExpiry(`${value.slice(0, 2)}/${value.slice(2)}`);
-                    }
-                  }
-                }}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="card-cvc">CVC</Label>
-              <Input 
-                id="card-cvc" 
-                placeholder="123"
-                value={cardCvc}
-                onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 3))}
-              />
-            </div>
-          </div>
-          
-          <div className="text-xs text-gray-500 mt-4">
-            <p>This is a test payment. No actual charges will be made.</p>
-            <p>You can use any test card details for this demonstration.</p>
+          <div className="pt-6">
+            <Button onClick={onClose}>
+              Done
+            </Button>
           </div>
         </div>
       )}
-      
-      {currentStep === "details" && paymentMethod !== "card" && (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="full-name">Full Name</Label>
-            <Input 
-              id="full-name" 
-              placeholder="Your Full Name" 
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="phone-number">Phone Number</Label>
-            <Input 
-              id="phone-number" 
-              placeholder="71234567" 
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 8))}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="proof-of-payment">Proof of Payment Reference</Label>
-            <Input 
-              id="proof-of-payment" 
-              placeholder="Transaction Reference Number" 
-              value={proofOfPayment}
-              onChange={(e) => setProofOfPayment(e.target.value)}
-            />
-          </div>
-          
-          <div className="text-sm border-t pt-4 mt-4">
-            <p className="font-medium mb-2">Payment Instructions:</p>
-            {paymentMethod === "orange" && (
-              <ol className="list-decimal pl-5 space-y-1 text-gray-600">
-                <li>Dial *150# from your Orange registered number</li>
-                <li>Select "My Money" option</li>
-                <li>Choose "Send Money"</li>
-                <li>Send to 71234567</li>
-                <li>Enter amount: P{totalPrice.toFixed(2)}</li>
-                <li>Enter your PIN to confirm</li>
-                <li>Enter the transaction reference above</li>
-              </ol>
-            )}
-            
-            {paymentMethod === "myzaka" && (
-              <ol className="list-decimal pl-5 space-y-1 text-gray-600">
-                <li>Open your MyZaka app</li>
-                <li>Select "Send Money" option</li>
-                <li>Send to 71234567</li>
-                <li>Enter amount: P{totalPrice.toFixed(2)}</li>
-                <li>Add reference: "GetMore"</li>
-                <li>Confirm the payment</li>
-                <li>Enter the transaction reference above</li>
-              </ol>
-            )}
-            
-            {paymentMethod === "smega" && (
-              <ol className="list-decimal pl-5 space-y-1 text-gray-600">
-                <li>Dial *171# from your Smega registered number</li>
-                <li>Select "Send Money" option</li>
-                <li>Send to 71234567</li>
-                <li>Enter amount: P{totalPrice.toFixed(2)}</li>
-                <li>Enter your PIN to confirm</li>
-                <li>Enter the transaction reference above</li>
-              </ol>
-            )}
-          </div>
-        </div>
-      )}
-      
-      {currentStep === "confirmation" && (
-        <div className="space-y-4">
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200 flex items-start">
-            <Check className="text-green-500 mr-3 mt-0.5 h-5 w-5 flex-shrink-0" />
-            <div>
-              <h3 className="font-medium text-green-800">Payment Successful</h3>
-              <p className="text-green-600 text-sm">Your payment has been processed successfully.</p>
-            </div>
-          </div>
-          
-          <div className="border rounded-lg divide-y">
-            <div className="p-4">
-              <h3 className="font-medium mb-2">Order Summary</h3>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-500">Subtotal:</span>
-                <span>P{totalPrice.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-500">Delivery Fee:</span>
-                <span>P25.00</span>
-              </div>
-              <div className="flex justify-between font-medium mt-2 pt-2 border-t">
-                <span>Total:</span>
-                <span>P{(totalPrice + 25).toFixed(2)}</span>
-              </div>
-            </div>
-            
-            <div className="p-4">
-              <h3 className="font-medium mb-2">Delivery Details</h3>
-              <div className="text-sm">
-                <p><span className="text-gray-500">Courier:</span> {availableCouriers.find(c => c.id === selectedCourier)?.name}</p>
-                <p><span className="text-gray-500">Estimated Delivery:</span> Within 60 minutes</p>
-              </div>
-            </div>
-            
-            <div className="p-4">
-              <h3 className="font-medium mb-2">Payment Method</h3>
-              <div className="text-sm">
-                {paymentMethod === "card" && (
-                  <p><span className="text-gray-500">Bank Card:</span> **** **** **** {cardNumber.slice(-4)}</p>
-                )}
-                {paymentMethod !== "card" && (
-                  <p className="capitalize"><span className="text-gray-500">{paymentMethod}:</span> Confirmed</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      <div className="pt-4 border-t flex justify-end space-x-3">
-        {currentStep !== "courier" && currentStep !== "confirmation" && (
-          <Button
-            variant="outline"
-            onClick={() => setCurrentStep(currentStep === "payment" ? "courier" : "payment")}
-          >
-            Back
-          </Button>
-        )}
-        
-        <Button
-          onClick={handleNextStep}
-          disabled={isProcessing}
-          className={isProcessing ? "opacity-70 cursor-not-allowed" : ""}
-        >
-          {isProcessing ? (
-            <div className="flex items-center">
-              <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin mr-2"></div>
-              Processing...
-            </div>
-          ) : currentStep === "confirmation" ? (
-            "Complete Order"
-          ) : (
-            "Continue"
-          )}
-        </Button>
-      </div>
-      
-      {/* Thank You Dialog */}
-      <Dialog open={showThankYou} onOpenChange={setShowThankYou}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-center text-2xl">Thank You!</DialogTitle>
-            <DialogDescription className="text-center">
-              <div className="mt-6 mb-4 flex justify-center">
-                <div className="bg-green-100 text-green-700 rounded-full p-4">
-                  <Check className="h-12 w-12" />
-                </div>
-              </div>
-              <p className="text-lg">Your order has been placed successfully.</p>
-              <p className="text-sm text-gray-500 mt-2">
-                You'll receive a confirmation soon. Your items will be delivered shortly.
-              </p>
-              <div className="mt-6 animate-pulse text-getmore-purple font-medium">
-                Thanks for shopping with GetMore BW!
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

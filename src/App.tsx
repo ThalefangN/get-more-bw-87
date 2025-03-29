@@ -18,6 +18,9 @@ import StoreSignIn from "./pages/StoreSignIn";
 import StoreDashboard from "./pages/StoreDashboard";
 import CourierLogin from "./pages/CourierLogin";
 import CourierDashboard from "./pages/CourierDashboard";
+import AdminSignUp from "./pages/AdminSignUp";
+import AdminSignIn from "./pages/AdminSignIn";
+import AdminDashboard from "./pages/AdminDashboard";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 
@@ -45,6 +48,9 @@ const App = () => (
               <Route path="/store-dashboard/*" element={<StoreDashboard />} />
               <Route path="/courier-login" element={<CourierLogin />} />
               <Route path="/courier-dashboard/*" element={<CourierDashboard />} />
+              <Route path="/admin-signup" element={<AdminSignUp />} />
+              <Route path="/admin-signin" element={<AdminSignIn />} />
+              <Route path="/admin-dashboard/*" element={<AdminDashboard />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

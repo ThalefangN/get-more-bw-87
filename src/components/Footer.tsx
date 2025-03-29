@@ -53,6 +53,9 @@ const Footer = () => {
               <li>
                 <Link to="/courier-login" className="text-gray-400 hover:text-getmore-turquoise">Courier Login</Link>
               </li>
+              <li>
+                <Link to="/admin-signup" className="text-gray-400 hover:text-getmore-turquoise">Admin Portal</Link>
+              </li>
             </ul>
           </div>
           
