@@ -1,15 +1,15 @@
+
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Package, MapPin, User, CreditCard, LogOut, CheckCircle, Clock, PhoneCall, Mail, AlertTriangle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input as InputUI } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { useCourier, DeliveryRequest } from "@/contexts/CourierContext";
+import { useCourier } from "@/contexts/CourierContext";
+import { MapPin, Navigation, LogOut, Truck, Clock, CheckCircle, Package, Info, MessageSquare, PhoneCall, User, MapPinned, AlertCircle } from "lucide-react";
 
 const CourierDashboard = () => {
   const navigate = useNavigate();
@@ -29,6 +29,7 @@ const CourierDashboard = () => {
   const [location, setLocation] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   
+  // Check authentication
   useEffect(() => {
     if (!isAuthenticated) {
       navigate("/courier-login");
@@ -81,11 +82,6 @@ const CourierDashboard = () => {
     }
   };
   
-  const getTimeDisplay = (delivery: DeliveryRequest) => {
-    const date = delivery.acceptedAt || delivery.createdAt;
-    return new Date(date).toLocaleString();
-  };
-  
   if (!currentCourier) {
     return null;
   }
@@ -96,6 +92,7 @@ const CourierDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -134,6 +131,7 @@ const CourierDashboard = () => {
       
       <main className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 gap-6">
+          {/* Location Update */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center">
@@ -144,7 +142,7 @@ const CourierDashboard = () => {
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div className="sm:col-span-3">
-                  <InputUI
+                  <Input
                     placeholder="Enter your current area or location"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
@@ -167,6 +165,7 @@ const CourierDashboard = () => {
             </CardContent>
           </Card>
           
+          {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Card>
               <CardContent className="p-4">
@@ -214,6 +213,7 @@ const CourierDashboard = () => {
             </Card>
           </div>
           
+          {/* Deliveries */}
           <Tabs defaultValue="available">
             <TabsList className="grid grid-cols-3 mb-4">
               <TabsTrigger value="available">
@@ -265,7 +265,7 @@ const CourierDashboard = () => {
                           <div className="flex items-center">
                             <Clock size={16} className="mr-2 text-gray-500" />
                             <p className="text-sm text-gray-500">
-                              {getTimeDisplay(delivery)}
+                              {new Date(delivery.createdAt).toLocaleString()}
                             </p>
                           </div>
                         </div>
@@ -319,8 +319,8 @@ const CourierDashboard = () => {
                             <Clock size={16} className="mr-2 text-gray-500" />
                             <p className="text-sm text-gray-500">
                               {delivery.status === 'accepted' 
-                                ? `Accepted: ${getTimeDisplay(delivery)}`
-                                : `Picked up: ${getTimeDisplay(delivery)}`
+                                ? `Accepted: ${new Date(delivery.acceptedAt).toLocaleString()}`
+                                : `Picked up: ${new Date(delivery.pickedUpAt).toLocaleString()}`
                               }
                             </p>
                           </div>
@@ -398,8 +398,8 @@ const CourierDashboard = () => {
                             <Clock size={16} className="mr-2 text-gray-500" />
                             <p className="text-sm text-gray-500">
                               {delivery.status === 'delivered'
-                                ? `Delivered: ${getTimeDisplay(delivery)}`
-                                : `Cancelled: ${getTimeDisplay(delivery)}`
+                                ? `Delivered: ${new Date(delivery.deliveredAt).toLocaleString()}`
+                                : `Cancelled: ${new Date(delivery.updatedAt || delivery.createdAt).toLocaleString()}`
                               }
                             </p>
                           </div>
@@ -417,6 +417,7 @@ const CourierDashboard = () => {
   );
 };
 
+// We need to create a small Input component since this file doesn't import it from shadcn/ui
 const Input = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => {
   return (
     <input
