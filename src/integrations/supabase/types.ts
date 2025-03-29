@@ -9,7 +9,222 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      orders: {
+        Row: {
+          address: string
+          courier_assigned: string | null
+          created_at: string
+          customer_id: string
+          customer_name: string
+          id: string
+          items: Json
+          status: string
+          store_id: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          courier_assigned?: string | null
+          created_at?: string
+          customer_id: string
+          customer_name: string
+          id?: string
+          items: Json
+          status: string
+          store_id: string
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          courier_assigned?: string | null
+          created_at?: string
+          customer_id?: string
+          customer_name?: string
+          id?: string
+          items?: Json
+          status?: string
+          store_id?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          id: string
+          image: string
+          images: string[] | null
+          in_stock: boolean
+          name: string
+          price: number
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          id?: string
+          image: string
+          images?: string[] | null
+          in_stock?: boolean
+          name: string
+          price: number
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          image?: string
+          images?: string[] | null
+          in_stock?: boolean
+          name?: string
+          price?: number
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          city: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string | null
+          street: string | null
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          id: string
+          name?: string | null
+          street?: string | null
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          street?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      queries: {
+        Row: {
+          created_at: string
+          customer_id: string
+          customer_name: string
+          id: string
+          message: string
+          response: string | null
+          response_date: string | null
+          status: string
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          customer_name: string
+          id?: string
+          message: string
+          response?: string | null
+          response_date?: string | null
+          status: string
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          customer_name?: string
+          id?: string
+          message?: string
+          response?: string | null
+          response_date?: string | null
+          status?: string
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queries_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stores: {
+        Row: {
+          address: string
+          categories: string[]
+          created_at: string
+          description: string
+          email: string
+          id: string
+          logo: string | null
+          name: string
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          categories: string[]
+          created_at?: string
+          description: string
+          email: string
+          id?: string
+          logo?: string | null
+          name: string
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          categories?: string[]
+          created_at?: string
+          description?: string
+          email?: string
+          id?: string
+          logo?: string | null
+          name?: string
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

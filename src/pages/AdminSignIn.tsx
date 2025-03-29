@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Mail, Lock, Shield } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminSignIn = () => {
   const navigate = useNavigate();
@@ -34,27 +35,28 @@ const AdminSignIn = () => {
     setIsLoading(true);
     
     try {
-      // In a real app, this would validate against a backend
-      // For this demo, we'll just check if the admin exists in localStorage
-      const adminInfo = localStorage.getItem('adminInfo');
+      // Sign in with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      });
       
-      if (adminInfo) {
-        const admin = JSON.parse(adminInfo);
-        
-        // For demo purposes, we're just checking if the email matches
-        // In a real app, you would also verify the password
-        if (admin.email === formData.email) {
-          toast.success("Signed in successfully!");
-          navigate("/admin-dashboard");
-          return;
-        }
+      if (error) throw error;
+      
+      // Check if user has admin role
+      // In a real app, you would check for admin role in a user_roles table
+      // For this demo, let's assume that admins use a specific email domain
+      if (formData.email.endsWith('@admin.getmore.bw')) {
+        toast.success("Signed in as admin successfully!");
+        navigate("/admin-dashboard");
+      } else {
+        // If not admin, sign out and show error
+        await supabase.auth.signOut();
+        toast.error("This account does not have admin privileges");
       }
-      
-      // If we're here, authentication failed
-      toast.error("Invalid email or password");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error signing in:", error);
-      toast.error("Something went wrong. Please try again.");
+      toast.error(error.message || "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }

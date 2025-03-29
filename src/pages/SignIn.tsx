@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Mail, Lock, ArrowRight, User } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const SignIn = () => {
   const navigate = useNavigate();
@@ -24,37 +25,60 @@ const SignIn = () => {
     
     setIsLoading(true);
     
-    // Simulate authentication
-    setTimeout(() => {
-      // In a real app, this would call an authentication API
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
       toast.success("Sign in successful");
-      setIsLoading(false);
       navigate("/");
+    } catch (error: any) {
+      console.error("Error signing in:", error);
       
-      // Store user info in localStorage for demo purposes
-      localStorage.setItem("user", JSON.stringify({ email, name: email.split('@')[0] }));
-      
-      // Force reload to update UI with logged in state
-      window.location.reload();
-    }, 1500);
+      if (error.message.includes('Email not confirmed')) {
+        toast.error("Please confirm your email before signing in", {
+          description: "Check your inbox for a confirmation link",
+        });
+      } else if (error.message.includes('Invalid login credentials')) {
+        toast.error("Invalid email or password", {
+          description: "Please check your credentials and try again",
+        });
+      } else {
+        toast.error("Failed to sign in", {
+          description: error.message || "Please try again later",
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      toast.success("Google sign in successful");
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`
+        }
+      });
+      
+      if (error) throw error;
+      
+      // The redirect is handled by Supabase, no need to navigate here
+    } catch (error: any) {
+      console.error("Error with Google sign in:", error);
+      toast.error("Failed to sign in with Google", {
+        description: error.message || "Please try again later",
+      });
       setIsLoading(false);
-      navigate("/");
-      
-      // Store mock user info for demo
-      localStorage.setItem("user", JSON.stringify({ 
-        email: "user@gmail.com", 
-        name: "Google User"
-      }));
-      
-      // Force reload to update UI with logged in state
-      window.location.reload();
-    }, 1500);
+    }
   };
 
   return (
