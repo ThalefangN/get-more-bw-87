@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -35,7 +34,7 @@ const CourierPage = () => {
     
     try {
       // Submit the application to Supabase
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('courier_applications')
         .insert([
           {

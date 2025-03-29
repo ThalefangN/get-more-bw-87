@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,10 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useCourier } from "@/contexts/CourierContext";
-import { MapPin, Navigation, LogOut, Truck, Clock, CheckCircle, Package, Info, MessageSquare, PhoneCall, User, MapPinned, AlertCircle, Store } from "lucide-react";
+import { MapPin, Navigation, LogOut, Truck, Clock, CheckCircle, Package, Info, MessageSquare, PhoneCall, User, MapPinned, AlertCircle } from "lucide-react";
 
 const CourierDashboard = () => {
   const navigate = useNavigate();
@@ -29,6 +29,7 @@ const CourierDashboard = () => {
   const [location, setLocation] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   
+  // Check authentication
   useEffect(() => {
     if (!isAuthenticated) {
       navigate("/courier-login");
@@ -91,6 +92,7 @@ const CourierDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -129,6 +131,7 @@ const CourierDashboard = () => {
       
       <main className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 gap-6">
+          {/* Location Update */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center">
@@ -162,6 +165,7 @@ const CourierDashboard = () => {
             </CardContent>
           </Card>
           
+          {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Card>
               <CardContent className="p-4">
@@ -209,6 +213,7 @@ const CourierDashboard = () => {
             </Card>
           </div>
           
+          {/* Deliveries */}
           <Tabs defaultValue="available">
             <TabsList className="grid grid-cols-3 mb-4">
               <TabsTrigger value="available">
@@ -412,6 +417,7 @@ const CourierDashboard = () => {
   );
 };
 
+// We need to create a small Input component since this file doesn't import it from shadcn/ui
 const Input = ({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) => {
   return (
     <input

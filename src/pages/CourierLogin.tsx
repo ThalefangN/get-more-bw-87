@@ -56,66 +56,61 @@ const CourierLogin = () => {
         return;
       }
       
-      try {
-        // Check if courier exists in the database
-        const { data: courierData, error: courierError } = await supabase
-          .from('couriers')
-          .select('*')
-          .eq('email', formData.email)
-          .single();
-        
-        if (courierError || !courierData) {
-          // Fallback to localStorage
-          const storedCouriers = localStorage.getItem('couriers');
-          if (storedCouriers) {
-            const couriers = JSON.parse(storedCouriers);
-            const courier = couriers.find((c: any) => c.email === formData.email);
-            
-            if (courier) {
-              // Convert to expected format for CourierContext
-              const courierInfo = {
-                id: courier.id,
-                name: courier.name,
-                email: courier.email,
-                phone: courier.phone,
-                vehicleType: courier.vehicle_type || courier.vehicle,
-                isAvailable: true,
-                rating: courier.rating || 0,
-                completedDeliveries: courier.deliveries || 0
-              };
-              
-              login(courierInfo);
-              toast.success("Signed in successfully!");
-              navigate("/courier-dashboard");
-              return;
-            }
-          }
+      // Check if courier exists in the database
+      const { data: courierData, error: courierError } = await supabase
+        .from('couriers')
+        .select('*')
+        .eq('email', formData.email)
+        .single();
+      
+      if (courierError || !courierData) {
+        // Fallback to localStorage
+        const storedCouriers = localStorage.getItem('couriers');
+        if (storedCouriers) {
+          const couriers = JSON.parse(storedCouriers);
+          const courier = couriers.find((c: any) => c.email === formData.email);
           
-          // No courier found
-          await supabase.auth.signOut();
-          toast.error("Courier account not found. Please contact the administrator.");
-          return;
+          if (courier) {
+            // Convert to expected format for CourierContext
+            const courierInfo = {
+              id: courier.id,
+              name: courier.name,
+              email: courier.email,
+              phone: courier.phone,
+              vehicleType: courier.vehicle_type || courier.vehicle,
+              isAvailable: true,
+              rating: courier.rating || 0,
+              completedDeliveries: courier.deliveries || 0
+            };
+            
+            login(courierInfo);
+            toast.success("Signed in successfully!");
+            navigate("/courier-dashboard");
+            return;
+          }
         }
         
-        // Courier found in database
-        const courierInfo = {
-          id: courierData.id,
-          name: courierData.name,
-          email: courierData.email,
-          phone: courierData.phone,
-          vehicleType: courierData.vehicle_type,
-          isAvailable: true,
-          rating: courierData.rating || 0,
-          completedDeliveries: courierData.deliveries || 0
-        };
-        
-        login(courierInfo);
-        toast.success("Signed in successfully!");
-        navigate("/courier-dashboard");
-      } catch (fetchError: any) {
-        console.error("Error fetching courier data:", fetchError);
-        toast.error("Error verifying courier account. Please try again.");
+        // No courier found
+        await supabase.auth.signOut();
+        toast.error("Courier account not found. Please contact the administrator.");
+        return;
       }
+      
+      // Courier found in database
+      const courierInfo = {
+        id: courierData.id,
+        name: courierData.name,
+        email: courierData.email,
+        phone: courierData.phone,
+        vehicleType: courierData.vehicle_type,
+        isAvailable: true,
+        rating: courierData.rating || 0,
+        completedDeliveries: courierData.deliveries || 0
+      };
+      
+      login(courierInfo);
+      toast.success("Signed in successfully!");
+      navigate("/courier-dashboard");
     } catch (error: any) {
       console.error("Error signing in:", error);
       toast.error(error.message || "Failed to sign in. Please check your credentials.");
