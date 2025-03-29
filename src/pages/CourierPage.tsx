@@ -1,9 +1,9 @@
-
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Check, Bike, Clock, CreditCard, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const CourierPage = () => {
   const [formData, setFormData] = useState({
@@ -15,29 +15,78 @@ const CourierPage = () => {
     experience: "",
     heardFrom: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real application, this would submit the data to a backend
-    toast.success("Your application has been submitted! We'll contact you soon.", {
-      duration: 5000,
-    });
     
-    // Reset form
-    setFormData({
-      fullName: "",
-      email: "",
-      phone: "",
-      city: "",
-      hasVehicle: "",
-      experience: "",
-      heardFrom: "",
-    });
+    if (!formData.fullName || !formData.email || !formData.phone || !formData.city || !formData.hasVehicle) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Submit the application to Supabase
+      const { data, error } = await supabase
+        .from('courier_applications')
+        .insert([
+          {
+            full_name: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
+            city: formData.city,
+            vehicle_type: formData.hasVehicle,
+            experience: formData.experience,
+            heard_from: formData.heardFrom,
+            status: 'pending'
+          }
+        ]);
+        
+      if (error) throw error;
+      
+      // Store in localStorage as backup
+      const applications = JSON.parse(localStorage.getItem('courierApplications') || '[]');
+      applications.push({
+        id: `app-${Date.now()}`,
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        city: formData.city,
+        vehicle: formData.hasVehicle,
+        experience: formData.experience,
+        heardFrom: formData.heardFrom,
+        status: 'pending',
+        appliedAt: new Date().toISOString()
+      });
+      localStorage.setItem('courierApplications', JSON.stringify(applications));
+      
+      toast.success("Your application has been submitted! We'll contact you soon.", {
+        duration: 5000,
+      });
+      
+      // Reset form
+      setFormData({
+        fullName: "",
+        email: "",
+        phone: "",
+        city: "",
+        hasVehicle: "",
+        experience: "",
+        heardFrom: "",
+      });
+    } catch (error: any) {
+      console.error("Error submitting application:", error);
+      toast.error("Failed to submit application. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
