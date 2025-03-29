@@ -7,10 +7,11 @@ import ProductGrid from "@/components/ProductGrid";
 import HowItWorks from "@/components/HowItWorks";
 import Footer from "@/components/Footer";
 import Cart from "@/components/Cart";
-import { CartProvider } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
+  const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
     // Simulate loading data
@@ -38,19 +39,17 @@ const Index = () => {
   }
 
   return (
-    <CartProvider>
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <main className="flex-grow">
-          <Hero />
-          <Categories />
-          <ProductGrid />
-          <HowItWorks />
-        </main>
-        <Footer />
-        <Cart />
-      </div>
-    </CartProvider>
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      <main className="flex-grow">
+        <Hero />
+        <Categories />
+        <ProductGrid />
+        <HowItWorks />
+      </main>
+      <Footer />
+      <Cart />
+    </div>
   );
 };
 
