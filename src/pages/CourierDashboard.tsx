@@ -23,12 +23,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useCourier } from "@/contexts/CourierContext";
 
 const CourierDashboard = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { currentCourier, isAuthenticated } = useCourier();
+  
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
   const [courier, setCourier] = useState<any>(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [activeTab, setActiveTab] = useState("available");
@@ -38,10 +40,21 @@ const CourierDashboard = () => {
   const [storeCache, setStoreCache] = useState<Record<string, any>>({});
 
   useEffect(() => {
-    checkSession();
-    fetchAvailableOrders();
-    fetchMyDeliveries();
-  }, []);
+    if (!isAuthenticated && !currentCourier) {
+      navigate("/courier-login");
+      return;
+    }
+    
+    // Set courier from context if authenticated
+    if (isAuthenticated && currentCourier) {
+      setCourier(currentCourier);
+      setLoading(false);
+      fetchAvailableOrders();
+      fetchMyDeliveries();
+    } else {
+      checkSession();
+    }
+  }, [isAuthenticated, currentCourier, navigate]);
 
   const checkSession = async () => {
     try {
@@ -54,14 +67,12 @@ const CourierDashboard = () => {
         return;
       }
       
-      setUser(sessionData.session.user);
-      
       // Check if courier profile exists
       const { data: courierData, error: courierError } = await supabase
         .from('couriers')
         .select('*')
         .eq('email', sessionData.session.user.email)
-        .single();
+        .maybeSingle();
       
       if (courierError) {
         if (courierError.code === 'PGRST116') {
@@ -73,12 +84,22 @@ const CourierDashboard = () => {
         throw courierError;
       }
       
+      if (!courierData) {
+        toast.error("No courier account found");
+        await supabase.auth.signOut();
+        navigate("/courier-login");
+        return;
+      }
+      
       setCourier(courierData);
       setLoading(false);
+      
+      fetchAvailableOrders();
+      fetchMyDeliveries();
     } catch (error: any) {
       console.error("Session check error:", error);
-      toast.error(error.message);
-      setLoading(false);
+      toast.error(error.message || "Authentication error");
+      navigate("/courier-login");
     }
   };
 
@@ -155,7 +176,7 @@ const CourierDashboard = () => {
   };
 
   const handleAcceptOrder = async (order: any) => {
-    if (!user || !courier) return;
+    if (!courier) return;
     
     setIsAccepting(true);
     
@@ -163,7 +184,7 @@ const CourierDashboard = () => {
       const { error } = await supabase
         .from('orders')
         .update({
-          courier_assigned: user.email,
+          courier_assigned: courier.email,
           status: 'delivery_accepted'
         })
         .eq('id', order.id);
@@ -174,7 +195,7 @@ const CourierDashboard = () => {
       
       // Update local state
       setAvailableOrders(prev => prev.filter(o => o.id !== order.id));
-      setMyDeliveries(prev => [...prev, { ...order, courier_assigned: user.email, status: 'delivery_accepted' }]);
+      setMyDeliveries(prev => [...prev, { ...order, courier_assigned: courier.email, status: 'delivery_accepted' }]);
       
       setActiveTab("my-deliveries");
     } catch (error: any) {
@@ -224,6 +245,23 @@ const CourierDashboard = () => {
         <div className="text-center">
           <div className="animate-spin h-12 w-12 border-4 border-getmore-purple border-t-transparent rounded-full mx-auto mb-4"></div>
           <p className="text-gray-500">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!courier) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="bg-red-100 p-6 rounded-lg border border-red-300">
+            <AlertTriangle size={48} className="mx-auto text-red-500 mb-4" />
+            <h2 className="text-xl font-semibold text-red-700 mb-2">Account Error</h2>
+            <p className="text-gray-600 mb-4">Unable to load your courier profile. Please log in again.</p>
+            <Button onClick={() => navigate("/courier-login")}>
+              Back to Login
+            </Button>
+          </div>
         </div>
       </div>
     );
