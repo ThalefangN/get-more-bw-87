@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import ProductCard from "./ProductCard";
@@ -23,6 +22,7 @@ const ProductGrid = ({ showAllProducts = false }: ProductGridProps) => {
         let query = supabase
           .from('products')
           .select('*')
+          .eq('in_stock', true)
           .order('created_at', { ascending: false });
         
         // Limit products only if not showing all
@@ -68,6 +68,25 @@ const ProductGrid = ({ showAllProducts = false }: ProductGridProps) => {
     };
 
     fetchProducts();
+
+    // Set up real-time subscription for product updates
+    const channel = supabase
+      .channel('public:products')
+      .on('postgres_changes', {
+        event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+        schema: 'public',
+        table: 'products'
+      }, (payload) => {
+        console.log('Real-time product change:', payload);
+        // Refresh products when any change occurs
+        fetchProducts();
+      })
+      .subscribe();
+
+    // Clean up subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [showAllProducts]);
 
   const getSampleProducts = (): Product[] => {
