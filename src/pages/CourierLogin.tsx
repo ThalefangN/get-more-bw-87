@@ -45,7 +45,7 @@ const CourierLogin = () => {
       
       if (error) throw error;
       
-      // Verify this is a courier account created by admin
+      // Verify this is a courier account
       const user = data.user;
       const userRole = user?.user_metadata?.role;
       
@@ -53,6 +53,7 @@ const CourierLogin = () => {
         // Not a courier account
         await supabase.auth.signOut();
         toast.error("This account does not have courier access");
+        setIsLoading(false);
         return;
       }
       
@@ -64,7 +65,7 @@ const CourierLogin = () => {
         .single();
       
       if (courierError || !courierData) {
-        // Fallback to localStorage
+        // Try the fallback to localStorage
         const storedCouriers = localStorage.getItem('couriers');
         if (storedCouriers) {
           const couriers = JSON.parse(storedCouriers);
@@ -93,6 +94,7 @@ const CourierLogin = () => {
         // No courier found
         await supabase.auth.signOut();
         toast.error("Courier account not found. Please contact the administrator.");
+        setIsLoading(false);
         return;
       }
       

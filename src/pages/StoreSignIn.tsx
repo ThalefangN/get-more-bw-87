@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,9 +44,14 @@ const StoreSignIn = () => {
         .from('stores')
         .select('*')
         .eq('email', email)
-        .single();
+        .maybeSingle();
       
       if (storeError) {
+        await supabase.auth.signOut();
+        throw new Error("Error fetching store data");
+      }
+      
+      if (!storeData) {
         // If store doesn't exist, sign out and show error
         await supabase.auth.signOut();
         throw new Error("No store found with this email address");

@@ -9,6 +9,87 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      courier_applications: {
+        Row: {
+          applied_at: string | null
+          city: string
+          email: string
+          experience: string | null
+          full_name: string
+          heard_from: string | null
+          id: string
+          phone: string
+          status: string | null
+          vehicle_type: string
+        }
+        Insert: {
+          applied_at?: string | null
+          city: string
+          email: string
+          experience?: string | null
+          full_name: string
+          heard_from?: string | null
+          id?: string
+          phone: string
+          status?: string | null
+          vehicle_type: string
+        }
+        Update: {
+          applied_at?: string | null
+          city?: string
+          email?: string
+          experience?: string | null
+          full_name?: string
+          heard_from?: string | null
+          id?: string
+          phone?: string
+          status?: string | null
+          vehicle_type?: string
+        }
+        Relationships: []
+      }
+      couriers: {
+        Row: {
+          created_by_admin: boolean | null
+          deliveries: number | null
+          email: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string
+          rating: number | null
+          registered_at: string | null
+          status: string
+          vehicle_type: string
+        }
+        Insert: {
+          created_by_admin?: boolean | null
+          deliveries?: number | null
+          email: string
+          id?: string
+          name: string
+          notes?: string | null
+          phone: string
+          rating?: number | null
+          registered_at?: string | null
+          status?: string
+          vehicle_type: string
+        }
+        Update: {
+          created_by_admin?: boolean | null
+          deliveries?: number | null
+          email?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string
+          rating?: number | null
+          registered_at?: string | null
+          status?: string
+          vehicle_type?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           address: string
