@@ -20,7 +20,11 @@ const SignIn = () => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
       if (data.session) {
-        navigate("/");
+        // Don't automatically redirect courier users
+        const userRole = data.session.user?.user_metadata?.role;
+        if (userRole !== 'courier') {
+          navigate("/");
+        }
       }
     };
     checkSession();
