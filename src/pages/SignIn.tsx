@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,17 @@ const SignIn = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
+  // Check for existing session on mount to avoid unnecessary delays
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        navigate("/");
+      }
+    };
+    checkSession();
+  }, [navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -26,10 +37,18 @@ const SignIn = () => {
     setIsLoading(true);
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Add timeout to prevent hanging on network issues
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Sign in request timed out. Please try again.')), 10000)
+      );
+      
+      const authPromise = supabase.auth.signInWithPassword({
         email,
         password
       });
+      
+      // Race between auth and timeout
+      const { data, error } = await Promise.race([authPromise, timeoutPromise]) as any;
       
       if (error) {
         throw error;
@@ -40,7 +59,9 @@ const SignIn = () => {
     } catch (error: any) {
       console.error("Error signing in:", error);
       
-      if (error.message.includes('Email not confirmed')) {
+      if (error.message.includes('timeout')) {
+        toast.error(error.message);
+      } else if (error.message.includes('Email not confirmed')) {
         toast.error("Please confirm your email before signing in", {
           description: "Check your inbox for a confirmation link",
         });
