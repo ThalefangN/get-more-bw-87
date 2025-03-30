@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Courier, DeliveryRequest } from '@/types/courier';
@@ -8,6 +7,7 @@ import { mapOrderStatusToDeliveryStatus, formatCourierFromData } from '@/utils/c
 export const useCourierApi = (currentCourier: Courier | null) => {
   const [deliveryRequests, setDeliveryRequests] = useState<DeliveryRequest[]>([]);
   const [allCouriers, setAllCouriers] = useState<Courier[]>([]);
+  const [notificationsSent, setNotificationsSent] = useState<Record<string, boolean>>({});
 
   const fetchAllCouriers = async () => {
     try {
@@ -77,9 +77,12 @@ export const useCourierApi = (currentCourier: Courier | null) => {
           storeId: order.store_id,
           storeName: storeDetailsMap[order.store_id]?.name || 'Unknown Store',
           customerAddress: order.address,
+          customerName: order.customer_name || 'Customer',
+          customerContact: order.customer_contact || '',
           status: mapOrderStatusToDeliveryStatus(order.status),
           createdAt: new Date(order.created_at),
-          courierId: currentCourier.id
+          courierId: currentCourier.id,
+          items: order.items || []
         })),
         ...(pendingOrders || []).filter(order => !order.courier_assigned).map(order => ({
           id: order.id,
@@ -87,8 +90,11 @@ export const useCourierApi = (currentCourier: Courier | null) => {
           storeId: order.store_id,
           storeName: storeDetailsMap[order.store_id]?.name || 'Unknown Store',
           customerAddress: order.address,
+          customerName: order.customer_name || 'Customer',
+          customerContact: order.customer_contact || '',
           status: 'pending' as const,
-          createdAt: new Date(order.created_at)
+          createdAt: new Date(order.created_at),
+          items: order.items || []
         }))
       ];
       
@@ -122,6 +128,10 @@ export const useCourierApi = (currentCourier: Courier | null) => {
     const now = new Date();
     
     try {
+      // Find the order details
+      const orderToAccept = deliveryRequests.find(req => req.id === requestId);
+      if (!orderToAccept) throw new Error("Order not found");
+      
       // Update the order in Supabase
       const { error } = await supabase
         .from('orders')
@@ -144,6 +154,24 @@ export const useCourierApi = (currentCourier: Courier | null) => {
       );
       
       setDeliveryRequests(updatedRequests);
+      
+      // Send a notification to the customer about courier assignment
+      try {
+        // Store the notification in Supabase
+        await supabase.from('notifications').insert({
+          user_id: orderToAccept.customerId,
+          title: 'Delivery update',
+          message: `${currentCourier.name} has accepted your delivery and will pick up your order soon.`,
+          type: 'delivery_update',
+          order_id: requestId
+        });
+        
+        // Mark this notification as sent to avoid duplicates
+        setNotificationsSent(prev => ({...prev, [requestId]: true}));
+      } catch (notifError) {
+        console.error('Failed to send notification:', notifError);
+      }
+      
       toast.success('Delivery accepted');
       
     } catch (error) {
@@ -156,6 +184,9 @@ export const useCourierApi = (currentCourier: Courier | null) => {
     if (!currentCourier) return;
     
     try {
+      const orderToUpdate = deliveryRequests.find(req => req.id === requestId);
+      if (!orderToUpdate) throw new Error("Order not found");
+      
       // Update the order in Supabase
       const { error } = await supabase
         .from('orders')
@@ -182,7 +213,14 @@ export const useCourierApi = (currentCourier: Courier | null) => {
       
       setDeliveryRequests(updatedRequests);
       
-      if (status === 'delivered') {
+      // Send notification based on status
+      let notificationMessage = '';
+      
+      if (status === 'picked_up') {
+        notificationMessage = `${currentCourier.name} has picked up your order and is on the way to deliver it.`;
+      } else if (status === 'delivered') {
+        notificationMessage = `${currentCourier.name} has delivered your order. Thank you for using our service!`;
+        
         // Update courier's completed deliveries count
         if (currentCourier) {
           const updatedCourier = { 
@@ -195,6 +233,26 @@ export const useCourierApi = (currentCourier: Courier | null) => {
             .from('couriers')
             .update({ deliveries: updatedCourier.completedDeliveries })
             .eq('id', currentCourier.id);
+        }
+      } else if (status === 'cancelled') {
+        notificationMessage = `Your delivery has been cancelled by ${currentCourier.name}. Please contact support for assistance.`;
+      }
+      
+      // Send the notification if message exists and hasn't been sent yet
+      if (notificationMessage && !notificationsSent[`${requestId}_${status}`]) {
+        try {
+          await supabase.from('notifications').insert({
+            user_id: orderToUpdate.customerId,
+            title: 'Delivery update',
+            message: notificationMessage,
+            type: 'delivery_update',
+            order_id: requestId
+          });
+          
+          // Mark this notification as sent
+          setNotificationsSent(prev => ({...prev, [`${requestId}_${status}`]: true}));
+        } catch (notifError) {
+          console.error('Failed to send notification:', notifError);
         }
       }
       

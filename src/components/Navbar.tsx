@@ -1,137 +1,183 @@
-
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Menu, X, User, Search, LogOut } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import CartButton from "./CartButton";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Menu, X, LogOut, User, ShoppingBag } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import NotificationBell from "./NotificationBell";
 import { Button } from "@/components/ui/button";
 
 const Navbar = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, isAuthenticated, logout } = useAuth();
-  const navigate = useNavigate();
-  
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const location = useLocation();
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    // Close the mobile menu when the route changes
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
   return (
-    <header className="bg-white shadow-sm sticky top-0 z-30">
-      <div className="container-custom py-4">
-        <div className="flex justify-between items-center">
-          {/* Logo */}
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center">
-              <span className="text-2xl font-bold text-getmore-purple">Get</span>
-              <span className="text-2xl font-bold text-getmore-turquoise">More</span>
-              <span className="text-xl font-bold text-gray-700">BW</span>
+    <header className="bg-white shadow-sm">
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 bg-white z-50">
+          <div className="flex justify-between items-center p-4 border-b">
+            <Link to="/" className="font-bold text-xl">
+              <span className="text-getmore-purple">Get</span>
+              <span className="text-getmore-turquoise">More</span>
+              <span className="text-gray-800">BW</span>
             </Link>
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-2 text-gray-600"
+            >
+              <X size={24} />
+            </button>
           </div>
-          
-          {/* Search Bar - Hidden on mobile */}
-          <div className="hidden md:flex items-center relative flex-1 max-w-md mx-6">
-            <input 
-              type="text"
-              placeholder="Search for groceries, food, etc."
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-getmore-purple"
-            />
-            <Search className="absolute right-3 text-gray-400" size={20} />
-          </div>
-          
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
-            <Link to="/" className="text-gray-700 hover:text-getmore-purple">Home</Link>
-            <Link to="/categories" className="text-gray-700 hover:text-getmore-purple">Categories</Link>
-            <Link to="/how-it-works" className="text-gray-700 hover:text-getmore-purple">How it Works</Link>
-            
-            {isAuthenticated ? (
-              <div className="relative group">
-                <button className="flex items-center space-x-2 text-gray-700 hover:text-getmore-purple">
-                  <User size={24} />
-                  <span className="font-medium">{user?.name?.split(' ')[0]}</span>
-                </button>
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <button 
-                    onClick={logout}
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                  >
-                    <LogOut size={16} className="mr-2" />
-                    Sign out
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2">
-                <Link to="/sign-in">
-                  <Button variant="outline" className="border-getmore-purple text-getmore-purple hover:bg-getmore-purple hover:text-white">
-                    Sign in
-                  </Button>
+          <nav className="p-4">
+            <Link
+              to="/shop"
+              className="block py-2 text-gray-700 hover:text-getmore-purple"
+            >
+              Shop
+            </Link>
+            <Link
+              to="/categories"
+              className="block py-2 text-gray-700 hover:text-getmore-purple"
+            >
+              Categories
+            </Link>
+            <Link
+              to="/how-it-works"
+              className="block py-2 text-gray-700 hover:text-getmore-purple"
+            >
+              How it works
+            </Link>
+            <Link
+              to="/learn-more"
+              className="block py-2 text-gray-700 hover:text-getmore-purple"
+            >
+              Learn More
+            </Link>
+            {user && (
+              <>
+                <Link
+                  to="/profile"
+                  className="block py-2 text-gray-700 hover:text-getmore-purple"
+                >
+                  Profile
                 </Link>
-                <Link to="/sign-up">
-                  <Button className="bg-getmore-purple hover:bg-purple-700 text-white">
-                    Sign up
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-red-600 mt-6"
+                  onClick={signOut}
+                >
+                  <LogOut size={18} className="mr-2" />
+                  Sign Out
+                </Button>
+              </>
+            )}
+          </nav>
+        </div>
+      )}
+      
+      <div className="border-b">
+        <div className="container-custom flex items-center justify-between py-3">
+          <Link to="/" className="font-bold text-xl flex items-center">
+            <span className="text-getmore-purple">Get</span>
+            <span className="text-getmore-turquoise">More</span>
+            <span className="text-gray-800">BW</span>
+          </Link>
+
+          <nav className="hidden lg:flex items-center space-x-8">
+            <Link
+              to="/shop"
+              className="text-gray-600 hover:text-getmore-purple text-sm"
+            >
+              Shop
+            </Link>
+            <Link
+              to="/categories"
+              className="text-gray-600 hover:text-getmore-purple text-sm"
+            >
+              Categories
+            </Link>
+            <Link
+              to="/how-it-works"
+              className="text-gray-600 hover:text-getmore-purple text-sm"
+            >
+              How it works
+            </Link>
+            <Link
+              to="/learn-more"
+              className="text-gray-600 hover:text-getmore-purple text-sm"
+            >
+              Learn More
+            </Link>
+          </nav>
+
+          <div className="flex items-center">
+            <NotificationBell />
+            <CartButton />
+            
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=8B5CF6&color=fff`} alt={user?.name} />
+                      <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
+                    </Avatar>
                   </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuItem>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={signOut} className="cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sign Out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="ml-4 flex items-center space-x-2">
+                <Link
+                  to="/sign-in"
+                  className="text-gray-600 hover:text-getmore-purple text-sm"
+                >
+                  Sign In
+                </Link>
+                <span className="text-gray-300">|</span>
+                <Link
+                  to="/sign-up"
+                  className="text-gray-600 hover:text-getmore-purple text-sm"
+                >
+                  Sign Up
                 </Link>
               </div>
             )}
-            
-            <CartButton />
-          </nav>
-          
-          {/* Mobile menu button */}
-          <div className="flex md:hidden items-center space-x-4">
-            <CartButton />
+
             <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-gray-700"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="ml-2 lg:hidden text-gray-600"
             >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              <Menu size={24} />
             </button>
           </div>
         </div>
-        
-        {/* Mobile menu */}
-        {isMenuOpen && (
-          <div className="md:hidden pt-4 pb-2 animate-fade-in">
-            <div className="flex items-center relative mb-4">
-              <input 
-                type="text"
-                placeholder="Search for groceries, food, etc."
-                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-getmore-purple"
-              />
-              <Search className="absolute right-3 text-gray-400" size={20} />
-            </div>
-            <nav className="flex flex-col space-y-3">
-              <Link to="/" className="text-gray-700 py-2 px-3 rounded-md hover:bg-gray-100">Home</Link>
-              <Link to="/categories" className="text-gray-700 py-2 px-3 rounded-md hover:bg-gray-100">Categories</Link>
-              <Link to="/how-it-works" className="text-gray-700 py-2 px-3 rounded-md hover:bg-gray-100">How it Works</Link>
-              
-              {isAuthenticated ? (
-                <>
-                  <div className="border-t border-gray-200 my-2 pt-2"></div>
-                  <div className="flex items-center text-gray-700 py-2 px-3 rounded-md">
-                    <User size={20} className="mr-2" />
-                    <span>Hello, {user?.name?.split(' ')[0]}</span>
-                  </div>
-                  <button 
-                    onClick={logout}
-                    className="flex items-center text-gray-700 py-2 px-3 rounded-md hover:bg-gray-100"
-                  >
-                    <LogOut size={20} className="mr-2" />
-                    <span>Sign out</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className="border-t border-gray-200 my-2 pt-2"></div>
-                  <Link to="/sign-in" className="flex items-center text-gray-700 py-2 px-3 rounded-md hover:bg-gray-100">
-                    <User size={20} className="mr-2" />
-                    <span>Sign in</span>
-                  </Link>
-                  <Link to="/sign-up" className="bg-getmore-purple text-white py-2 px-3 rounded-md hover:bg-purple-700 text-center">
-                    Sign up
-                  </Link>
-                </>
-              )}
-            </nav>
-          </div>
-        )}
       </div>
     </header>
   );

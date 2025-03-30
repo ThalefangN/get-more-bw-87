@@ -17,12 +17,16 @@ export interface DeliveryRequest {
   storeId: string;
   storeName: string;
   customerAddress: string;
+  customerName: string;
+  customerContact?: string;
   status: 'pending' | 'accepted' | 'picked_up' | 'delivered' | 'cancelled';
   createdAt: Date;
   acceptedAt?: Date;
   pickedUpAt?: Date;
   deliveredAt?: Date;
   courierId?: string;
+  items?: any[];
+  customerId?: string;
 }
 
 export interface CourierContextType {
