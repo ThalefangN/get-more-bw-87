@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,45 @@ const CourierLogin = () => {
   
   const [isLoading, setIsLoading] = useState(false);
 
+  // Check for existing session on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        const userRole = data.session.user?.user_metadata?.role;
+        if (userRole === 'courier') {
+          // Check if courier exists in the database
+          try {
+            const { data: courierData } = await supabase
+              .from('couriers')
+              .select('*')
+              .eq('email', data.session.user.email)
+              .maybeSingle();
+              
+            if (courierData) {
+              const courierInfo = {
+                id: courierData.id,
+                name: courierData.name,
+                email: courierData.email,
+                phone: courierData.phone,
+                vehicleType: courierData.vehicle_type,
+                isAvailable: true,
+                rating: courierData.rating || 0,
+                completedDeliveries: courierData.deliveries || 0
+              };
+              
+              login(courierInfo);
+              navigate("/courier-dashboard");
+            }
+          } catch (error) {
+            console.error("Error checking courier data:", error);
+          }
+        }
+      }
+    };
+    checkSession();
+  }, [navigate, login]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -37,11 +76,18 @@ const CourierLogin = () => {
     setIsLoading(true);
     
     try {
-      // Sign in with Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Add timeout to prevent hanging on network issues
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Sign in request timed out. Please try again.')), 10000)
+      );
+      
+      const authPromise = supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password
       });
+      
+      // Race between auth and timeout
+      const { data, error } = await Promise.race([authPromise, timeoutPromise]) as any;
       
       if (error) throw error;
       
@@ -57,65 +103,85 @@ const CourierLogin = () => {
         return;
       }
       
-      // Check if courier exists in the database
-      const { data: courierData, error: courierError } = await supabase
+      // Check if courier exists in the database with timeout
+      const courierPromise = supabase
         .from('couriers')
         .select('*')
         .eq('email', formData.email)
         .single();
+        
+      const courierTimeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Courier data fetch timed out. Please try again.')), 5000)
+      );
       
-      if (courierError || !courierData) {
+      try {
+        const { data: courierData, error: courierError } = await Promise.race([courierPromise, courierTimeoutPromise]) as any;
+        
+        if (!courierError && courierData) {
+          // Courier found in database
+          const courierInfo = {
+            id: courierData.id,
+            name: courierData.name,
+            email: courierData.email,
+            phone: courierData.phone,
+            vehicleType: courierData.vehicle_type,
+            isAvailable: true,
+            rating: courierData.rating || 0,
+            completedDeliveries: courierData.deliveries || 0
+          };
+          
+          login(courierInfo);
+          toast.success("Signed in successfully!");
+          navigate("/courier-dashboard");
+          return;
+        }
+      } catch (courierError) {
+        console.error("Error fetching courier data:", courierError);
+        
         // Try the fallback to localStorage
         const storedCouriers = localStorage.getItem('couriers');
         if (storedCouriers) {
-          const couriers = JSON.parse(storedCouriers);
-          const courier = couriers.find((c: any) => c.email === formData.email);
-          
-          if (courier) {
-            // Convert to expected format for CourierContext
-            const courierInfo = {
-              id: courier.id,
-              name: courier.name,
-              email: courier.email,
-              phone: courier.phone,
-              vehicleType: courier.vehicle_type || courier.vehicle,
-              isAvailable: true,
-              rating: courier.rating || 0,
-              completedDeliveries: courier.deliveries || 0
-            };
+          try {
+            const couriers = JSON.parse(storedCouriers);
+            const courier = couriers.find((c: any) => c.email === formData.email);
             
-            login(courierInfo);
-            toast.success("Signed in successfully!");
-            navigate("/courier-dashboard");
-            return;
+            if (courier) {
+              // Convert to expected format for CourierContext
+              const courierInfo = {
+                id: courier.id,
+                name: courier.name,
+                email: courier.email,
+                phone: courier.phone,
+                vehicleType: courier.vehicle_type || courier.vehicle,
+                isAvailable: true,
+                rating: courier.rating || 0,
+                completedDeliveries: courier.deliveries || 0
+              };
+              
+              login(courierInfo);
+              toast.success("Signed in successfully!");
+              navigate("/courier-dashboard");
+              return;
+            }
+          } catch (parseError) {
+            console.error("Error parsing stored couriers:", parseError);
           }
         }
         
         // No courier found
         await supabase.auth.signOut();
         toast.error("Courier account not found. Please contact the administrator.");
-        setIsLoading(false);
-        return;
       }
-      
-      // Courier found in database
-      const courierInfo = {
-        id: courierData.id,
-        name: courierData.name,
-        email: courierData.email,
-        phone: courierData.phone,
-        vehicleType: courierData.vehicle_type,
-        isAvailable: true,
-        rating: courierData.rating || 0,
-        completedDeliveries: courierData.deliveries || 0
-      };
-      
-      login(courierInfo);
-      toast.success("Signed in successfully!");
-      navigate("/courier-dashboard");
     } catch (error: any) {
       console.error("Error signing in:", error);
-      toast.error(error.message || "Failed to sign in. Please check your credentials.");
+      
+      if (error.message.includes('timeout')) {
+        toast.error(error.message);
+      } else {
+        toast.error("Failed to sign in", {
+          description: error.message || "Please check your credentials and try again."
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -186,7 +252,7 @@ const CourierLogin = () => {
               
               <p className="text-center text-sm text-gray-600">
                 Don't have an account yet?{" "}
-                <Link to="/courier" className="text-getmore-purple hover:underline">
+                <Link to="/become-courier" className="text-getmore-purple hover:underline">
                   Apply to become a courier
                 </Link>
               </p>

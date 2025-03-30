@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,20 @@ const AdminSignIn = () => {
   
   const [isLoading, setIsLoading] = useState(false);
 
+  // Check for existing session on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        const userRole = data.session.user?.user_metadata?.role;
+        if (userRole === 'admin') {
+          navigate("/admin-dashboard");
+        }
+      }
+    };
+    checkSession();
+  }, [navigate]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -35,11 +49,18 @@ const AdminSignIn = () => {
     setIsLoading(true);
     
     try {
-      // Sign in with Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Add timeout to prevent hanging on network issues
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Sign in request timed out. Please try again.')), 10000)
+      );
+      
+      const authPromise = supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password
       });
+      
+      // Race between auth and timeout
+      const { data, error } = await Promise.race([authPromise, timeoutPromise]) as any;
       
       if (error) throw error;
       
@@ -57,7 +78,12 @@ const AdminSignIn = () => {
       }
     } catch (error: any) {
       console.error("Error signing in:", error);
-      toast.error(error.message || "Something went wrong. Please try again.");
+      
+      if (error.message.includes('timeout')) {
+        toast.error(error.message);
+      } else {
+        toast.error(error.message || "Something went wrong. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
