@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +40,12 @@ interface DeliveryRequest {
   created_at: string;
   updated_at: string;
   courier_assigned?: string;
+}
+
+interface Store {
+  id: string;
+  name: string;
+  // Add other store properties as needed
 }
 
 const CourierDashboard = () => {
