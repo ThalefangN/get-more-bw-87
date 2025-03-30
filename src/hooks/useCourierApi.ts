@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Courier, DeliveryRequest } from '@/types/courier';
@@ -70,35 +71,38 @@ export const useCourierApi = (currentCourier: Courier | null) => {
       }
       
       // Format delivery requests with correct status type
-      const formatted: DeliveryRequest[] = [
-        ...(assignedOrders || []).map(order => ({
+      const formattedAssigned = (assignedOrders || []).map(order => ({
+        id: order.id,
+        orderId: order.id,
+        storeId: order.store_id,
+        storeName: storeDetailsMap[order.store_id]?.name || 'Unknown Store',
+        customerAddress: order.address,
+        customerName: order.customer_name || 'Customer',
+        customerContact: order.customer_contact || '',
+        status: mapOrderStatusToDeliveryStatus(order.status),
+        createdAt: new Date(order.created_at),
+        courierId: currentCourier.id,
+        items: order.items || [],
+        customerId: order.customer_id
+      }));
+      
+      const formattedPending = (pendingOrders || [])
+        .filter(order => !order.courier_assigned)
+        .map(order => ({
           id: order.id,
           orderId: order.id,
           storeId: order.store_id,
           storeName: storeDetailsMap[order.store_id]?.name || 'Unknown Store',
           customerAddress: order.address,
           customerName: order.customer_name || 'Customer',
-          customerContact: order.customer_contact || '',
-          status: mapOrderStatusToDeliveryStatus(order.status),
-          createdAt: new Date(order.created_at),
-          courierId: currentCourier.id,
-          items: order.items || []
-        })),
-        ...(pendingOrders || []).filter(order => !order.courier_assigned).map(order => ({
-          id: order.id,
-          orderId: order.id,
-          storeId: order.store_id,
-          storeName: storeDetailsMap[order.store_id]?.name || 'Unknown Store',
-          customerAddress: order.address,
-          customerName: order.customer_name || 'Customer',
-          customerContact: order.customer_contact || '',
+          customerContact: '',
           status: 'pending' as const,
           createdAt: new Date(order.created_at),
-          items: order.items || []
-        }))
-      ];
+          items: order.items || [],
+          customerId: order.customer_id
+        }));
       
-      setDeliveryRequests(formatted);
+      setDeliveryRequests([...formattedAssigned, ...formattedPending]);
       
     } catch (error) {
       console.error('Failed to fetch deliveries:', error);
@@ -156,20 +160,28 @@ export const useCourierApi = (currentCourier: Courier | null) => {
       setDeliveryRequests(updatedRequests);
       
       // Send a notification to the customer about courier assignment
-      try {
-        // Store the notification in Supabase
-        await supabase.from('notifications').insert({
-          user_id: orderToAccept.customerId,
-          title: 'Delivery update',
-          message: `${currentCourier.name} has accepted your delivery and will pick up your order soon.`,
-          type: 'delivery_update',
-          order_id: requestId
-        });
-        
-        // Mark this notification as sent to avoid duplicates
-        setNotificationsSent(prev => ({...prev, [requestId]: true}));
-      } catch (notifError) {
-        console.error('Failed to send notification:', notifError);
+      if (orderToAccept.customerId) {
+        try {
+          // Store the notification in Supabase
+          const { error: notificationError } = await supabase
+            .from('notifications')
+            .insert({
+              user_id: orderToAccept.customerId,
+              title: 'Delivery update',
+              message: `${currentCourier.name} has accepted your delivery and will pick up your order soon.`,
+              type: 'delivery_update',
+              order_id: requestId
+            });
+            
+          if (notificationError) {
+            console.error('Failed to send notification:', notificationError);
+          } else {
+            // Mark this notification as sent to avoid duplicates
+            setNotificationsSent(prev => ({...prev, [requestId]: true}));
+          }
+        } catch (notifError) {
+          console.error('Failed to send notification:', notifError);
+        }
       }
       
       toast.success('Delivery accepted');
@@ -213,46 +225,52 @@ export const useCourierApi = (currentCourier: Courier | null) => {
       
       setDeliveryRequests(updatedRequests);
       
-      // Send notification based on status
-      let notificationMessage = '';
-      
-      if (status === 'picked_up') {
-        notificationMessage = `${currentCourier.name} has picked up your order and is on the way to deliver it.`;
-      } else if (status === 'delivered') {
-        notificationMessage = `${currentCourier.name} has delivered your order. Thank you for using our service!`;
+      // Send notification based on status if we have a customer ID
+      if (orderToUpdate.customerId) {
+        let notificationMessage = '';
         
-        // Update courier's completed deliveries count
-        if (currentCourier) {
-          const updatedCourier = { 
-            ...currentCourier, 
-            completedDeliveries: (currentCourier.completedDeliveries || 0) + 1 
-          };
+        if (status === 'picked_up') {
+          notificationMessage = `${currentCourier.name} has picked up your order and is on the way to deliver it.`;
+        } else if (status === 'delivered') {
+          notificationMessage = `${currentCourier.name} has delivered your order. Thank you for using our service!`;
           
-          // Update in database
-          await supabase
-            .from('couriers')
-            .update({ deliveries: updatedCourier.completedDeliveries })
-            .eq('id', currentCourier.id);
+          // Update courier's completed deliveries count
+          if (currentCourier) {
+            const updatedCourier = { 
+              ...currentCourier, 
+              completedDeliveries: (currentCourier.completedDeliveries || 0) + 1 
+            };
+            
+            // Update in database
+            await supabase
+              .from('couriers')
+              .update({ deliveries: updatedCourier.completedDeliveries })
+              .eq('id', currentCourier.id);
+          }
+        } else if (status === 'cancelled') {
+          notificationMessage = `Your delivery has been cancelled by ${currentCourier.name}. Please contact support for assistance.`;
         }
-      } else if (status === 'cancelled') {
-        notificationMessage = `Your delivery has been cancelled by ${currentCourier.name}. Please contact support for assistance.`;
-      }
-      
-      // Send the notification if message exists and hasn't been sent yet
-      if (notificationMessage && !notificationsSent[`${requestId}_${status}`]) {
-        try {
-          await supabase.from('notifications').insert({
-            user_id: orderToUpdate.customerId,
-            title: 'Delivery update',
-            message: notificationMessage,
-            type: 'delivery_update',
-            order_id: requestId
-          });
-          
-          // Mark this notification as sent
-          setNotificationsSent(prev => ({...prev, [`${requestId}_${status}`]: true}));
-        } catch (notifError) {
-          console.error('Failed to send notification:', notifError);
+        
+        // Send the notification if message exists and hasn't been sent yet
+        if (notificationMessage && !notificationsSent[`${requestId}_${status}`]) {
+          try {
+            const { error: notificationError } = await supabase
+              .from('notifications')
+              .insert({
+                user_id: orderToUpdate.customerId,
+                title: 'Delivery update',
+                message: notificationMessage,
+                type: 'delivery_update',
+                order_id: requestId
+              });
+              
+            if (!notificationError) {
+              // Mark this notification as sent
+              setNotificationsSent(prev => ({...prev, [`${requestId}_${status}`]: true}));
+            }
+          } catch (notifError) {
+            console.error('Failed to send notification:', notifError);
+          }
         }
       }
       

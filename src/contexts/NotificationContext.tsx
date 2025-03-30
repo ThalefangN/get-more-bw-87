@@ -15,7 +15,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const fetchNotifications = async () => {
-    if (!user) return;
+    if (!user?.id) return;
     
     try {
       const { data, error } = await supabase
@@ -35,7 +35,8 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
           read: item.read,
           createdAt: new Date(item.created_at),
           orderId: item.order_id,
-          userId: item.user_id
+          userId: item.user_id,
+          data: item.data
         }));
         
         setNotifications(formattedNotifications);
@@ -46,11 +47,14 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const markAsRead = async (notificationId: string) => {
+    if (!user?.id) return;
+    
     try {
       const { error } = await supabase
         .from('notifications')
         .update({ read: true })
-        .eq('id', notificationId);
+        .eq('id', notificationId)
+        .eq('user_id', user.id);
       
       if (error) throw error;
       
@@ -69,7 +73,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const markAllAsRead = async () => {
-    if (!user || notifications.length === 0) return;
+    if (!user?.id || notifications.length === 0) return;
     
     try {
       const { error } = await supabase
@@ -94,7 +98,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
   // Set up real-time subscription for new notifications
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
     
     fetchNotifications();
     

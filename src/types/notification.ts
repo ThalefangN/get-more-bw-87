@@ -8,6 +8,7 @@ export interface Notification {
   createdAt: Date;
   orderId?: string;
   userId: string;
+  data?: any;
 }
 
 export interface NotificationContextType {
