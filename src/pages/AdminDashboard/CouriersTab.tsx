@@ -78,6 +78,16 @@ const CouriersTab = () => {
     }
   };
 
+  // Generate a random password
+  const generateRandomPassword = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
+    let password = "";
+    for (let i = 0; i < 10; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
   const handleCreateCourier = async () => {
     if (!newCourier.name || !newCourier.email || !newCourier.phone || !newCourier.password) {
       toast.error("Please fill in all required fields");
@@ -160,7 +170,8 @@ const CouriersTab = () => {
     setIsLoading(true);
     
     try {
-      const tempPassword = Math.random().toString(36).slice(-8);
+      // Generate a random password for the courier
+      const tempPassword = generateRandomPassword();
       
       // First create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -168,10 +179,10 @@ const CouriersTab = () => {
         password: tempPassword,
         options: {
           data: {
-            name: selectedApplication.full_name || selectedApplication.fullName,
+            name: selectedApplication.full_name,
             role: "courier",
             phone: selectedApplication.phone,
-            vehicle: selectedApplication.vehicle_type || selectedApplication.vehicle
+            vehicle: selectedApplication.vehicle_type
           }
         }
       });
@@ -181,10 +192,10 @@ const CouriersTab = () => {
       // Then insert into couriers table
       const courier = {
         id: authData.user?.id || `courier-${Date.now()}`,
-        name: selectedApplication.full_name || selectedApplication.fullName,
+        name: selectedApplication.full_name,
         email: selectedApplication.email,
         phone: selectedApplication.phone,
-        vehicle_type: selectedApplication.vehicle_type || selectedApplication.vehicle,
+        vehicle_type: selectedApplication.vehicle_type,
         notes: `Application approved from ${selectedApplication.city}. Experience: ${selectedApplication.experience || "N/A"}`,
         status: "active",
         rating: 0,
@@ -367,13 +378,13 @@ const CouriersTab = () => {
                   {applications.map((app) => (
                     <TableRow key={app.id}>
                       <TableCell className="font-medium">
-                        {app.full_name || app.fullName}
+                        {app.full_name}
                       </TableCell>
                       <TableCell>
                         <div>{app.email}</div>
                         <div className="text-gray-500">{app.phone}</div>
                       </TableCell>
-                      <TableCell>{app.vehicle_type || app.vehicle}</TableCell>
+                      <TableCell>{app.vehicle_type}</TableCell>
                       <TableCell>{app.city}</TableCell>
                       <TableCell>
                         <Badge className={
@@ -478,15 +489,27 @@ const CouriersTab = () => {
               <label htmlFor="password" className="text-sm font-medium">
                 Password *
               </label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                value={newCourier.password}
-                onChange={handleInputChange}
-                placeholder="Create a password"
-                required
-              />
+              <div className="flex space-x-2">
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  value={newCourier.password}
+                  onChange={handleInputChange}
+                  placeholder="Create a password"
+                  required
+                  className="flex-1"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => {
+                    setNewCourier({...newCourier, password: generateRandomPassword()});
+                  }}
+                >
+                  Generate
+                </Button>
+              </div>
             </div>
             
             <div className="space-y-2">
@@ -548,7 +571,7 @@ const CouriersTab = () => {
               <div className="bg-gray-50 p-4 rounded-md space-y-3 border">
                 <div>
                   <label className="text-sm text-gray-500">Applicant Name:</label>
-                  <p className="font-medium">{selectedApplication.full_name || selectedApplication.fullName}</p>
+                  <p className="font-medium">{selectedApplication.full_name}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-500">Email:</label>
@@ -564,7 +587,7 @@ const CouriersTab = () => {
                 </div>
                 <div>
                   <label className="text-sm text-gray-500">Vehicle:</label>
-                  <p className="font-medium">{selectedApplication.vehicle_type || selectedApplication.vehicle}</p>
+                  <p className="font-medium">{selectedApplication.vehicle_type}</p>
                 </div>
                 {selectedApplication.experience && (
                   <div>
@@ -575,7 +598,7 @@ const CouriersTab = () => {
               </div>
               
               <p className="text-sm text-gray-600">
-                Approving this application will create a courier account with a temporary password that you can share with the courier.
+                Approving this application will create a courier account with a randomly generated password that you can share with the courier.
               </p>
             </div>
           )}
