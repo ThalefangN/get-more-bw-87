@@ -252,7 +252,7 @@ const CourierLogin = () => {
               
               <p className="text-center text-sm text-gray-600">
                 Don't have an account yet?{" "}
-                <Link to="/courier" className="text-getmore-purple hover:underline">
+                <Link to="/become-courier" className="text-getmore-purple hover:underline">
                   Apply to become a courier
                 </Link>
               </p>

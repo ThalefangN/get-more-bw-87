@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,6 +65,7 @@ const CouriersTab = () => {
   
   const fetchApplications = async () => {
     try {
+      // Try to get from Supabase first
       const { data, error } = await supabase
         .from('courier_applications')
         .select('*');
@@ -71,9 +73,20 @@ const CouriersTab = () => {
       if (!error && data) {
         setApplications(data);
         localStorage.setItem('courierApplications', JSON.stringify(data));
+      } else {
+        // Fallback to localStorage
+        const storedApplications = localStorage.getItem('courierApplications');
+        if (storedApplications) {
+          setApplications(JSON.parse(storedApplications));
+        }
       }
     } catch (error) {
       console.error("Error fetching applications:", error);
+      // Fallback to localStorage
+      const storedApplications = localStorage.getItem('courierApplications');
+      if (storedApplications) {
+        setApplications(JSON.parse(storedApplications));
+      }
     }
   };
 
@@ -95,23 +108,11 @@ const CouriersTab = () => {
     setIsLoading(true);
     
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newCourier.email,
-        password: newCourier.password,
-        options: {
-          data: {
-            name: newCourier.name,
-            role: "courier",
-            phone: newCourier.phone,
-            vehicle: newCourier.vehicle
-          }
-        }
-      });
-      
-      if (authError) throw authError;
+      // Save to localStorage first as a fallback
+      const id = `courier-${Date.now()}`;
       
       const courier = {
-        id: authData.user?.id || `courier-${Date.now()}`,
+        id: id,
         name: newCourier.name,
         email: newCourier.email,
         phone: newCourier.phone,
@@ -125,12 +126,39 @@ const CouriersTab = () => {
         password: newCourier.password
       };
       
+      // First try to create the Supabase auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: newCourier.email,
+        password: newCourier.password,
+        options: {
+          data: {
+            name: newCourier.name,
+            role: "courier",
+            phone: newCourier.phone,
+            vehicle: newCourier.vehicle
+          }
+        }
+      });
+      
+      if (authError) {
+        throw authError;
+      }
+      
+      // If auth user creation succeeded, update the ID to use the Supabase user ID
+      if (authData.user?.id) {
+        courier.id = authData.user.id;
+      }
+      
+      // Then insert the courier record into the database
       const { error: dbError } = await supabase
         .from('couriers')
         .insert([courier]);
         
-      if (dbError) throw dbError;
+      if (dbError) {
+        throw dbError;
+      }
 
+      // Update the local state
       const updatedCouriers = [...couriers, courier];
       setCouriers(updatedCouriers);
       localStorage.setItem('couriers', JSON.stringify(updatedCouriers));
@@ -147,6 +175,7 @@ const CouriersTab = () => {
       setIsCreateDialogOpen(false);
       toast.success("Courier account created successfully");
       
+      // Show the credentials dialog
       setSelectedCourier(courier);
       setIsShareDialogOpen(true);
     } catch (error: any) {
@@ -163,25 +192,12 @@ const CouriersTab = () => {
     setIsLoading(true);
     
     try {
+      // Generate a temporary password
       const tempPassword = generateRandomPassword();
       
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: selectedApplication.email,
-        password: tempPassword,
-        options: {
-          data: {
-            name: selectedApplication.full_name || selectedApplication.fullName,
-            role: "courier",
-            phone: selectedApplication.phone,
-            vehicle: selectedApplication.vehicle_type || selectedApplication.vehicle
-          }
-        }
-      });
-      
-      if (authError) throw authError;
-      
+      // Prepare courier object
       const courier = {
-        id: authData.user?.id || `courier-${Date.now()}`,
+        id: `courier-${Date.now()}`,
         name: selectedApplication.full_name || selectedApplication.fullName,
         email: selectedApplication.email,
         phone: selectedApplication.phone,
@@ -195,25 +211,59 @@ const CouriersTab = () => {
         password: tempPassword
       };
       
+      // First create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: selectedApplication.email,
+        password: tempPassword,
+        options: {
+          data: {
+            name: selectedApplication.full_name || selectedApplication.fullName,
+            role: "courier",
+            phone: selectedApplication.phone,
+            vehicle: selectedApplication.vehicle_type || selectedApplication.vehicle
+          }
+        }
+      });
+      
+      if (authError) {
+        throw authError;
+      }
+      
+      // If auth user creation succeeded, update the ID to use the Supabase user ID
+      if (authData.user?.id) {
+        courier.id = authData.user.id;
+      }
+      
+      // Then insert the courier record into the database
       const { error: dbError } = await supabase
         .from('couriers')
         .insert([courier]);
         
-      if (dbError) throw dbError;
-      
-      if (selectedApplication.id && !selectedApplication.id.toString().startsWith('app-')) {
-        await supabase
-          .from('courier_applications')
-          .update({ status: 'approved' })
-          .eq('id', selectedApplication.id);
+      if (dbError) {
+        throw dbError;
       }
-          
+      
+      // Update application status
+      try {
+        // Update in Supabase if possible
+        if (selectedApplication.id && !selectedApplication.id.toString().startsWith('app-')) {
+          await supabase
+            .from('courier_applications')
+            .update({ status: 'approved' })
+            .eq('id', selectedApplication.id);
+        }
+      } catch (updateError) {
+        console.error("Error updating application status:", updateError);
+      }
+      
+      // Update application in local state
       const updatedApplications = applications.map(app => 
         app.id === selectedApplication.id ? { ...app, status: 'approved' } : app
       );
       setApplications(updatedApplications);
       localStorage.setItem('courierApplications', JSON.stringify(updatedApplications));
 
+      // Update couriers list
       const updatedCouriers = [...couriers, courier];
       setCouriers(updatedCouriers);
       localStorage.setItem('couriers', JSON.stringify(updatedCouriers));
@@ -221,6 +271,7 @@ const CouriersTab = () => {
       setIsApproveDialogOpen(false);
       toast.success("Application approved and courier account created");
       
+      // Show the credentials dialog
       setSelectedCourier(courier);
       setIsShareDialogOpen(true);
     } catch (error: any) {
@@ -233,11 +284,19 @@ const CouriersTab = () => {
   
   const handleRejectApplication = async (application: any) => {
     try {
-      await supabase
-        .from('courier_applications')
-        .update({ status: 'rejected' })
-        .eq('id', application.id);
+      try {
+        // Update in Supabase if possible
+        if (application.id && !application.id.toString().startsWith('app-')) {
+          await supabase
+            .from('courier_applications')
+            .update({ status: 'rejected' })
+            .eq('id', application.id);
+        }
+      } catch (error) {
+        console.error("Error updating application status in Supabase:", error);
+      }
       
+      // Update application in local state
       const updatedApplications = applications.map(app => 
         app.id === application.id ? { ...app, status: 'rejected' } : app
       );
@@ -366,13 +425,13 @@ const CouriersTab = () => {
                   {applications.map((app) => (
                     <TableRow key={app.id}>
                       <TableCell className="font-medium">
-                        {app.full_name}
+                        {app.full_name || app.fullName}
                       </TableCell>
                       <TableCell>
                         <div>{app.email}</div>
                         <div className="text-gray-500">{app.phone}</div>
                       </TableCell>
-                      <TableCell>{app.vehicle_type}</TableCell>
+                      <TableCell>{app.vehicle_type || app.vehicle}</TableCell>
                       <TableCell>{app.city}</TableCell>
                       <TableCell>
                         <Badge className={
@@ -557,7 +616,7 @@ const CouriersTab = () => {
               <div className="bg-gray-50 p-4 rounded-md space-y-3 border">
                 <div>
                   <label className="text-sm text-gray-500">Applicant Name:</label>
-                  <p className="font-medium">{selectedApplication.full_name}</p>
+                  <p className="font-medium">{selectedApplication.full_name || selectedApplication.fullName}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-500">Email:</label>
@@ -573,12 +632,12 @@ const CouriersTab = () => {
                 </div>
                 <div>
                   <label className="text-sm text-gray-500">Vehicle:</label>
-                  <p className="font-medium">{selectedApplication.vehicle_type}</p>
+                  <p className="font-medium">{selectedApplication.vehicle_type || selectedApplication.vehicle}</p>
                 </div>
-                {selectedApplication.experience && (
+                {(selectedApplication.experience || selectedApplication.heardFrom) && (
                   <div>
                     <label className="text-sm text-gray-500">Experience:</label>
-                    <p className="font-medium">{selectedApplication.experience}</p>
+                    <p className="font-medium">{selectedApplication.experience || "N/A"}</p>
                   </div>
                 )}
               </div>
