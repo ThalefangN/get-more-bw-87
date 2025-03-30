@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
-import Categories from "@/components/Categories";
+import CategoryCarousel from "@/components/CategoryCarousel";
 import ProductGrid from "@/components/ProductGrid";
 import Footer from "@/components/Footer";
 import Cart from "@/components/Cart";
@@ -15,7 +15,7 @@ const Shop = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is authenticated
+    // Check if user is authenticated - only redirect if not authenticated
     if (!isAuthenticated) {
       toast.error("Please sign in to browse products", {
         description: "You need to be logged in to shop",
@@ -31,6 +31,10 @@ const Shop = () => {
 
     return () => clearTimeout(timer);
   }, [isAuthenticated, navigate]);
+
+  if (!isAuthenticated) {
+    return null; // Don't render anything if redirecting to sign-in
+  }
 
   if (isLoading) {
     return (
@@ -58,8 +62,8 @@ const Shop = () => {
             <p className="text-gray-600 mb-8">Browse our full catalog of products and get what you need delivered in minutes.</p>
           </div>
         </div>
-        <Categories />
-        <ProductGrid />
+        <CategoryCarousel />
+        <ProductGrid showAllProducts={false} />
       </main>
       <Footer />
       <Cart />

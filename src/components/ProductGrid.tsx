@@ -7,7 +7,11 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const ProductGrid = () => {
+interface ProductGridProps {
+  showAllProducts?: boolean;
+}
+
+const ProductGrid = ({ showAllProducts = false }: ProductGridProps) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -16,11 +20,17 @@ const ProductGrid = () => {
       setLoading(true);
       try {
         // Fetch products from Supabase
-        const { data, error } = await supabase
+        let query = supabase
           .from('products')
           .select('*')
-          .order('created_at', { ascending: false })
-          .limit(8); // Limit to 8 products for the featured section
+          .order('created_at', { ascending: false });
+        
+        // Limit products only if not showing all
+        if (!showAllProducts) {
+          query = query.limit(8); // Limit to 8 products for the featured section
+        }
+        
+        const { data, error } = await query;
         
         if (error) {
           console.error('Error fetching products:', error);
@@ -58,7 +68,7 @@ const ProductGrid = () => {
     };
 
     fetchProducts();
-  }, []);
+  }, [showAllProducts]);
 
   const getSampleProducts = (): Product[] => {
     return [
@@ -134,18 +144,24 @@ const ProductGrid = () => {
       <div className="container-custom">
         <div className="flex justify-between items-center mb-10">
           <div>
-            <h2 className="text-3xl font-bold">Featured Products</h2>
-            <p className="text-gray-600 mt-2">Top picks for you</p>
+            <h2 className="text-3xl font-bold">
+              {showAllProducts ? "All Products" : "Featured Products"}
+            </h2>
+            <p className="text-gray-600 mt-2">
+              {showAllProducts ? "Browse our complete selection" : "Top picks for you"}
+            </p>
           </div>
-          <Link to="/shop" className="flex items-center text-getmore-purple hover:underline">
-            View All
-            <ChevronRight size={16} className="ml-1" />
-          </Link>
+          {!showAllProducts && (
+            <Link to="/all-products" className="flex items-center text-getmore-purple hover:underline">
+              View All
+              <ChevronRight size={16} className="ml-1" />
+            </Link>
+          )}
         </div>
         
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, index) => (
+            {[...Array(showAllProducts ? 12 : 8)].map((_, index) => (
               <div key={index} className="animate-pulse">
                 <div className="bg-gray-200 rounded-lg aspect-square mb-4"></div>
                 <div className="bg-gray-200 h-4 w-20 rounded mb-2"></div>
@@ -159,6 +175,13 @@ const ProductGrid = () => {
             {products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
+          </div>
+        )}
+        
+        {products.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No products found</p>
+            <p className="text-gray-400">Check back later for new products</p>
           </div>
         )}
       </div>
