@@ -25,7 +25,6 @@ import AdminDashboard from "./pages/AdminDashboard";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { StoreProvider } from "@/contexts/StoreContext";
-import { CourierProvider } from "@/contexts/CourierContext";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,34 +41,32 @@ const App = () => (
       <AuthProvider>
         <StoreProvider>
           <CartProvider>
-            <CourierProvider>
-              <BrowserRouter>
-                <TooltipProvider>
-                  <Toaster />
-                  <Sonner />
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/shop" element={<Shop />} />
-                    <Route path="/learn-more" element={<LearnMore />} />
-                    <Route path="/sign-in" element={<SignIn />} />
-                    <Route path="/sign-up" element={<SignUp />} />
-                    <Route path="/categories" element={<CategoriesPage />} />
-                    <Route path="/how-it-works" element={<HowItWorksPage />} />
-                    <Route path="/become-courier" element={<CourierPage />} />
-                    <Route path="/store-signup" element={<StoreSignUp />} />
-                    <Route path="/store-signin" element={<StoreSignIn />} />
-                    <Route path="/store-dashboard/*" element={<StoreDashboard />} />
-                    <Route path="/courier-login" element={<CourierLogin />} />
-                    <Route path="/courier-dashboard/*" element={<CourierDashboard />} />
-                    <Route path="/admin-signup" element={<AdminSignUp />} />
-                    <Route path="/admin-signin" element={<AdminSignIn />} />
-                    <Route path="/admin-dashboard/*" element={<AdminDashboard />} />
-                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </TooltipProvider>
-              </BrowserRouter>
-            </CourierProvider>
+            <BrowserRouter>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/shop" element={<Shop />} />
+                  <Route path="/learn-more" element={<LearnMore />} />
+                  <Route path="/sign-in" element={<SignIn />} />
+                  <Route path="/sign-up" element={<SignUp />} />
+                  <Route path="/categories" element={<CategoriesPage />} />
+                  <Route path="/how-it-works" element={<HowItWorksPage />} />
+                  <Route path="/become-courier" element={<CourierPage />} />
+                  <Route path="/store-signup" element={<StoreSignUp />} />
+                  <Route path="/store-signin" element={<StoreSignIn />} />
+                  <Route path="/store-dashboard/*" element={<StoreDashboard />} />
+                  <Route path="/courier-login" element={<CourierLogin />} />
+                  <Route path="/courier-dashboard/*" element={<CourierDashboard />} />
+                  <Route path="/admin-signup" element={<AdminSignUp />} />
+                  <Route path="/admin-signin" element={<AdminSignIn />} />
+                  <Route path="/admin-dashboard/*" element={<AdminDashboard />} />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </TooltipProvider>
+            </BrowserRouter>
           </CartProvider>
         </StoreProvider>
       </AuthProvider>

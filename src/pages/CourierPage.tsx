@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -34,9 +33,27 @@ const CourierPage = () => {
     setIsSubmitting(true);
     
     try {
-      // Store in localStorage first as a backup
+      // Submit the application to Supabase
+      const { data, error } = await supabase
+        .from('courier_applications')
+        .insert([
+          {
+            full_name: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
+            city: formData.city,
+            vehicle_type: formData.hasVehicle,
+            experience: formData.experience,
+            heard_from: formData.heardFrom,
+            status: 'pending'
+          }
+        ]);
+        
+      if (error) throw error;
+      
+      // Store in localStorage as backup
       const applications = JSON.parse(localStorage.getItem('courierApplications') || '[]');
-      const newApplication = {
+      applications.push({
         id: `app-${Date.now()}`,
         fullName: formData.fullName,
         email: formData.email,
@@ -47,37 +64,8 @@ const CourierPage = () => {
         heardFrom: formData.heardFrom,
         status: 'pending',
         appliedAt: new Date().toISOString()
-      };
-      
-      applications.push(newApplication);
+      });
       localStorage.setItem('courierApplications', JSON.stringify(applications));
-
-      // Then try to submit to Supabase
-      try {
-        // Submit the application to Supabase
-        const { data, error } = await supabase
-          .from('courier_applications')
-          .insert([
-            {
-              full_name: formData.fullName,
-              email: formData.email,
-              phone: formData.phone,
-              city: formData.city,
-              vehicle_type: formData.hasVehicle,
-              experience: formData.experience,
-              heard_from: formData.heardFrom,
-              status: 'pending'
-            }
-          ]);
-          
-        if (error) {
-          console.error("Supabase insert error:", error);
-          // Continue anyway as we've already saved to localStorage
-        }
-      } catch (supabaseError) {
-        console.error("Error submitting to Supabase:", supabaseError);
-        // Continue anyway as we've already saved to localStorage
-      }
       
       toast.success("Your application has been submitted! We'll contact you soon.", {
         duration: 5000,
@@ -336,12 +324,8 @@ const CourierPage = () => {
                 </div>
                 
                 <div>
-                  <button 
-                    type="submit" 
-                    className="btn-primary w-full"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? "Submitting..." : "Submit Application"}
+                  <button type="submit" className="btn-primary w-full">
+                    Submit Application
                   </button>
                 </div>
               </form>

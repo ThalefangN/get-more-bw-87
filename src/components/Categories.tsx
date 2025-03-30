@@ -1,129 +1,74 @@
 
-import { useEffect, useState } from "react";
+import { ShoppingBag, Coffee, Apple, Pizza, Gift, Beef, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 
-interface Category {
-  name: string;
-  icon: string;
-  count: number;
-}
+const categories = [
+  {
+    id: 1,
+    name: "Groceries",
+    icon: <ShoppingBag className="text-getmore-purple" size={32} />,
+    items: "1000+ items"
+  },
+  {
+    id: 2,
+    name: "Beverages",
+    icon: <Coffee className="text-getmore-purple" size={32} />,
+    items: "500+ items"
+  },
+  {
+    id: 3,
+    name: "Fruits & Vegetables",
+    icon: <Apple className="text-getmore-purple" size={32} />,
+    items: "300+ items"
+  },
+  {
+    id: 4,
+    name: "Ready Meals",
+    icon: <Pizza className="text-getmore-purple" size={32} />,
+    items: "200+ items"
+  },
+  {
+    id: 5,
+    name: "Gifts & Lifestyle",
+    icon: <Gift className="text-getmore-purple" size={32} />,
+    items: "100+ items"
+  },
+  {
+    id: 6,
+    name: "Meat & Poultry",
+    icon: <Beef className="text-getmore-purple" size={32} />,
+    items: "150+ items"
+  }
+];
 
 const Categories = () => {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      setLoading(true);
-      try {
-        // Get products from Supabase
-        const { data, error } = await supabase
-          .from('products')
-          .select('category');
-        
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          // Count products by category
-          const categoryCount: Record<string, number> = {};
-          data.forEach(product => {
-            const category = product.category;
-            categoryCount[category] = (categoryCount[category] || 0) + 1;
-          });
-          
-          // Create category objects
-          const transformedCategories = Object.keys(categoryCount).map(name => ({
-            name,
-            icon: getCategoryIcon(name),
-            count: categoryCount[name]
-          }));
-          
-          setCategories(transformedCategories);
-        } else {
-          // Fallback to sample categories
-          setCategories(getSampleCategories());
-        }
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-        // Fallback to sample categories
-        setCategories(getSampleCategories());
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCategories();
-  }, []);
-
-  const getCategoryIcon = (category: string): string => {
-    // Add icons based on category name
-    const categoryIcons: Record<string, string> = {
-      "Fruits": "🍎",
-      "Vegetables": "🥦",
-      "Dairy": "🥛",
-      "Meat": "🥩",
-      "Bakery": "🍞",
-      "Beverages": "🥤",
-      "Groceries": "🛒",
-      "Snacks": "🍿",
-      "Frozen": "❄️",
-      "Household": "🧹",
-      "Personal Care": "🧼",
-      "Baby": "👶",
-      "Pet": "🐾",
-      "Electronics": "📱",
-      "Other": "📦"
-    };
-    
-    return categoryIcons[category] || "📦";
-  };
-
-  const getSampleCategories = (): Category[] => {
-    return [
-      { name: "Fruits", icon: "🍎", count: 12 },
-      { name: "Vegetables", icon: "🥦", count: 15 },
-      { name: "Dairy", icon: "🥛", count: 8 },
-      { name: "Meat", icon: "🥩", count: 10 },
-      { name: "Bakery", icon: "🍞", count: 6 },
-      { name: "Beverages", icon: "🥤", count: 9 }
-    ];
-  };
-
   return (
-    <section className="py-10 bg-gray-50">
+    <section id="categories" className="py-16 bg-gray-50">
       <div className="container-custom">
-        <h2 className="text-2xl font-bold mb-6">Shop by Category</h2>
+        <div className="flex justify-between items-center mb-10">
+          <div>
+            <h2 className="text-3xl font-bold">Categories</h2>
+            <p className="text-gray-600 mt-2">Browse products by category</p>
+          </div>
+          <Link to="/categories" className="flex items-center text-getmore-purple hover:underline">
+            View All
+            <ChevronRight size={16} className="ml-1" />
+          </Link>
+        </div>
         
-        {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {[...Array(6)].map((_, index) => (
-              <div key={index} className="animate-pulse">
-                <div className="bg-white p-4 rounded-lg shadow-sm text-center h-28 flex flex-col items-center justify-center">
-                  <div className="bg-gray-200 h-10 w-10 rounded-full mb-3"></div>
-                  <div className="bg-gray-200 h-4 w-20 rounded mb-2"></div>
-                  <div className="bg-gray-200 h-3 w-12 rounded"></div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+          {categories.map((category) => (
+            <div key={category.id} className="category-card">
+              <div className="flex flex-col items-center text-center">
+                <div className="mb-4">
+                  {category.icon}
                 </div>
+                <h3 className="font-semibold mb-1">{category.name}</h3>
+                <p className="text-sm text-gray-500">{category.items}</p>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {categories.map((category, index) => (
-              <Link 
-                key={index} 
-                to={`/categories/${category.name.toLowerCase()}`}
-                className="block"
-              >
-                <div className="bg-white p-4 rounded-lg shadow-sm text-center h-28 flex flex-col items-center justify-center hover:shadow transition-shadow">
-                  <span className="text-3xl mb-2">{category.icon}</span>
-                  <h3 className="font-medium mb-1">{category.name}</h3>
-                  <span className="text-xs text-gray-500">{category.count} items</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
