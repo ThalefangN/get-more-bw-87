@@ -50,12 +50,14 @@ export type Database = {
       }
       couriers: {
         Row: {
+          created_at: string | null
           created_by_admin: boolean | null
           deliveries: number | null
           email: string
           id: string
           name: string
           notes: string | null
+          password: string | null
           phone: string
           rating: number | null
           registered_at: string | null
@@ -63,12 +65,14 @@ export type Database = {
           vehicle_type: string
         }
         Insert: {
+          created_at?: string | null
           created_by_admin?: boolean | null
           deliveries?: number | null
           email: string
           id?: string
           name: string
           notes?: string | null
+          password?: string | null
           phone: string
           rating?: number | null
           registered_at?: string | null
@@ -76,12 +80,14 @@ export type Database = {
           vehicle_type: string
         }
         Update: {
+          created_at?: string | null
           created_by_admin?: boolean | null
           deliveries?: number | null
           email?: string
           id?: string
           name?: string
           notes?: string | null
+          password?: string | null
           phone?: string
           rating?: number | null
           registered_at?: string | null
