@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,31 +20,6 @@ const StoreSignIn = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Check for existing session on mount
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        try {
-          // If session exists, check if store exists for this user
-          const { data: storeData, error: storeError } = await supabase
-            .from('stores')
-            .select('*')
-            .eq('email', data.session.user.email)
-            .maybeSingle();
-        
-          if (!storeError && storeData) {
-            login(storeData);
-            navigate("/store-dashboard");
-          }
-        } catch (error) {
-          console.error("Error checking store data:", error);
-        }
-      }
-    };
-    checkSession();
-  }, [navigate, login]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -56,33 +31,20 @@ const StoreSignIn = () => {
     setIsLoading(true);
     
     try {
-      // Add timeout to prevent hanging on network issues
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Sign in request timed out. Please try again.')), 10000)
-      );
-      
-      const authPromise = supabase.auth.signInWithPassword({
+      // Sign in with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
-      // Race between auth and timeout
-      const { data: authData, error: authError } = await Promise.race([authPromise, timeoutPromise]) as any;
-      
       if (authError) throw authError;
       
-      // If sign in successful, fetch the store data with a shorter timeout
-      const storePromise = supabase
+      // If sign in successful, fetch the store data
+      const { data: storeData, error: storeError } = await supabase
         .from('stores')
         .select('*')
         .eq('email', email)
         .maybeSingle();
-        
-      const storeTimeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Store data fetch timed out. Please try again.')), 5000)
-      );
-      
-      const { data: storeData, error: storeError } = await Promise.race([storePromise, storeTimeoutPromise]) as any;
       
       if (storeError) {
         await supabase.auth.signOut();
@@ -101,16 +63,10 @@ const StoreSignIn = () => {
       navigate("/store-dashboard");
     } catch (error: any) {
       console.error("Error signing in:", error);
-      
-      if (error.message.includes('timeout')) {
-        toast.error(error.message);
-      } else {
-        toast.error("Sign in failed", {
-          description: error.message || "Please check your credentials and try again."
-        });
-      }
-      
-      // Make sure we're not in a loading state if there's an error
+      toast.error("Sign in failed", {
+        description: error.message || "Please check your credentials and try again."
+      });
+    } finally {
       setIsLoading(false);
     }
   };
