@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -129,13 +130,13 @@ const CourierDashboard = () => {
   };
   
   const fetchMyDeliveries = async () => {
-    if (!user) return;
+    if (!courier) return;
     
     try {
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .eq('courier_assigned', user.email)
+        .eq('courier_assigned', courier.email)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -488,25 +489,100 @@ const CourierDashboard = () => {
 
         {/* Main Content */}
         <main className="flex-1 p-6 overflow-auto">
-          <TabsContent value="available" className={activeTab === "available" ? "block" : "hidden"}>
-            <h2 className="text-2xl font-bold mb-6">Available Orders</h2>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsContent value="available">
+              <h2 className="text-2xl font-bold mb-6">Available Orders</h2>
+              
+              {availableOrders.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-lg border">
+                  <Package size={48} className="mx-auto text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium">No orders available</h3>
+                  <p className="text-gray-500 mt-2">Check back later for new delivery requests</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {availableOrders.map((order) => {
+                    const store = storeCache[order.store_id] || null;
+                    
+                    return (
+                      <Card key={order.id} className="overflow-hidden">
+                        <CardContent className="p-6">
+                          <div className="flex flex-col md:flex-row md:items-center">
+                            <div className="flex-1 mb-4 md:mb-0">
+                              <div className="flex items-center mb-2">
+                                {store ? (
+                                  <>
+                                    <Avatar className="h-8 w-8 mr-2">
+                                      <AvatarImage src={store.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(store.name)}&background=8B5CF6&color=fff`} alt={store.name} />
+                                      <AvatarFallback>{store.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <h3 className="font-medium">{store.name}</h3>
+                                  </>
+                                ) : (
+                                  <h3 className="font-medium">Order #{order.id.substring(0, 8)}</h3>
+                                )}
+                                <div className="ml-auto">
+                                  {renderStatusBadge(order.status)}
+                                </div>
+                              </div>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex">
+                                  <Map size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                  <span className="text-gray-700">Deliver to: {order.address}</span>
+                                </div>
+                                <div className="flex">
+                                  <Package size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                  <span className="text-gray-700">
+                                    {Array.isArray(order.items) ? `${order.items.length} items` : 'Items not available'}
+                                  </span>
+                                </div>
+                                <div className="flex">
+                                  <Clock size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                  <span className="text-gray-700">
+                                    {new Date(order.created_at).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex flex-col space-y-2 md:ml-6">
+                              <div className="text-xl font-bold text-center md:text-right">
+                                P{order.total_amount}
+                              </div>
+                              <Button 
+                                onClick={() => handleAcceptOrder(order)}
+                                disabled={isAccepting}
+                                className="w-full md:w-auto"
+                              >
+                                {isAccepting ? "Accepting..." : "Accept Delivery"}
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
             
-            {availableOrders.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg border">
-                <Package size={48} className="mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium">No orders available</h3>
-                <p className="text-gray-500 mt-2">Check back later for new delivery requests</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {availableOrders.map((order) => {
-                  const store = storeCache[order.store_id] || null;
-                  
-                  return (
-                    <Card key={order.id} className="overflow-hidden">
-                      <CardContent className="p-6">
-                        <div className="flex flex-col md:flex-row md:items-center">
-                          <div className="flex-1 mb-4 md:mb-0">
+            <TabsContent value="my-deliveries">
+              <h2 className="text-2xl font-bold mb-6">My Deliveries</h2>
+              
+              {myDeliveries.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-lg border">
+                  <Bike size={48} className="mx-auto text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium">No active deliveries</h3>
+                  <p className="text-gray-500 mt-2">Accept orders to see them here</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {myDeliveries.map((order) => {
+                    const store = storeCache[order.store_id] || null;
+                    
+                    return (
+                      <Card key={order.id} className="overflow-hidden">
+                        <CardContent className="p-6">
+                          <div className="flex flex-col">
                             <div className="flex items-center mb-2">
                               {store ? (
                                 <>
@@ -523,263 +599,190 @@ const CourierDashboard = () => {
                                 {renderStatusBadge(order.status)}
                               </div>
                             </div>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex">
-                                <Map size={16} className="mr-2 text-gray-500 flex-shrink-0" />
-                                <span className="text-gray-700">Deliver to: {order.address}</span>
+                            
+                            <div className="grid md:grid-cols-2 gap-4 mb-4">
+                              <div className="space-y-2 text-sm">
+                                <div className="flex">
+                                  <User size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                  <span className="text-gray-700">Customer: {order.customer_name}</span>
+                                </div>
+                                <div className="flex">
+                                  <Map size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                  <span className="text-gray-700">Address: {order.address}</span>
+                                </div>
+                                <div className="flex">
+                                  <Phone size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                  <span className="text-gray-700">Contact: {store?.phone || 'N/A'}</span>
+                                </div>
                               </div>
-                              <div className="flex">
-                                <Package size={16} className="mr-2 text-gray-500 flex-shrink-0" />
-                                <span className="text-gray-700">
-                                  {Array.isArray(order.items) ? `${order.items.length} items` : 'Items not available'}
-                                </span>
-                              </div>
-                              <div className="flex">
-                                <Clock size={16} className="mr-2 text-gray-500 flex-shrink-0" />
-                                <span className="text-gray-700">
-                                  {new Date(order.created_at).toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex flex-col space-y-2 md:ml-6">
-                            <div className="text-xl font-bold text-center md:text-right">
-                              P{order.total_amount}
-                            </div>
-                            <Button 
-                              onClick={() => handleAcceptOrder(order)}
-                              disabled={isAccepting}
-                              className="w-full md:w-auto"
-                            >
-                              {isAccepting ? "Accepting..." : "Accept Delivery"}
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="my-deliveries" className={activeTab === "my-deliveries" ? "block" : "hidden"}>
-            <h2 className="text-2xl font-bold mb-6">My Deliveries</h2>
-            
-            {myDeliveries.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg border">
-                <Bike size={48} className="mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium">No active deliveries</h3>
-                <p className="text-gray-500 mt-2">Accept orders to see them here</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {myDeliveries.map((order) => {
-                  const store = storeCache[order.store_id] || null;
-                  
-                  return (
-                    <Card key={order.id} className="overflow-hidden">
-                      <CardContent className="p-6">
-                        <div className="flex flex-col">
-                          <div className="flex items-center mb-2">
-                            {store ? (
-                              <>
-                                <Avatar className="h-8 w-8 mr-2">
-                                  <AvatarImage src={store.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(store.name)}&background=8B5CF6&color=fff`} alt={store.name} />
-                                  <AvatarFallback>{store.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <h3 className="font-medium">{store.name}</h3>
-                              </>
-                            ) : (
-                              <h3 className="font-medium">Order #{order.id.substring(0, 8)}</h3>
-                            )}
-                            <div className="ml-auto">
-                              {renderStatusBadge(order.status)}
-                            </div>
-                          </div>
-                          
-                          <div className="grid md:grid-cols-2 gap-4 mb-4">
-                            <div className="space-y-2 text-sm">
-                              <div className="flex">
-                                <User size={16} className="mr-2 text-gray-500 flex-shrink-0" />
-                                <span className="text-gray-700">Customer: {order.customer_name}</span>
-                              </div>
-                              <div className="flex">
-                                <Map size={16} className="mr-2 text-gray-500 flex-shrink-0" />
-                                <span className="text-gray-700">Address: {order.address}</span>
-                              </div>
-                              <div className="flex">
-                                <Phone size={16} className="mr-2 text-gray-500 flex-shrink-0" />
-                                <span className="text-gray-700">Contact: {store?.phone || 'N/A'}</span>
+                              
+                              <div className="space-y-2 text-sm">
+                                <div className="flex">
+                                  <Package size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                  <span className="text-gray-700">
+                                    {Array.isArray(order.items) ? `${order.items.length} items` : 'Items not available'}
+                                  </span>
+                                </div>
+                                <div className="flex">
+                                  <Clock size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                  <span className="text-gray-700">
+                                    {new Date(order.created_at).toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="flex">
+                                  <DollarSign size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                  <span className="text-gray-700 font-bold">
+                                    P{order.total_amount}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                             
-                            <div className="space-y-2 text-sm">
-                              <div className="flex">
-                                <Package size={16} className="mr-2 text-gray-500 flex-shrink-0" />
-                                <span className="text-gray-700">
-                                  {Array.isArray(order.items) ? `${order.items.length} items` : 'Items not available'}
-                                </span>
-                              </div>
-                              <div className="flex">
-                                <Clock size={16} className="mr-2 text-gray-500 flex-shrink-0" />
-                                <span className="text-gray-700">
-                                  {new Date(order.created_at).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex">
-                                <DollarSign size={16} className="mr-2 text-gray-500 flex-shrink-0" />
-                                <span className="text-gray-700 font-bold">
-                                  P{order.total_amount}
-                                </span>
+                            <div className="border-t pt-4 mt-2">
+                              <div className="flex flex-wrap gap-2 justify-end">
+                                {order.status === 'delivery_accepted' && (
+                                  <Button 
+                                    onClick={() => handleUpdateDeliveryStatus(order, 'picked_up')}
+                                    className="flex items-center"
+                                  >
+                                    <CheckCircle size={16} className="mr-2" />
+                                    Mark as Picked Up
+                                  </Button>
+                                )}
+                                
+                                {order.status === 'picked_up' && (
+                                  <Button 
+                                    onClick={() => handleUpdateDeliveryStatus(order, 'delivered')}
+                                    className="flex items-center"
+                                  >
+                                    <CheckCircle size={16} className="mr-2" />
+                                    Mark as Delivered
+                                  </Button>
+                                )}
+                                
+                                {(order.status === 'delivery_accepted' || order.status === 'picked_up') && (
+                                  <Button 
+                                    variant="outline" 
+                                    className="text-red-600 border-red-600"
+                                    onClick={() => handleUpdateDeliveryStatus(order, 'cancelled')}
+                                  >
+                                    <XCircle size={16} className="mr-2" />
+                                    Cancel
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </div>
-                          
-                          <div className="border-t pt-4 mt-2">
-                            <div className="flex flex-wrap gap-2 justify-end">
-                              {order.status === 'delivery_accepted' && (
-                                <Button 
-                                  onClick={() => handleUpdateDeliveryStatus(order, 'picked_up')}
-                                  className="flex items-center"
-                                >
-                                  <CheckCircle size={16} className="mr-2" />
-                                  Mark as Picked Up
-                                </Button>
-                              )}
-                              
-                              {order.status === 'picked_up' && (
-                                <Button 
-                                  onClick={() => handleUpdateDeliveryStatus(order, 'delivered')}
-                                  className="flex items-center"
-                                >
-                                  <CheckCircle size={16} className="mr-2" />
-                                  Mark as Delivered
-                                </Button>
-                              )}
-                              
-                              {(order.status === 'delivery_accepted' || order.status === 'picked_up') && (
-                                <Button 
-                                  variant="outline" 
-                                  className="text-red-600 border-red-600"
-                                  onClick={() => handleUpdateDeliveryStatus(order, 'cancelled')}
-                                >
-                                  <XCircle size={16} className="mr-2" />
-                                  Cancel
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="earnings">
+              <h2 className="text-2xl font-bold mb-6">Earnings</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-500">Today's Earnings</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">P0.00</div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-500">This Week</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">P0.00</div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-500">Total Deliveries</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{myDeliveries.filter(d => d.status === 'delivered').length}</div>
+                  </CardContent>
+                </Card>
               </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="earnings" className={activeTab === "earnings" ? "block" : "hidden"}>
-            <h2 className="text-2xl font-bold mb-6">Earnings</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">Today's Earnings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">P0.00</div>
-                </CardContent>
-              </Card>
               
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">This Week</CardTitle>
+                <CardHeader>
+                  <CardTitle>Earning History</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">P0.00</div>
+                  <div className="text-center py-10">
+                    <AlertTriangle size={48} className="mx-auto text-gray-300 mb-4" />
+                    <h3 className="text-lg font-medium">No earnings yet</h3>
+                    <p className="text-gray-500 mt-2">Complete deliveries to see your earnings history</p>
+                  </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+            
+            <TabsContent value="profile">
+              <h2 className="text-2xl font-bold mb-6">My Profile</h2>
               
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">Total Deliveries</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{myDeliveries.filter(d => d.status === 'delivered').length}</div>
+                <CardContent className="p-6">
+                  <div className="flex flex-col items-center mb-6">
+                    <Avatar className="h-24 w-24 mb-4">
+                      <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(courier?.name || 'Courier')}&background=8B5CF6&color=fff`} alt={courier?.name} />
+                      <AvatarFallback>{courier?.name?.charAt(0) || 'C'}</AvatarFallback>
+                    </Avatar>
+                    <h3 className="text-xl font-bold">{courier?.name}</h3>
+                    <p className="text-gray-500">{courier?.email}</p>
+                  </div>
+                  
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">Contact</h4>
+                        <p className="text-lg">{courier?.phone}</p>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">Vehicle Type</h4>
+                        <p className="text-lg">{courier?.vehicle_type}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">Status</h4>
+                        <p className="text-lg flex items-center">
+                          <span className={`inline-block h-2 w-2 rounded-full mr-2 ${courier?.status === 'active' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                          {courier?.status === 'active' ? 'Active' : 'Inactive'}
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-500">Joined</h4>
+                        <p className="text-lg">{new Date(courier?.registered_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6 pt-6 border-t">
+                    <h4 className="font-medium mb-4">Account Actions</h4>
+                    <div className="space-y-2">
+                      <Button variant="outline" className="w-full justify-start">
+                        Update Profile
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start text-red-600" onClick={handleSignOut}>
+                        <LogOut size={18} className="mr-2" />
+                        Sign Out
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
-            </div>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Earning History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-10">
-                  <AlertTriangle size={48} className="mx-auto text-gray-300 mb-4" />
-                  <h3 className="text-lg font-medium">No earnings yet</h3>
-                  <p className="text-gray-500 mt-2">Complete deliveries to see your earnings history</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="profile" className={activeTab === "profile" ? "block" : "hidden"}>
-            <h2 className="text-2xl font-bold mb-6">My Profile</h2>
-            
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex flex-col items-center mb-6">
-                  <Avatar className="h-24 w-24 mb-4">
-                    <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(courier?.name || 'Courier')}&background=8B5CF6&color=fff`} alt={courier?.name} />
-                    <AvatarFallback>{courier?.name?.charAt(0) || 'C'}</AvatarFallback>
-                  </Avatar>
-                  <h3 className="text-xl font-bold">{courier?.name}</h3>
-                  <p className="text-gray-500">{courier?.email}</p>
-                </div>
-                
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Contact</h4>
-                      <p className="text-lg">{courier?.phone}</p>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Vehicle Type</h4>
-                      <p className="text-lg">{courier?.vehicle_type}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Status</h4>
-                      <p className="text-lg flex items-center">
-                        <span className={`inline-block h-2 w-2 rounded-full mr-2 ${courier?.status === 'active' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                        {courier?.status === 'active' ? 'Active' : 'Inactive'}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Joined</h4>
-                      <p className="text-lg">{new Date(courier?.registered_at).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="mt-6 pt-6 border-t">
-                  <h4 className="font-medium mb-4">Account Actions</h4>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start">
-                      Update Profile
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start text-red-600" onClick={handleSignOut}>
-                      <LogOut size={18} className="mr-2" />
-                      Sign Out
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+            </TabsContent>
+          </Tabs>
         </main>
       </div>
     </div>
