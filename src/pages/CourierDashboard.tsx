@@ -1,578 +1,750 @@
+
 import { useState, useEffect } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { 
-  MapPin, Package, History, Settings, Truck, ChevronRight, 
-  CheckCircle, XCircle, Phone, Clock, User, LogOut,
-  Navigation, ArrowUpRight
-} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Order } from "@/types/order";
-
-interface CourierInfo {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  vehicle_type: string;
-  status: string;
-  deliveries: number;
-  rating: number;
-}
-
-interface DeliveryRequest {
-  id: string;
-  store_id: string;
-  customer_id: string;
-  customer_name: string;
-  store_name: string;
-  store_address: string;
-  items: any[];
-  total_amount: number;
-  status: string;
-  address: string;
-  created_at: string;
-  updated_at: string;
-  courier_assigned?: string;
-}
-
-interface Store {
-  id: string;
-  name: string;
-  // Add other store properties as needed
-}
+import {
+  Package,
+  Bike,
+  Clock,
+  Map,
+  Phone,
+  User,
+  DollarSign,
+  LogOut,
+  Menu,
+  X,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useMobile } from "@/hooks/use-mobile";
 
 const CourierDashboard = () => {
-  const [activeTab, setActiveTab] = useState("available");
-  const [courierInfo, setCourierInfo] = useState<CourierInfo | null>(null);
-  const [availableDeliveries, setAvailableDeliveries] = useState<DeliveryRequest[]>([]);
-  const [myDeliveries, setMyDeliveries] = useState<DeliveryRequest[]>([]);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [selectedDelivery, setSelectedDelivery] = useState<DeliveryRequest | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [session, setSession] = useState<any>(null);
   const navigate = useNavigate();
-  
+  const isMobile = useMobile();
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [courier, setCourier] = useState<any>(null);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [activeTab, setActiveTab] = useState("available");
+  const [availableOrders, setAvailableOrders] = useState<any[]>([]);
+  const [myDeliveries, setMyDeliveries] = useState<any[]>([]);
+  const [isAccepting, setIsAccepting] = useState(false);
+  const [storeCache, setStoreCache] = useState<Record<string, any>>({});
+
   useEffect(() => {
     checkSession();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
-      setSession(newSession);
-      if (event === 'SIGNED_OUT') {
-        navigate('/courier-login');
-      }
-    });
-    
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-  
+    fetchAvailableOrders();
+    fetchMyDeliveries();
+  }, []);
+
   const checkSession = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
-      if (!session) {
-        navigate('/courier-login');
+      if (sessionError) throw sessionError;
+      
+      if (!sessionData.session) {
+        navigate("/courier-login");
         return;
       }
       
-      setSession(session);
-      fetchCourierInfo(session.user.id);
+      setUser(sessionData.session.user);
       
-    } catch (error) {
-      console.error("Error checking session:", error);
-      navigate('/courier-login');
-    }
-  };
-  
-  const fetchCourierInfo = async (courierId: string) => {
-    setIsLoading(true);
-    
-    // Check local storage first for quick loading
-    const storedCourier = localStorage.getItem('courierInfo');
-    if (storedCourier) {
-      const parsedCourier = JSON.parse(storedCourier);
-      if (parsedCourier.id === courierId) {
-        setCourierInfo(parsedCourier);
-      }
-    }
-    
-    try {
-      const { data, error } = await supabase
+      // Check if courier profile exists
+      const { data: courierData, error: courierError } = await supabase
         .from('couriers')
         .select('*')
-        .eq('id', courierId)
+        .eq('email', sessionData.session.user.email)
         .single();
-        
+      
+      if (courierError) {
+        if (courierError.code === 'PGRST116') {
+          toast.error("Your courier account has not been approved yet");
+          await supabase.auth.signOut();
+          navigate("/courier-login");
+          return;
+        }
+        throw courierError;
+      }
+      
+      setCourier(courierData);
+      setLoading(false);
+    } catch (error: any) {
+      console.error("Session check error:", error);
+      toast.error(error.message);
+      setLoading(false);
+    }
+  };
+
+  const fetchAvailableOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .or('courier_assigned.is.null,status.eq.pending')
+        .order('created_at', { ascending: false });
+      
       if (error) throw error;
       
       if (data) {
-        setCourierInfo(data);
-        localStorage.setItem('courierInfo', JSON.stringify(data));
+        setAvailableOrders(data);
         
-        // Fetch deliveries after getting courier info
-        fetchDeliveries(courierId);
+        // Fetch store details for each order
+        data.forEach(async (order) => {
+          if (order.store_id && !storeCache[order.store_id]) {
+            await fetchStoreDetails(order.store_id);
+          }
+        });
       }
-    } catch (error) {
-      console.error("Error fetching courier info:", error);
-      toast.error("Could not load courier information");
-    } finally {
-      setIsLoading(false);
+    } catch (error: any) {
+      console.error("Error fetching available orders:", error);
     }
   };
   
-  const fetchDeliveries = async (courierId: string) => {
+  const fetchMyDeliveries = async () => {
+    if (!user) return;
+    
     try {
-      // Fetch available deliveries
-      const { data: availableData, error: availableError } = await supabase
+      const { data, error } = await supabase
         .from('orders')
-        .select('*, stores(name, address)')
-        .eq('status', 'approved')
-        .is('courier_assigned', null);
+        .select('*')
+        .eq('courier_assigned', user.email)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      if (data) {
+        setMyDeliveries(data);
         
-      if (availableError) throw availableError;
-      
-      // Transform data to include store information
-      const transformedAvailable = availableData.map((order: any) => ({
-        ...order,
-        store_name: order.stores?.name || 'Unknown store',
-        store_address: order.stores?.address || 'Unknown location',
-      }));
-      
-      setAvailableDeliveries(transformedAvailable);
-      
-      // Fetch courier's assigned deliveries
-      const { data: myData, error: myError } = await supabase
-        .from('orders')
-        .select('*, stores(name, address)')
-        .eq('courier_assigned', courierId)
-        .in('status', ['delivering', 'completed']);
-        
-      if (myError) throw myError;
-      
-      // Transform data to include store information
-      const transformedMy = myData.map((order: any) => ({
-        ...order,
-        store_name: order.stores?.name || 'Unknown store',
-        store_address: order.stores?.address || 'Unknown location',
-      }));
-      
-      setMyDeliveries(transformedMy);
-      
-    } catch (error) {
-      console.error("Error fetching deliveries:", error);
-      toast.error("Could not load deliveries");
+        // Fetch store details for each order
+        data.forEach(async (order) => {
+          if (order.store_id && !storeCache[order.store_id]) {
+            await fetchStoreDetails(order.store_id);
+          }
+        });
+      }
+    } catch (error: any) {
+      console.error("Error fetching my deliveries:", error);
     }
   };
   
-  const handleAcceptDelivery = async (deliveryId: string) => {
-    if (!courierInfo) return;
+  const fetchStoreDetails = async (storeId: string) => {
+    if (storeCache[storeId]) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('id', storeId)
+        .single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setStoreCache(prev => ({ ...prev, [storeId]: data }));
+      }
+    } catch (error: any) {
+      console.error(`Error fetching store details for ${storeId}:`, error);
+    }
+  };
+
+  const handleAcceptOrder = async (order: any) => {
+    if (!user || !courier) return;
+    
+    setIsAccepting(true);
     
     try {
       const { error } = await supabase
         .from('orders')
         .update({
-          courier_assigned: courierInfo.id,
-          status: 'delivering'
+          courier_assigned: user.email,
+          status: 'delivery_accepted'
         })
-        .eq('id', deliveryId);
-        
+        .eq('id', order.id);
+      
       if (error) throw error;
       
+      toast.success("Order accepted successfully!");
+      
       // Update local state
-      const updatedAvailable = availableDeliveries.filter(d => d.id !== deliveryId);
-      const acceptedDelivery = availableDeliveries.find(d => d.id === deliveryId);
+      setAvailableOrders(prev => prev.filter(o => o.id !== order.id));
+      setMyDeliveries(prev => [...prev, { ...order, courier_assigned: user.email, status: 'delivery_accepted' }]);
       
-      if (acceptedDelivery) {
-        const updatedDelivery = {
-          ...acceptedDelivery,
-          courier_assigned: courierInfo.id,
-          status: 'delivering'
-        };
-        
-        setAvailableDeliveries(updatedAvailable);
-        setMyDeliveries([updatedDelivery, ...myDeliveries]);
-      }
-      
-      setIsDetailsOpen(false);
-      toast.success("Delivery accepted!");
-      
-    } catch (error) {
-      console.error("Error accepting delivery:", error);
-      toast.error("Failed to accept delivery");
+      setActiveTab("my-deliveries");
+    } catch (error: any) {
+      console.error("Error accepting order:", error);
+      toast.error("Failed to accept order. Please try again.");
+    } finally {
+      setIsAccepting(false);
     }
   };
   
-  const handleCompleteDelivery = async (deliveryId: string) => {
+  const handleUpdateDeliveryStatus = async (order: any, newStatus: string) => {
     try {
       const { error } = await supabase
         .from('orders')
         .update({
-          status: 'completed'
+          status: newStatus
         })
-        .eq('id', deliveryId);
-        
+        .eq('id', order.id);
+      
       if (error) throw error;
       
+      toast.success(`Order marked as ${newStatus.replace('_', ' ')}!`);
+      
       // Update local state
-      const updatedDeliveries = myDeliveries.map(d => 
-        d.id === deliveryId ? { ...d, status: 'completed' } : d
+      setMyDeliveries(prev => 
+        prev.map(o => o.id === order.id ? { ...o, status: newStatus } : o)
       );
-      
-      setMyDeliveries(updatedDeliveries);
-      
-      // Update courier deliveries count
-      if (courierInfo) {
-        const newDeliveryCount = (courierInfo.deliveries || 0) + 1;
-        
-        const { error: courierError } = await supabase
-          .from('couriers')
-          .update({ deliveries: newDeliveryCount })
-          .eq('id', courierInfo.id);
-          
-        if (!courierError) {
-          setCourierInfo({
-            ...courierInfo,
-            deliveries: newDeliveryCount
-          });
-          
-          // Update localStorage
-          localStorage.setItem('courierInfo', JSON.stringify({
-            ...courierInfo,
-            deliveries: newDeliveryCount
-          }));
-        }
-      }
-      
-      setIsDetailsOpen(false);
-      toast.success("Delivery marked as completed!");
-      
-    } catch (error) {
-      console.error("Error completing delivery:", error);
-      toast.error("Failed to complete delivery");
+    } catch (error: any) {
+      console.error("Error updating delivery status:", error);
+      toast.error("Failed to update status. Please try again.");
     }
-  };
-  
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      localStorage.removeItem('courierInfo');
-      navigate('/courier-login');
-      toast.success("Logged out successfully");
-    } catch (error) {
-      console.error("Error logging out:", error);
-      toast.error("Failed to log out");
-    }
-  };
-  
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: true
-    }).format(date);
   };
 
-  if (isLoading) {
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate("/courier-login");
+    } catch (error: any) {
+      console.error("Sign out error:", error);
+      toast.error("Failed to sign out. Please try again.");
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="inline-block animate-spin h-8 w-8 border-4 border-getmore-purple border-t-transparent rounded-full mb-4"></div>
-          <h2 className="text-xl font-semibold mb-2">Loading dashboard...</h2>
-          <p className="text-gray-500">Please wait while we fetch your information</p>
+          <div className="animate-spin h-12 w-12 border-4 border-getmore-purple border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading your dashboard...</p>
         </div>
       </div>
     );
   }
 
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge className="bg-yellow-500">Pending</Badge>;
+      case 'delivery_accepted':
+        return <Badge className="bg-blue-500">Accepted</Badge>;
+      case 'picked_up':
+        return <Badge className="bg-purple-500">Picked Up</Badge>;
+      case 'delivered':
+        return <Badge className="bg-green-500">Delivered</Badge>;
+      case 'cancelled':
+        return <Badge className="bg-red-500">Cancelled</Badge>;
+      default:
+        return <Badge className="bg-gray-500">{status.replace('_', ' ')}</Badge>;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      {/* Mobile Header */}
+      <header className="bg-white border-b p-4 lg:hidden">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
             <div className="font-bold text-xl flex items-center">
               <span className="text-getmore-purple">Get</span>
               <span className="text-getmore-turquoise">More</span>
               <span className="text-gray-800 ml-1">Courier</span>
             </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center text-gray-500 hover:text-red-500"
-            >
-              <LogOut size={18} className="mr-1" />
-              <span className="text-sm">Logout</span>
-            </button>
           </div>
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="p-2 text-gray-600"
+          >
+            {showMobileMenu ? (
+              <X size={24} />
+            ) : (
+              <Menu size={24} />
+            )}
+          </button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {courierInfo && (
-          <div className="mb-8">
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center">
-                  <Avatar className="h-16 w-16 mb-4 md:mb-0 md:mr-6">
-                    <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(courierInfo.name)}&background=8B5CF6&color=fff`} />
-                    <AvatarFallback>{courierInfo.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <h1 className="text-2xl font-bold">{courierInfo.name}</h1>
-                    <div className="flex flex-col sm:flex-row sm:items-center text-sm text-gray-500 mt-1 sm:space-x-4">
-                      <div className="flex items-center mb-1 sm:mb-0">
-                        <Phone size={14} className="mr-1" />
-                        {courierInfo.phone}
-                      </div>
-                      <div className="flex items-center mb-1 sm:mb-0">
-                        <Truck size={14} className="mr-1" />
-                        {courierInfo.vehicle_type}
-                      </div>
-                      <div className="flex items-center">
-                        <Package size={14} className="mr-1" />
-                        {courierInfo.deliveries || 0} Deliveries
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 md:mt-0">
-                    <Badge className="bg-green-500">{courierInfo.status}</Badge>
-                  </div>
+      <div className="flex flex-1">
+        {/* Sidebar - Desktop */}
+        <aside className="hidden lg:block w-64 bg-white border-r">
+          <div className="p-6 border-b">
+            <div className="font-bold text-xl flex items-center">
+              <span className="text-getmore-purple">Get</span>
+              <span className="text-getmore-turquoise">More</span>
+              <span className="text-gray-800 ml-1">Courier</span>
+            </div>
+          </div>
+          <div className="p-4">
+            <div className="flex items-center mb-6">
+              <Avatar className="h-10 w-10 mr-3">
+                <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(courier?.name || 'Courier')}&background=8B5CF6&color=fff`} alt={courier?.name} />
+                <AvatarFallback>{courier?.name?.charAt(0) || 'C'}</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-medium">{courier?.name}</p>
+                <p className="text-sm text-gray-500">{courier?.email}</p>
+              </div>
+            </div>
+            <nav className="space-y-1">
+              <button
+                onClick={() => setActiveTab("available")}
+                className={`w-full flex items-center px-3 py-2 rounded-md text-sm ${
+                  activeTab === "available"
+                    ? "bg-getmore-purple text-white"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <Package size={18} className="mr-2" />
+                Available Orders
+              </button>
+              <button
+                onClick={() => setActiveTab("my-deliveries")}
+                className={`w-full flex items-center px-3 py-2 rounded-md text-sm ${
+                  activeTab === "my-deliveries"
+                    ? "bg-getmore-purple text-white"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <Bike size={18} className="mr-2" />
+                My Deliveries
+              </button>
+              <button
+                onClick={() => setActiveTab("earnings")}
+                className={`w-full flex items-center px-3 py-2 rounded-md text-sm ${
+                  activeTab === "earnings"
+                    ? "bg-getmore-purple text-white"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <DollarSign size={18} className="mr-2" />
+                Earnings
+              </button>
+              <button
+                onClick={() => setActiveTab("profile")}
+                className={`w-full flex items-center px-3 py-2 rounded-md text-sm ${
+                  activeTab === "profile"
+                    ? "bg-getmore-purple text-white"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <User size={18} className="mr-2" />
+                Profile
+              </button>
+            </nav>
+            <div className="absolute bottom-4 left-4 right-4">
+              <Button
+                variant="outline"
+                className="w-full justify-start text-red-600"
+                onClick={handleSignOut}
+              >
+                <LogOut size={18} className="mr-2" />
+                Sign Out
+              </Button>
+            </div>
+          </div>
+        </aside>
+
+        {/* Mobile Menu */}
+        {showMobileMenu && (
+          <div className="fixed inset-0 bg-white z-50 lg:hidden">
+            <div className="flex justify-between items-center p-4 border-b">
+              <div className="font-bold text-xl flex items-center">
+                <span className="text-getmore-purple">Get</span>
+                <span className="text-getmore-turquoise">More</span>
+                <span className="text-gray-800 ml-1">Courier</span>
+              </div>
+              <button
+                onClick={() => setShowMobileMenu(false)}
+                className="p-2 text-gray-600"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-4">
+              <div className="flex items-center mb-6">
+                <Avatar className="h-10 w-10 mr-3">
+                  <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(courier?.name || 'Courier')}&background=8B5CF6&color=fff`} alt={courier?.name} />
+                  <AvatarFallback>{courier?.name?.charAt(0) || 'C'}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium">{courier?.name}</p>
+                  <p className="text-sm text-gray-500">{courier?.email}</p>
                 </div>
               </div>
+              <nav className="space-y-1">
+                <button
+                  onClick={() => {
+                    setActiveTab("available");
+                    setShowMobileMenu(false);
+                  }}
+                  className={`w-full flex items-center px-3 py-2 rounded-md text-sm ${
+                    activeTab === "available"
+                      ? "bg-getmore-purple text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <Package size={18} className="mr-2" />
+                  Available Orders
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab("my-deliveries");
+                    setShowMobileMenu(false);
+                  }}
+                  className={`w-full flex items-center px-3 py-2 rounded-md text-sm ${
+                    activeTab === "my-deliveries"
+                      ? "bg-getmore-purple text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <Bike size={18} className="mr-2" />
+                  My Deliveries
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab("earnings");
+                    setShowMobileMenu(false);
+                  }}
+                  className={`w-full flex items-center px-3 py-2 rounded-md text-sm ${
+                    activeTab === "earnings"
+                      ? "bg-getmore-purple text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <DollarSign size={18} className="mr-2" />
+                  Earnings
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab("profile");
+                    setShowMobileMenu(false);
+                  }}
+                  className={`w-full flex items-center px-3 py-2 rounded-md text-sm ${
+                    activeTab === "profile"
+                      ? "bg-getmore-purple text-white"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <User size={18} className="mr-2" />
+                  Profile
+                </button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-red-600 mt-6"
+                  onClick={handleSignOut}
+                >
+                  <LogOut size={18} className="mr-2" />
+                  Sign Out
+                </Button>
+              </nav>
             </div>
           </div>
         )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6 grid grid-cols-2">
-            <TabsTrigger value="available">Available Deliveries</TabsTrigger>
-            <TabsTrigger value="my-deliveries">My Deliveries</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="available" className="space-y-6">
-            <h2 className="text-xl font-semibold">Available Deliveries</h2>
+        {/* Main Content */}
+        <main className="flex-1 p-6 overflow-auto">
+          <TabsContent value="available" className={activeTab === "available" ? "block" : "hidden"}>
+            <h2 className="text-2xl font-bold mb-6">Available Orders</h2>
             
-            {availableDeliveries.length === 0 ? (
-              <div className="bg-white rounded-lg border p-8 text-center">
+            {availableOrders.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-lg border">
                 <Package size={48} className="mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-700">No available deliveries</h3>
+                <h3 className="text-lg font-medium">No orders available</h3>
                 <p className="text-gray-500 mt-2">Check back later for new delivery requests</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {availableDeliveries.map((delivery) => (
-                  <Card key={delivery.id} className="overflow-hidden">
-                    <CardContent className="p-6">
-                      <div className="flex flex-col md:flex-row justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-start mb-2">
-                            <MapPin className="h-5 w-5 text-getmore-purple mr-2 mt-0.5" />
-                            <div>
-                              <h3 className="font-medium">Delivery to: {delivery.address}</h3>
-                              <p className="text-sm text-gray-500">From: {delivery.store_name}</p>
+                {availableOrders.map((order) => {
+                  const store = storeCache[order.store_id] || null;
+                  
+                  return (
+                    <Card key={order.id} className="overflow-hidden">
+                      <CardContent className="p-6">
+                        <div className="flex flex-col md:flex-row md:items-center">
+                          <div className="flex-1 mb-4 md:mb-0">
+                            <div className="flex items-center mb-2">
+                              {store ? (
+                                <>
+                                  <Avatar className="h-8 w-8 mr-2">
+                                    <AvatarImage src={store.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(store.name)}&background=8B5CF6&color=fff`} alt={store.name} />
+                                    <AvatarFallback>{store.name.charAt(0)}</AvatarFallback>
+                                  </Avatar>
+                                  <h3 className="font-medium">{store.name}</h3>
+                                </>
+                              ) : (
+                                <h3 className="font-medium">Order #{order.id.substring(0, 8)}</h3>
+                              )}
+                              <div className="ml-auto">
+                                {renderStatusBadge(order.status)}
+                              </div>
+                            </div>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex">
+                                <Map size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                <span className="text-gray-700">Deliver to: {order.address}</span>
+                              </div>
+                              <div className="flex">
+                                <Package size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                <span className="text-gray-700">
+                                  {Array.isArray(order.items) ? `${order.items.length} items` : 'Items not available'}
+                                </span>
+                              </div>
+                              <div className="flex">
+                                <Clock size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                <span className="text-gray-700">
+                                  {new Date(order.created_at).toLocaleString()}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                          
-                          <div className="flex items-center text-sm mb-4">
-                            <Clock className="h-4 w-4 text-gray-500 mr-1" />
-                            <span className="text-gray-500">
-                              {formatDate(delivery.created_at)}
-                            </span>
-                          </div>
-                          
-                          <div className="text-sm">
-                            <span className="font-medium">Items:</span> {delivery.items.length}
-                            <span className="mx-3 text-gray-300">|</span>
-                            <span className="font-medium">Total:</span> P{delivery.total_amount.toFixed(2)}
+                          <div className="flex flex-col space-y-2 md:ml-6">
+                            <div className="text-xl font-bold text-center md:text-right">
+                              P{order.total_amount}
+                            </div>
+                            <Button 
+                              onClick={() => handleAcceptOrder(order)}
+                              disabled={isAccepting}
+                              className="w-full md:w-auto"
+                            >
+                              {isAccepting ? "Accepting..." : "Accept Delivery"}
+                            </Button>
                           </div>
                         </div>
-                        
-                        <div className="mt-4 md:mt-0 md:ml-6 flex md:flex-col items-center md:items-end justify-between">
-                          <Badge className="mb-4 bg-yellow-500">Needs Courier</Badge>
-                          <Button 
-                            size="sm" 
-                            className="h-8"
-                            onClick={() => {
-                              setSelectedDelivery(delivery);
-                              setIsDetailsOpen(true);
-                            }}
-                          >
-                            View Details
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
           
-          <TabsContent value="my-deliveries" className="space-y-6">
-            <h2 className="text-xl font-semibold">My Deliveries</h2>
+          <TabsContent value="my-deliveries" className={activeTab === "my-deliveries" ? "block" : "hidden"}>
+            <h2 className="text-2xl font-bold mb-6">My Deliveries</h2>
             
             {myDeliveries.length === 0 ? (
-              <div className="bg-white rounded-lg border p-8 text-center">
-                <Truck size={48} className="mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-700">No active deliveries</h3>
-                <p className="text-gray-500 mt-2">You haven't accepted any deliveries yet</p>
+              <div className="text-center py-12 bg-white rounded-lg border">
+                <Bike size={48} className="mx-auto text-gray-300 mb-4" />
+                <h3 className="text-lg font-medium">No active deliveries</h3>
+                <p className="text-gray-500 mt-2">Accept orders to see them here</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {myDeliveries.map((delivery) => (
-                  <Card key={delivery.id} className="overflow-hidden">
-                    <CardContent className="p-6">
-                      <div className="flex flex-col md:flex-row justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-start mb-2">
-                            <MapPin className="h-5 w-5 text-getmore-purple mr-2 mt-0.5" />
-                            <div>
-                              <h3 className="font-medium">Delivery to: {delivery.address}</h3>
-                              <p className="text-sm text-gray-500">From: {delivery.store_name}</p>
+                {myDeliveries.map((order) => {
+                  const store = storeCache[order.store_id] || null;
+                  
+                  return (
+                    <Card key={order.id} className="overflow-hidden">
+                      <CardContent className="p-6">
+                        <div className="flex flex-col">
+                          <div className="flex items-center mb-2">
+                            {store ? (
+                              <>
+                                <Avatar className="h-8 w-8 mr-2">
+                                  <AvatarImage src={store.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(store.name)}&background=8B5CF6&color=fff`} alt={store.name} />
+                                  <AvatarFallback>{store.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <h3 className="font-medium">{store.name}</h3>
+                              </>
+                            ) : (
+                              <h3 className="font-medium">Order #{order.id.substring(0, 8)}</h3>
+                            )}
+                            <div className="ml-auto">
+                              {renderStatusBadge(order.status)}
                             </div>
                           </div>
                           
-                          <div className="flex items-center text-sm mb-4">
-                            <Clock className="h-4 w-4 text-gray-500 mr-1" />
-                            <span className="text-gray-500">
-                              {formatDate(delivery.updated_at)}
-                            </span>
+                          <div className="grid md:grid-cols-2 gap-4 mb-4">
+                            <div className="space-y-2 text-sm">
+                              <div className="flex">
+                                <User size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                <span className="text-gray-700">Customer: {order.customer_name}</span>
+                              </div>
+                              <div className="flex">
+                                <Map size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                <span className="text-gray-700">Address: {order.address}</span>
+                              </div>
+                              <div className="flex">
+                                <Phone size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                <span className="text-gray-700">Contact: {store?.phone || 'N/A'}</span>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2 text-sm">
+                              <div className="flex">
+                                <Package size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                <span className="text-gray-700">
+                                  {Array.isArray(order.items) ? `${order.items.length} items` : 'Items not available'}
+                                </span>
+                              </div>
+                              <div className="flex">
+                                <Clock size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                <span className="text-gray-700">
+                                  {new Date(order.created_at).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex">
+                                <DollarSign size={16} className="mr-2 text-gray-500 flex-shrink-0" />
+                                <span className="text-gray-700 font-bold">
+                                  P{order.total_amount}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                           
-                          <div className="text-sm">
-                            <span className="font-medium">Items:</span> {delivery.items.length}
-                            <span className="mx-3 text-gray-300">|</span>
-                            <span className="font-medium">Customer:</span> {delivery.customer_name}
+                          <div className="border-t pt-4 mt-2">
+                            <div className="flex flex-wrap gap-2 justify-end">
+                              {order.status === 'delivery_accepted' && (
+                                <Button 
+                                  onClick={() => handleUpdateDeliveryStatus(order, 'picked_up')}
+                                  className="flex items-center"
+                                >
+                                  <CheckCircle size={16} className="mr-2" />
+                                  Mark as Picked Up
+                                </Button>
+                              )}
+                              
+                              {order.status === 'picked_up' && (
+                                <Button 
+                                  onClick={() => handleUpdateDeliveryStatus(order, 'delivered')}
+                                  className="flex items-center"
+                                >
+                                  <CheckCircle size={16} className="mr-2" />
+                                  Mark as Delivered
+                                </Button>
+                              )}
+                              
+                              {(order.status === 'delivery_accepted' || order.status === 'picked_up') && (
+                                <Button 
+                                  variant="outline" 
+                                  className="text-red-600 border-red-600"
+                                  onClick={() => handleUpdateDeliveryStatus(order, 'cancelled')}
+                                >
+                                  <XCircle size={16} className="mr-2" />
+                                  Cancel
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        
-                        <div className="mt-4 md:mt-0 md:ml-6 flex md:flex-col items-center md:items-end justify-between">
-                          <Badge className={delivery.status === 'completed' ? 'mb-4 bg-green-500' : 'mb-4 bg-blue-500'}>
-                            {delivery.status === 'completed' ? 'Completed' : 'In Progress'}
-                          </Badge>
-                          <Button 
-                            size="sm" 
-                            className="h-8"
-                            onClick={() => {
-                              setSelectedDelivery(delivery);
-                              setIsDetailsOpen(true);
-                            }}
-                          >
-                            View Details
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
-        </Tabs>
-        
-        {/* Delivery Details Dialog */}
-        {selectedDelivery && (
-          <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Delivery Details</DialogTitle>
-                <DialogDescription>
-                  Complete information about this delivery
-                </DialogDescription>
-              </DialogHeader>
+          
+          <TabsContent value="earnings" className={activeTab === "earnings" ? "block" : "hidden"}>
+            <h2 className="text-2xl font-bold mb-6">Earnings</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-500">Today's Earnings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">P0.00</div>
+                </CardContent>
+              </Card>
               
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <h3 className="font-medium flex items-center">
-                    <User size={16} className="mr-2" />
-                    Customer Information
-                  </h3>
-                  <div className="bg-gray-50 p-3 rounded">
-                    <p><span className="font-medium">Name:</span> {selectedDelivery.customer_name}</p>
-                    <p><span className="font-medium">Delivery Address:</span> {selectedDelivery.address}</p>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <h3 className="font-medium flex items-center">
-                    <Store size={16} className="mr-2" />
-                    Store Information
-                  </h3>
-                  <div className="bg-gray-50 p-3 rounded">
-                    <p><span className="font-medium">Store:</span> {selectedDelivery.store_name}</p>
-                    <p><span className="font-medium">Pickup Address:</span> {selectedDelivery.store_address}</p>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <h3 className="font-medium flex items-center">
-                    <Package size={16} className="mr-2" />
-                    Order Details
-                  </h3>
-                  <div className="bg-gray-50 p-3 rounded">
-                    <p><span className="font-medium">Order ID:</span> {selectedDelivery.id.slice(0, 8)}</p>
-                    <p><span className="font-medium">Total Amount:</span> P{selectedDelivery.total_amount.toFixed(2)}</p>
-                    <p><span className="font-medium">Status:</span> {selectedDelivery.status}</p>
-                    <p><span className="font-medium">Date:</span> {formatDate(selectedDelivery.created_at)}</p>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <h3 className="font-medium">Order Items</h3>
-                  <div className="bg-gray-50 p-3 rounded max-h-60 overflow-y-auto">
-                    {selectedDelivery.items.map((item: any, index: number) => (
-                      <div key={index} className="py-2 border-b last:border-0">
-                        <div className="flex justify-between">
-                          <span>{item.productName || item.name}</span>
-                          <span>x{item.quantity}</span>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          P{parseFloat(item.price).toFixed(2)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-500">This Week</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">P0.00</div>
+                </CardContent>
+              </Card>
               
-              <DialogFooter>
-                {selectedDelivery.status === 'approved' && (
-                  <Button 
-                    onClick={() => handleAcceptDelivery(selectedDelivery.id)}
-                    className="w-full"
-                  >
-                    <CheckCircle size={16} className="mr-2" />
-                    Accept Delivery
-                  </Button>
-                )}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-500">Total Deliveries</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{myDeliveries.filter(d => d.status === 'delivered').length}</div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Earning History</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-10">
+                  <AlertTriangle size={48} className="mx-auto text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium">No earnings yet</h3>
+                  <p className="text-gray-500 mt-2">Complete deliveries to see your earnings history</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="profile" className={activeTab === "profile" ? "block" : "hidden"}>
+            <h2 className="text-2xl font-bold mb-6">My Profile</h2>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex flex-col items-center mb-6">
+                  <Avatar className="h-24 w-24 mb-4">
+                    <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(courier?.name || 'Courier')}&background=8B5CF6&color=fff`} alt={courier?.name} />
+                    <AvatarFallback>{courier?.name?.charAt(0) || 'C'}</AvatarFallback>
+                  </Avatar>
+                  <h3 className="text-xl font-bold">{courier?.name}</h3>
+                  <p className="text-gray-500">{courier?.email}</p>
+                </div>
                 
-                {selectedDelivery.status === 'delivering' && (
-                  <Button 
-                    onClick={() => handleCompleteDelivery(selectedDelivery.id)}
-                    className="w-full"
-                  >
-                    <CheckCircle size={16} className="mr-2" />
-                    Mark as Completed
-                  </Button>
-                )}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Contact</h4>
+                      <p className="text-lg">{courier?.phone}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Vehicle Type</h4>
+                      <p className="text-lg">{courier?.vehicle_type}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Status</h4>
+                      <p className="text-lg flex items-center">
+                        <span className={`inline-block h-2 w-2 rounded-full mr-2 ${courier?.status === 'active' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                        {courier?.status === 'active' ? 'Active' : 'Inactive'}
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Joined</h4>
+                      <p className="text-lg">{new Date(courier?.registered_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                </div>
                 
-                {selectedDelivery.status === 'completed' && (
-                  <Button variant="outline" className="w-full" onClick={() => setIsDetailsOpen(false)}>
-                    Close Details
-                  </Button>
-                )}
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
-      </main>
+                <div className="mt-6 pt-6 border-t">
+                  <h4 className="font-medium mb-4">Account Actions</h4>
+                  <div className="space-y-2">
+                    <Button variant="outline" className="w-full justify-start">
+                      Update Profile
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start text-red-600" onClick={handleSignOut}>
+                      <LogOut size={18} className="mr-2" />
+                      Sign Out
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </main>
+      </div>
     </div>
   );
 };

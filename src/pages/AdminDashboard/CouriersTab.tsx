@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,7 +77,6 @@ const CouriersTab = () => {
     }
   };
 
-  // Generate a random password
   const generateRandomPassword = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
     let password = "";
@@ -97,7 +95,6 @@ const CouriersTab = () => {
     setIsLoading(true);
     
     try {
-      // First, create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: newCourier.email,
         password: newCourier.password,
@@ -113,7 +110,6 @@ const CouriersTab = () => {
       
       if (authError) throw authError;
       
-      // Then insert into couriers table
       const courier = {
         id: authData.user?.id || `courier-${Date.now()}`,
         name: newCourier.name,
@@ -126,7 +122,7 @@ const CouriersTab = () => {
         deliveries: 0,
         registered_at: new Date().toISOString(),
         created_by_admin: true,
-        password: newCourier.password // Store temporarily for sharing credentials
+        password: newCourier.password
       };
       
       const { error: dbError } = await supabase
@@ -135,12 +131,10 @@ const CouriersTab = () => {
         
       if (dbError) throw dbError;
 
-      // Update local state and storage
       const updatedCouriers = [...couriers, courier];
       setCouriers(updatedCouriers);
       localStorage.setItem('couriers', JSON.stringify(updatedCouriers));
       
-      // Reset form
       setNewCourier({
         name: "",
         email: "",
@@ -153,7 +147,6 @@ const CouriersTab = () => {
       setIsCreateDialogOpen(false);
       toast.success("Courier account created successfully");
       
-      // Show credentials dialog
       setSelectedCourier(courier);
       setIsShareDialogOpen(true);
     } catch (error: any) {
@@ -170,32 +163,29 @@ const CouriersTab = () => {
     setIsLoading(true);
     
     try {
-      // Generate a random password for the courier
       const tempPassword = generateRandomPassword();
       
-      // First create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: selectedApplication.email,
         password: tempPassword,
         options: {
           data: {
-            name: selectedApplication.full_name,
+            name: selectedApplication.full_name || selectedApplication.fullName,
             role: "courier",
             phone: selectedApplication.phone,
-            vehicle: selectedApplication.vehicle_type
+            vehicle: selectedApplication.vehicle_type || selectedApplication.vehicle
           }
         }
       });
       
       if (authError) throw authError;
       
-      // Then insert into couriers table
       const courier = {
         id: authData.user?.id || `courier-${Date.now()}`,
-        name: selectedApplication.full_name,
+        name: selectedApplication.full_name || selectedApplication.fullName,
         email: selectedApplication.email,
         phone: selectedApplication.phone,
-        vehicle_type: selectedApplication.vehicle_type,
+        vehicle_type: selectedApplication.vehicle_type || selectedApplication.vehicle,
         notes: `Application approved from ${selectedApplication.city}. Experience: ${selectedApplication.experience || "N/A"}`,
         status: "active",
         rating: 0,
@@ -211,20 +201,19 @@ const CouriersTab = () => {
         
       if (dbError) throw dbError;
       
-      // Update application status
-      await supabase
-        .from('courier_applications')
-        .update({ status: 'approved' })
-        .eq('id', selectedApplication.id);
+      if (selectedApplication.id && !selectedApplication.id.toString().startsWith('app-')) {
+        await supabase
+          .from('courier_applications')
+          .update({ status: 'approved' })
+          .eq('id', selectedApplication.id);
+      }
           
-      // Update local state
       const updatedApplications = applications.map(app => 
         app.id === selectedApplication.id ? { ...app, status: 'approved' } : app
       );
       setApplications(updatedApplications);
       localStorage.setItem('courierApplications', JSON.stringify(updatedApplications));
 
-      // Update couriers list
       const updatedCouriers = [...couriers, courier];
       setCouriers(updatedCouriers);
       localStorage.setItem('couriers', JSON.stringify(updatedCouriers));
@@ -232,7 +221,6 @@ const CouriersTab = () => {
       setIsApproveDialogOpen(false);
       toast.success("Application approved and courier account created");
       
-      // Show credentials dialog
       setSelectedCourier(courier);
       setIsShareDialogOpen(true);
     } catch (error: any) {
@@ -431,7 +419,6 @@ const CouriersTab = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Create Courier Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -556,7 +543,6 @@ const CouriersTab = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Approve Application Dialog */}
       <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -614,7 +600,6 @@ const CouriersTab = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Share Credentials Dialog */}
       <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
