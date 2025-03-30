@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,73 +11,18 @@ import { Label } from "@/components/ui/label";
 import { Truck, CreditCard, Check, Star, Clock, MapPin, Phone, User, Calendar, CreditCard as CardIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface CheckoutProcessProps {
   onClose: () => void;
 }
 
-const Couriers = [
-  {
-    id: 'courier-1',
-    name: 'Express Delivery',
-    eta: '30-45 min',
-    fee: 25,
-    rating: 4.8,
-    ratingsCount: 120,
-    image: 'https://ui-avatars.com/api/?name=Express&background=8B5CF6&color=fff'
-  },
-  {
-    id: 'courier-2',
-    name: 'Standard Delivery',
-    eta: '1-2 hours',
-    fee: 15,
-    rating: 4.5,
-    ratingsCount: 85,
-    image: 'https://ui-avatars.com/api/?name=Standard&background=0EA5E9&color=fff'
-  },
-  {
-    id: 'courier-3',
-    name: 'Economy Delivery',
-    eta: '2-3 hours',
-    fee: 10,
-    rating: 4.2,
-    ratingsCount: 65,
-    image: 'https://ui-avatars.com/api/?name=Economy&background=2DD4BF&color=fff'
-  }
-];
-
-const PaymentMethods = [
-  {
-    id: 'card',
-    name: 'Debit/Credit Card',
-    icon: <CreditCard className="h-5 w-5" />,
-    description: 'Pay securely with your card'
-  },
-  {
-    id: 'orange',
-    name: 'Orange Money',
-    icon: <div className="h-5 w-5 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-xs">O</div>,
-    description: 'Pay using Orange Money'
-  },
-  {
-    id: 'myzaka',
-    name: 'MyZaka',
-    icon: <div className="h-5 w-5 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-xs">M</div>,
-    description: 'Pay using MyZaka'
-  },
-  {
-    id: 'smega',
-    name: 'Smega',
-    icon: <div className="h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs">S</div>,
-    description: 'Pay using Smega'
-  }
-];
-
 const CheckoutProcess = ({ onClose }: CheckoutProcessProps) => {
   const { cartItems, totalPrice, clearCart } = useCart();
   const { user } = useAuth();
   
-  const [step, setStep] = useState<'address' | 'courier' | 'payment' | 'confirmation' | 'success'>('address');
+  const [step, setStep] = useState<'address' | 'courier' | 'courier-selection' | 'payment' | 'confirmation' | 'success'>('address');
   const [isProcessing, setIsProcessing] = useState(false);
   
   const [address, setAddress] = useState({
@@ -87,7 +32,9 @@ const CheckoutProcess = ({ onClose }: CheckoutProcessProps) => {
   });
   
   const [selectedCourier, setSelectedCourier] = useState<string | null>(null);
+  const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [availableCouriers, setAvailableCouriers] = useState<any[]>([]);
   
   const [cardDetails, setCardDetails] = useState({
     cardNumber: '',
@@ -102,6 +49,39 @@ const CheckoutProcess = ({ onClose }: CheckoutProcessProps) => {
     reference: '',
     proofOfPayment: ''
   });
+
+  // Fetch available couriers
+  useEffect(() => {
+    const fetchCouriers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('couriers')
+          .select('*')
+          .eq('status', 'active');
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          setAvailableCouriers(data.map(courier => ({
+            id: courier.id,
+            name: courier.name,
+            vehicleType: courier.vehicle_type,
+            rating: courier.rating || 4.5,
+            deliveries: courier.deliveries || 0,
+            image: `https://ui-avatars.com/api/?name=${encodeURIComponent(courier.name)}&background=8B5CF6&color=fff`
+          })));
+        } else {
+          // If no couriers are available, use the default ones
+          setAvailableCouriers(Couriers);
+        }
+      } catch (error) {
+        console.error("Error fetching couriers:", error);
+        setAvailableCouriers(Couriers); // Fallback to default
+      }
+    };
+    
+    fetchCouriers();
+  }, []);
   
   const handleAddressSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,8 +95,17 @@ const CheckoutProcess = ({ onClose }: CheckoutProcessProps) => {
   };
   
   const handleCourierSelection = () => {
-    if (!selectedCourier) {
+    if (!selectedDeliveryMethod) {
       toast.error("Please select a delivery method");
+      return;
+    }
+    
+    setStep('courier-selection');
+  };
+
+  const handleCourierPickSelection = () => {
+    if (!selectedCourier) {
+      toast.error("Please select a courier");
       return;
     }
     
@@ -163,28 +152,91 @@ const CheckoutProcess = ({ onClose }: CheckoutProcessProps) => {
     }, 2000);
   };
   
-  const selectedCourierData = selectedCourier ? Couriers.find(c => c.id === selectedCourier) : null;
-  const deliveryFee = selectedCourierData ? selectedCourierData.fee : 0;
+  // Delivery Method options
+  const Couriers = [
+    {
+      id: 'courier-1',
+      name: 'Express Delivery',
+      eta: '30-45 min',
+      fee: 25,
+      rating: 4.8,
+      ratingsCount: 120,
+      image: 'https://ui-avatars.com/api/?name=Express&background=8B5CF6&color=fff'
+    },
+    {
+      id: 'courier-2',
+      name: 'Standard Delivery',
+      eta: '1-2 hours',
+      fee: 15,
+      rating: 4.5,
+      ratingsCount: 85,
+      image: 'https://ui-avatars.com/api/?name=Standard&background=0EA5E9&color=fff'
+    },
+    {
+      id: 'courier-3',
+      name: 'Economy Delivery',
+      eta: '2-3 hours',
+      fee: 10,
+      rating: 4.2,
+      ratingsCount: 65,
+      image: 'https://ui-avatars.com/api/?name=Economy&background=2DD4BF&color=fff'
+    }
+  ];
+
+  const PaymentMethods = [
+    {
+      id: 'card',
+      name: 'Debit/Credit Card',
+      icon: <CreditCard className="h-5 w-5" />,
+      description: 'Pay securely with your card'
+    },
+    {
+      id: 'orange',
+      name: 'Orange Money',
+      icon: <div className="h-5 w-5 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-xs">O</div>,
+      description: 'Pay using Orange Money'
+    },
+    {
+      id: 'myzaka',
+      name: 'MyZaka',
+      icon: <div className="h-5 w-5 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-xs">M</div>,
+      description: 'Pay using MyZaka'
+    },
+    {
+      id: 'smega',
+      name: 'Smega',
+      icon: <div className="h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs">S</div>,
+      description: 'Pay using Smega'
+    }
+  ];
+
+  const selectedCourierData = availableCouriers.find(c => c.id === selectedCourier) || 
+    (selectedDeliveryMethod ? Couriers.find(c => c.id === selectedDeliveryMethod) : null);
+  const deliveryFee = selectedCourierData ? (selectedCourierData.fee || 15) : 0;
   const finalTotal = totalPrice + deliveryFee;
   
   const renderStepIndicator = () => {
     return (
       <div className="flex items-center justify-center mb-6">
         <div className="flex items-center">
-          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${step === 'address' || step === 'courier' || step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-500'}`}>
+          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${step === 'address' || step === 'courier' || step === 'courier-selection' || step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-500'}`}>
             1
           </div>
-          <div className={`h-1 w-10 ${step === 'courier' || step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple' : 'bg-gray-200'}`}></div>
-          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${step === 'courier' || step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-500'}`}>
+          <div className={`h-1 w-8 ${step === 'courier' || step === 'courier-selection' || step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple' : 'bg-gray-200'}`}></div>
+          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${step === 'courier' || step === 'courier-selection' || step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-500'}`}>
             2
           </div>
-          <div className={`h-1 w-10 ${step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple' : 'bg-gray-200'}`}></div>
-          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-500'}`}>
+          <div className={`h-1 w-8 ${step === 'courier-selection' || step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple' : 'bg-gray-200'}`}></div>
+          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${step === 'courier-selection' || step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-500'}`}>
             3
           </div>
-          <div className={`h-1 w-10 ${step === 'confirmation' || step === 'success' ? 'bg-getmore-purple' : 'bg-gray-200'}`}></div>
-          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${step === 'confirmation' || step === 'success' ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-500'}`}>
+          <div className={`h-1 w-8 ${step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple' : 'bg-gray-200'}`}></div>
+          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${step === 'payment' || step === 'confirmation' || step === 'success' ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-500'}`}>
             4
+          </div>
+          <div className={`h-1 w-8 ${step === 'confirmation' || step === 'success' ? 'bg-getmore-purple' : 'bg-gray-200'}`}></div>
+          <div className={`rounded-full h-8 w-8 flex items-center justify-center ${step === 'confirmation' || step === 'success' ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-500'}`}>
+            5
           </div>
         </div>
       </div>
@@ -200,6 +252,7 @@ const CheckoutProcess = ({ onClose }: CheckoutProcessProps) => {
           <h2 className="text-2xl font-bold mb-4 text-center">
             {step === 'address' && 'Delivery Address'}
             {step === 'courier' && 'Choose Delivery Method'}
+            {step === 'courier-selection' && 'Select Your Courier'}
             {step === 'payment' && 'Payment Method'}
             {step === 'confirmation' && 'Confirm Order'}
           </h2>
@@ -257,12 +310,12 @@ const CheckoutProcess = ({ onClose }: CheckoutProcessProps) => {
           {step === 'courier' && (
             <div className="space-y-4">
               <RadioGroup 
-                value={selectedCourier || ''} 
-                onValueChange={setSelectedCourier}
+                value={selectedDeliveryMethod || ''} 
+                onValueChange={setSelectedDeliveryMethod}
                 className="space-y-3"
               >
                 {Couriers.map((courier) => (
-                  <div key={courier.id} className={`border rounded-lg p-4 cursor-pointer hover:border-getmore-purple transition-colors ${selectedCourier === courier.id ? 'border-getmore-purple bg-getmore-purple/5' : ''}`}>
+                  <div key={courier.id} className={`border rounded-lg p-4 cursor-pointer hover:border-getmore-purple transition-colors ${selectedDeliveryMethod === courier.id ? 'border-getmore-purple bg-getmore-purple/5' : ''}`}>
                     <RadioGroupItem value={courier.id} id={courier.id} className="sr-only" />
                     <Label htmlFor={courier.id} className="flex items-start cursor-pointer">
                       <div className="flex-shrink-0 mr-4">
@@ -299,6 +352,67 @@ const CheckoutProcess = ({ onClose }: CheckoutProcessProps) => {
                   Back
                 </Button>
                 <Button onClick={handleCourierSelection}>
+                  Continue
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {step === 'courier-selection' && (
+            <div className="space-y-4">
+              <p className="text-gray-600 mb-4 text-center">
+                Select a courier who will deliver your order
+              </p>
+              
+              <RadioGroup 
+                value={selectedCourier || ''} 
+                onValueChange={setSelectedCourier}
+                className="space-y-3"
+              >
+                {availableCouriers.length > 0 ? (
+                  availableCouriers.map((courier) => (
+                    <div key={courier.id} className={`border rounded-lg p-4 cursor-pointer hover:border-getmore-purple transition-colors ${selectedCourier === courier.id ? 'border-getmore-purple bg-getmore-purple/5' : ''}`}>
+                      <RadioGroupItem value={courier.id} id={`courier-select-${courier.id}`} className="sr-only" />
+                      <Label htmlFor={`courier-select-${courier.id}`} className="flex items-start cursor-pointer">
+                        <div className="flex-shrink-0 mr-4">
+                          <Avatar className="h-14 w-14">
+                            <AvatarImage src={courier.image} alt={courier.name} />
+                            <AvatarFallback>{courier.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex justify-between">
+                            <h3 className="font-medium">{courier.name}</h3>
+                          </div>
+                          <div className="flex items-center text-sm text-gray-500 mt-1">
+                            <Truck size={14} className="mr-1" />
+                            <span>{courier.vehicleType}</span>
+                          </div>
+                          <div className="flex items-center text-sm mt-1">
+                            <div className="flex items-center text-yellow-500">
+                              <Star size={14} className="fill-yellow-500" />
+                              <span className="ml-1 text-gray-700">{courier.rating}</span>
+                            </div>
+                            <span className="text-gray-500 text-xs ml-2">
+                              {courier.deliveries} deliveries
+                            </span>
+                          </div>
+                        </div>
+                      </Label>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 border rounded-lg">
+                    <p className="text-gray-500">No couriers available at the moment.</p>
+                  </div>
+                )}
+              </RadioGroup>
+              
+              <div className="flex justify-between pt-4">
+                <Button type="button" variant="outline" onClick={() => setStep('courier')}>
+                  Back
+                </Button>
+                <Button onClick={handleCourierPickSelection} disabled={availableCouriers.length === 0}>
                   Continue
                 </Button>
               </div>
@@ -535,7 +649,26 @@ const CheckoutProcess = ({ onClose }: CheckoutProcessProps) => {
                     <div>
                       <span className="text-gray-500">Delivery Method:</span>
                       <p>{selectedCourierData?.name}</p>
-                      <p className="text-xs text-gray-500">{selectedCourierData?.eta}</p>
+                      {selectedCourierData?.eta && (
+                        <p className="text-xs text-gray-500">{selectedCourierData?.eta}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 space-y-3">
+                  <h3 className="font-medium">Courier</h3>
+                  
+                  <div className="flex items-center">
+                    <Avatar className="h-10 w-10 mr-3">
+                      <AvatarImage src={selectedCourierData?.image} alt={selectedCourierData?.name} />
+                      <AvatarFallback>{selectedCourierData?.name?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{selectedCourierData?.name}</p>
+                      {selectedCourierData?.vehicleType && (
+                        <p className="text-xs text-gray-500">Vehicle: {selectedCourierData?.vehicleType}</p>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,8 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Order } from '@/types/order';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export interface Courier {
   id: string;
@@ -41,6 +44,7 @@ interface CourierContextType {
   updateDeliveryStatus: (requestId: string, status: DeliveryRequest['status'], timestamp?: Date) => void;
   getAllCouriers: () => Courier[];
   getAvailableCouriers: () => Courier[];
+  fetchRealTimeDeliveries: () => Promise<void>;
 }
 
 const CourierContext = createContext<CourierContextType | undefined>(undefined);
@@ -59,39 +63,134 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
         setCurrentCourier(parsedCourier);
         setIsAuthenticated(true);
         
-        loadCourierDeliveries(parsedCourier.id);
+        fetchRealTimeDeliveries();
+        setupRealTimeSubscription();
       } catch (error) {
         console.error('Failed to parse courier info from localStorage:', error);
         localStorage.removeItem('courierInfo');
       }
     }
     
-    const storedAllCouriers = localStorage.getItem('allCouriers');
-    if (storedAllCouriers) {
-      try {
-        setAllCouriers(JSON.parse(storedAllCouriers));
-      } catch (error) {
-        console.error('Failed to parse all couriers from localStorage:', error);
-      }
-    }
+    fetchAllCouriers();
+
+    return () => {
+      // Cleanup realtime subscription
+      const channel = supabase.channel('orders-changes');
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  const loadCourierDeliveries = (courierId: string) => {
-    const storedDeliveries = localStorage.getItem('deliveryRequests');
-    if (storedDeliveries) {
-      try {
-        const allDeliveries = JSON.parse(storedDeliveries);
+  const setupRealTimeSubscription = () => {
+    // Subscribe to order changes
+    const channel = supabase.channel('orders-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          console.log('Orders change received:', payload);
+          fetchRealTimeDeliveries();
+        }
+      )
+      .subscribe();
+  };
+
+  const fetchAllCouriers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('couriers')
+        .select('*')
+        .eq('status', 'active');
+      
+      if (error) throw error;
+      
+      if (data) {
+        const formattedCouriers = data.map(courier => ({
+          id: courier.id,
+          name: courier.name,
+          email: courier.email,
+          phone: courier.phone,
+          vehicleType: courier.vehicle_type,
+          isAvailable: true,
+          rating: courier.rating || 0,
+          completedDeliveries: courier.deliveries || 0
+        }));
         
-        const courierDeliveries = allDeliveries.filter(
-          (d: DeliveryRequest) => 
-            (d.courierId === courierId) || 
-            (d.status === 'pending' && !d.courierId)
-        );
-        
-        setDeliveryRequests(courierDeliveries);
-      } catch (error) {
-        console.error('Failed to parse deliveries from localStorage:', error);
+        setAllCouriers(formattedCouriers);
+        localStorage.setItem('allCouriers', JSON.stringify(formattedCouriers));
       }
+    } catch (error) {
+      console.error('Failed to fetch couriers:', error);
+    }
+  };
+
+  const fetchRealTimeDeliveries = async () => {
+    if (!currentCourier) return;
+    
+    try {
+      // Fetch orders assigned to this courier
+      const { data: assignedOrders, error: assignedError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('courier_assigned', currentCourier.email);
+      
+      // Fetch pending orders that need couriers
+      const { data: pendingOrders, error: pendingError } = await supabase
+        .from('orders')
+        .select('*')
+        .or('courier_assigned.is.null,status.eq.pending');
+
+      if (assignedError) throw assignedError;
+      if (pendingError) throw pendingError;
+      
+      // Fetch store details for each order
+      const storeIds = new Set([
+        ...(assignedOrders || []).map(order => order.store_id),
+        ...(pendingOrders || []).map(order => order.store_id)
+      ]);
+      
+      const storeDetailsMap: Record<string, any> = {};
+      
+      if (storeIds.size > 0) {
+        const { data: storesData } = await supabase
+          .from('stores')
+          .select('*')
+          .in('id', Array.from(storeIds));
+          
+        if (storesData) {
+          storesData.forEach(store => {
+            storeDetailsMap[store.id] = store;
+          });
+        }
+      }
+      
+      // Format delivery requests
+      const formatted: DeliveryRequest[] = [
+        ...(assignedOrders || []).map(order => ({
+          id: order.id,
+          orderId: order.id,
+          storeId: order.store_id,
+          storeName: storeDetailsMap[order.store_id]?.name || 'Unknown Store',
+          customerAddress: order.address,
+          status: order.status as DeliveryRequest['status'],
+          createdAt: new Date(order.created_at),
+          courierId: currentCourier.id
+        })),
+        ...(pendingOrders || []).filter(order => !order.courier_assigned).map(order => ({
+          id: order.id,
+          orderId: order.id,
+          storeId: order.store_id,
+          storeName: storeDetailsMap[order.store_id]?.name || 'Unknown Store',
+          customerAddress: order.address,
+          status: 'pending',
+          createdAt: new Date(order.created_at)
+        }))
+      ];
+      
+      setDeliveryRequests(formatted);
+      
+    } catch (error) {
+      console.error('Failed to fetch deliveries:', error);
+      toast.error('Failed to load delivery requests');
     }
   };
 
@@ -112,7 +211,8 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('allCouriers', JSON.stringify(updatedCouriers));
     }
     
-    loadCourierDeliveries(courierData.id);
+    fetchRealTimeDeliveries();
+    setupRealTimeSubscription();
   };
 
   const logout = () => {
@@ -122,7 +222,7 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('courierInfo');
   };
 
-  const toggleAvailability = (isAvailable: boolean) => {
+  const toggleAvailability = async (isAvailable: boolean) => {
     if (!currentCourier) return;
     
     const updatedCourier = { ...currentCourier, isAvailable };
@@ -134,6 +234,16 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
     );
     setAllCouriers(updatedCouriers);
     localStorage.setItem('allCouriers', JSON.stringify(updatedCouriers));
+    
+    // Update availability in the database
+    try {
+      await supabase
+        .from('couriers')
+        .update({ status: isAvailable ? 'active' : 'inactive' })
+        .eq('id', currentCourier.id);
+    } catch (error) {
+      console.error('Failed to update courier availability:', error);
+    }
   };
 
   const updateLocation = (location: string) => {
@@ -150,134 +260,101 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('allCouriers', JSON.stringify(updatedCouriers));
   };
 
-  const acceptDelivery = (requestId: string) => {
+  const acceptDelivery = async (requestId: string) => {
     if (!currentCourier) return;
     
     const now = new Date();
-    const updatedRequests = deliveryRequests.map(request => 
-      request.id === requestId ? {
-        ...request,
-        status: 'accepted' as const,
-        acceptedAt: now,
-        courierId: currentCourier.id
-      } : request
-    );
     
-    setDeliveryRequests(updatedRequests);
-    
-    const storedDeliveries = localStorage.getItem('deliveryRequests');
-    if (storedDeliveries) {
-      try {
-        const allDeliveries = JSON.parse(storedDeliveries);
-        const updatedAllDeliveries = allDeliveries.map((d: DeliveryRequest) => 
-          d.id === requestId ? {
-            ...d,
-            status: 'accepted',
-            acceptedAt: now,
-            courierId: currentCourier.id
-          } : d
-        );
-        localStorage.setItem('deliveryRequests', JSON.stringify(updatedAllDeliveries));
-      } catch (error) {
-        console.error('Failed to accept delivery in localStorage:', error);
-      }
-    }
-    
-    const storedOrders = localStorage.getItem('storeOrders');
-    if (storedOrders) {
-      try {
-        const allOrders = JSON.parse(storedOrders);
-        const request = deliveryRequests.find(r => r.id === requestId);
-        
-        if (request) {
-          const updatedAllOrders = allOrders.map((o: Order) => 
-            o.id === request.orderId ? { ...o, status: 'delivering', courierAssigned: currentCourier.id } : o
-          );
-          localStorage.setItem('storeOrders', JSON.stringify(updatedAllOrders));
-        }
-      } catch (error) {
-        console.error('Failed to update order status in localStorage:', error);
-      }
+    try {
+      // Update the order in Supabase
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          courier_assigned: currentCourier.email,
+          status: 'delivery_accepted'
+        })
+        .eq('id', requestId);
+      
+      if (error) throw error;
+      
+      // Update local state
+      const updatedRequests = deliveryRequests.map(request => 
+        request.id === requestId ? {
+          ...request,
+          status: 'accepted' as const,
+          acceptedAt: now,
+          courierId: currentCourier.id
+        } : request
+      );
+      
+      setDeliveryRequests(updatedRequests);
+      toast.success('Delivery accepted');
+      
+    } catch (error) {
+      console.error('Failed to accept delivery:', error);
+      toast.error('Failed to accept delivery');
     }
   };
 
-  const updateDeliveryStatus = (requestId: string, status: DeliveryRequest['status'], timestamp: Date = new Date()) => {
+  const updateDeliveryStatus = async (requestId: string, status: DeliveryRequest['status'], timestamp: Date = new Date()) => {
     if (!currentCourier) return;
     
-    const updatedRequests = deliveryRequests.map(request => {
-      if (request.id === requestId) {
-        const updates: Partial<DeliveryRequest> = { status };
-        
-        if (status === 'picked_up') {
-          updates.pickedUpAt = timestamp;
-        } else if (status === 'delivered') {
-          updates.deliveredAt = timestamp;
-        }
-        
-        return { ...request, ...updates };
-      }
-      return request;
-    });
-    
-    setDeliveryRequests(updatedRequests);
-    
-    const storedDeliveries = localStorage.getItem('deliveryRequests');
-    if (storedDeliveries) {
-      try {
-        const allDeliveries = JSON.parse(storedDeliveries);
-        const updatedAllDeliveries = allDeliveries.map((d: DeliveryRequest) => {
-          if (d.id === requestId) {
-            const updates: Partial<DeliveryRequest> = { status };
-            
-            if (status === 'picked_up') {
-              updates.pickedUpAt = timestamp;
-            } else if (status === 'delivered') {
-              updates.deliveredAt = timestamp;
-            }
-            
-            return { ...d, ...updates };
-          }
-          return d;
-        });
-        
-        localStorage.setItem('deliveryRequests', JSON.stringify(updatedAllDeliveries));
-      } catch (error) {
-        console.error('Failed to update delivery status in localStorage:', error);
-      }
-    }
-    
-    if (status === 'delivered') {
-      const storedOrders = localStorage.getItem('storeOrders');
-      if (storedOrders) {
-        try {
-          const allOrders = JSON.parse(storedOrders);
-          const request = deliveryRequests.find(r => r.id === requestId);
+    try {
+      // Update the order in Supabase
+      const { error } = await supabase
+        .from('orders')
+        .update({ status })
+        .eq('id', requestId);
+      
+      if (error) throw error;
+      
+      // Update local state
+      const updatedRequests = deliveryRequests.map(request => {
+        if (request.id === requestId) {
+          const updates: Partial<DeliveryRequest> = { status };
           
-          if (request) {
-            const updatedAllOrders = allOrders.map((o: Order) => 
-              o.id === request.orderId ? { ...o, status: 'completed' } : o
-            );
-            localStorage.setItem('storeOrders', JSON.stringify(updatedAllOrders));
+          if (status === 'picked_up') {
+            updates.pickedUpAt = timestamp;
+          } else if (status === 'delivered') {
+            updates.deliveredAt = timestamp;
           }
-        } catch (error) {
-          console.error('Failed to update order status in localStorage:', error);
+          
+          return { ...request, ...updates };
+        }
+        return request;
+      });
+      
+      setDeliveryRequests(updatedRequests);
+      
+      if (status === 'delivered') {
+        // Update courier's completed deliveries count
+        if (currentCourier) {
+          const updatedCourier = { 
+            ...currentCourier, 
+            completedDeliveries: (currentCourier.completedDeliveries || 0) + 1 
+          };
+          setCurrentCourier(updatedCourier);
+          localStorage.setItem('courierInfo', JSON.stringify(updatedCourier));
+          
+          const updatedCouriers = allCouriers.map(courier => 
+            courier.id === currentCourier.id ? updatedCourier : courier
+          );
+          setAllCouriers(updatedCouriers);
+          localStorage.setItem('allCouriers', JSON.stringify(updatedCouriers));
+          
+          // Update in database
+          await supabase
+            .from('couriers')
+            .update({ deliveries: updatedCourier.completedDeliveries })
+            .eq('id', currentCourier.id);
         }
       }
       
-      if (currentCourier) {
-        const updatedCourier = { 
-          ...currentCourier, 
-          completedDeliveries: (currentCourier.completedDeliveries || 0) + 1 
-        };
-        setCurrentCourier(updatedCourier);
-        localStorage.setItem('courierInfo', JSON.stringify(updatedCourier));
-        
-        const updatedCouriers = allCouriers.map(courier => 
-          courier.id === currentCourier.id ? updatedCourier : courier
-        );
-        setAllCouriers(updatedCouriers);
-        localStorage.setItem('allCouriers', JSON.stringify(updatedCouriers));
-      }
+      toast.success(`Order marked as ${status.replace('_', ' ')}`);
+      
+    } catch (error) {
+      console.error('Failed to update delivery status:', error);
+      toast.error('Failed to update status');
     }
   };
 
@@ -315,7 +392,8 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
       acceptDelivery,
       updateDeliveryStatus,
       getAllCouriers,
-      getAvailableCouriers
+      getAvailableCouriers,
+      fetchRealTimeDeliveries
     }}>
       {children}
     </CourierContext.Provider>
