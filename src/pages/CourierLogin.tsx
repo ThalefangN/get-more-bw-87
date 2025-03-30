@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const CourierLogin = () => {
   const navigate = useNavigate();
-  const { login } = useCourier();
+  const { login, isAuthenticated } = useCourier();
   
   const [formData, setFormData] = useState({
     email: "",
@@ -20,6 +20,13 @@ const CourierLogin = () => {
   });
   
   const [isLoading, setIsLoading] = useState(false);
+
+  // Check if already authenticated and redirect if needed
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/courier-dashboard");
+    }
+  }, [isAuthenticated, navigate]);
 
   // Check for existing session on mount
   useEffect(() => {

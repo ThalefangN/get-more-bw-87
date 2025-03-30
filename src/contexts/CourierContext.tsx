@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Order } from '@/types/order';
 import { supabase } from '@/integrations/supabase/client';
@@ -163,7 +162,7 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
         }
       }
       
-      // Format delivery requests
+      // Format delivery requests with correct status type
       const formatted: DeliveryRequest[] = [
         ...(assignedOrders || []).map(order => ({
           id: order.id,
@@ -171,7 +170,7 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
           storeId: order.store_id,
           storeName: storeDetailsMap[order.store_id]?.name || 'Unknown Store',
           customerAddress: order.address,
-          status: order.status as DeliveryRequest['status'],
+          status: mapOrderStatusToDeliveryStatus(order.status),
           createdAt: new Date(order.created_at),
           courierId: currentCourier.id
         })),
@@ -181,7 +180,7 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
           storeId: order.store_id,
           storeName: storeDetailsMap[order.store_id]?.name || 'Unknown Store',
           customerAddress: order.address,
-          status: 'pending',
+          status: 'pending' as const,
           createdAt: new Date(order.created_at)
         }))
       ];
@@ -191,6 +190,17 @@ export const CourierProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Failed to fetch deliveries:', error);
       toast.error('Failed to load delivery requests');
+    }
+  };
+
+  const mapOrderStatusToDeliveryStatus = (status: string): DeliveryRequest['status'] => {
+    switch (status) {
+      case 'pending': return 'pending';
+      case 'delivery_accepted': return 'accepted';
+      case 'picked_up': return 'picked_up';
+      case 'delivered': return 'delivered';
+      case 'cancelled': return 'cancelled';
+      default: return 'pending';
     }
   };
 
