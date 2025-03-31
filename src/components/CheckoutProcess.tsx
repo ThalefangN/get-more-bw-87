@@ -32,10 +32,11 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [availableCouriers, setAvailableCouriers] = useState<Courier[]>([]);
   const [selectedCourierId, setSelectedCourierId] = useState<string | null>(null);
-  const [selectedCourierName, setSelectedCourierName] = useState<string | null>(null);
+  const [selectedCourierEmail, setSelectedCourierEmail] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isOrderComplete, setIsOrderComplete] = useState(false);
+  const [isLoadingCouriers, setIsLoadingCouriers] = useState(true);
   
   const { cartItems, clearCart, totalPrice } = useCart();
   const { user } = useAuth();
@@ -51,6 +52,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
 
   useEffect(() => {
     const fetchAvailableCouriers = async () => {
+      setIsLoadingCouriers(true);
       try {
         const { data, error } = await supabase
           .from('couriers')
@@ -64,9 +66,11 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
             description: "Failed to fetch available couriers.",
             variant: "destructive",
           });
+          return;
         }
 
         if (data) {
+          console.log("Fetched couriers:", data);
           setAvailableCouriers(data as Courier[]);
         }
       } catch (error) {
@@ -76,6 +80,8 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
           description: "An unexpected error occurred while fetching couriers.",
           variant: "destructive",
         });
+      } finally {
+        setIsLoadingCouriers(false);
       }
     };
 
@@ -121,7 +127,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
     
     const selectedCourier = availableCouriers.find(c => c.id === courierId);
     if (selectedCourier) {
-      setSelectedCourierName(selectedCourier.name);
+      setSelectedCourierEmail(selectedCourier.email);
     }
   };
 
@@ -147,6 +153,11 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
     setIsProcessing(true);
     
     try {
+      const selectedCourier = availableCouriers.find(c => c.id === selectedCourierId);
+      if (!selectedCourier) {
+        throw new Error("Selected courier not found");
+      }
+      
       const orderItems = cartItems.map(item => ({
         product_id: item.id,
         product_name: item.name,
@@ -160,13 +171,13 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
           {
             id: orderId,
             store_id: store?.id || "",
-            customer_id: user?.email || "",
+            customer_id: user?.id || "",
             customer_name: user?.email || "Guest",
             items: orderItems,
             total_amount: totalPrice,
             address: address,
             status: 'pending',
-            courier_assigned: selectedCourierId
+            courier_assigned: selectedCourier.email
           }
         ]);
 
@@ -181,16 +192,29 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         return;
       }
 
-      if (orderId && selectedCourierId) {
-        const orderDetails = {
-          items: cartItems,
-          storeId: store?.id || "",
-          storeName: store?.name || "Store",
-          deliveryAddress: address,
-          customerName: user?.email || "Customer"
-        };
-        
-        await notifyCourier(orderId, selectedCourierId, orderDetails);
+      // Notify the courier about the new order
+      if (user?.id) {
+        try {
+          await supabase
+            .from('notifications')
+            .insert({
+              user_id: selectedCourier.id,
+              title: 'New Order Assigned',
+              message: `You have been assigned a new order to deliver to ${address}`,
+              type: 'delivery_update',
+              order_id: orderId,
+              data: {
+                storeId: store?.id || "",
+                storeName: store?.name || "Store",
+                customerAddress: address,
+                customerName: user.email || "Customer",
+                items: cartItems.length,
+                total: totalPrice
+              }
+            });
+        } catch (notifError) {
+          console.error("Error creating notification:", notifError);
+        }
       }
 
       clearCart();
@@ -233,7 +257,11 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
               <h3 className="text-lg font-medium">Select a courier:</h3>
             </div>
             
-            {availableCouriers.length > 0 ? (
+            {isLoadingCouriers ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
+              </div>
+            ) : availableCouriers.length > 0 ? (
               <RadioGroup value={selectedCourierId || ""} onValueChange={handleCourierSelect} className="grid grid-cols-1 gap-3">
                 {availableCouriers.map(courier => (
                   <div 
@@ -339,7 +367,9 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
                   <Truck className="h-4 w-4 mr-2" />
                   Courier:
                 </span>
-                <span className="font-medium">{selectedCourierName || "Not selected"}</span>
+                <span className="font-medium">
+                  {availableCouriers.find(c => c.id === selectedCourierId)?.name || "Not selected"}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="flex items-center text-gray-600">

@@ -33,6 +33,7 @@ export function Cart() {
     setShowCheckout(false);
     setIsCartOpen(false);
     setDeliveryAddress("");
+    clearCart();
   };
 
   const handleQuantityChange = (id: string, newQuantity: number) => {
