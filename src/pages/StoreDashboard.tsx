@@ -38,7 +38,7 @@ const StoreDashboard = () => {
 const DashboardHome = () => {
   const { storeProducts, storeOrders, storeQueries, currentStore } = useStore();
   
-  const totalRevenue = storeOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+  const totalRevenue = storeOrders.reduce((sum, order) => sum + order.total_amount, 0);
   const pendingOrders = storeOrders.filter(order => order.status === 'pending').length;
   const productCount = storeProducts.length;
   const queryCount = storeQueries.length;
@@ -97,8 +97,8 @@ const DashboardHome = () => {
                 {storeOrders.slice(0, 5).map(order => (
                   <div key={order.id} className="flex items-center justify-between border-b pb-2">
                     <div>
-                      <p className="font-medium">{order.customerName}</p>
-                      <p className="text-sm text-gray-500">{order.items.length} items • P{order.totalAmount.toFixed(2)}</p>
+                      <p className="font-medium">{order.customer_name}</p>
+                      <p className="text-sm text-gray-500">{order.items.length} items • P{order.total_amount.toFixed(2)}</p>
                     </div>
                     <div>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -136,9 +136,9 @@ const DashboardHome = () => {
                 {storeQueries.slice(0, 5).map(query => (
                   <div key={query.id} className="flex items-start justify-between border-b pb-2">
                     <div>
-                      <p className="font-medium">{query.customerName}</p>
+                      <p className="font-medium">{query.customer_name}</p>
                       <p className="text-sm text-gray-600 line-clamp-1">{query.message}</p>
-                      <p className="text-xs text-gray-500">{new Date(query.createdAt).toLocaleDateString()}</p>
+                      <p className="text-xs text-gray-500">{new Date(query.created_at).toLocaleDateString()}</p>
                     </div>
                     <div>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -328,13 +328,13 @@ const OrdersPage = () => {
                     #{order.id.substring(0, 8)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {order.customerName}
+                    {order.customer_name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {order.items.length} items
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                    P{order.totalAmount.toFixed(2)}
+                    P{order.total_amount.toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
@@ -342,7 +342,7 @@ const OrdersPage = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(order.createdAt).toLocaleDateString()}
+                    {new Date(order.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     {order.status === 'pending' && (
@@ -367,7 +367,7 @@ const OrdersPage = () => {
                     )}
                     {(order.status === 'approved' || order.status === 'delivering') && (
                       <div className="text-sm text-gray-500">
-                        {order.courierAssigned ? 'Courier assigned' : 'Awaiting courier'}
+                        {order.courier_assigned ? 'Courier assigned' : 'Awaiting courier'}
                       </div>
                     )}
                     {order.status === 'completed' && (
@@ -424,9 +424,9 @@ const QueriesPage = () => {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <div>
-                    <CardTitle className="text-lg">{query.customerName}</CardTitle>
+                    <CardTitle className="text-lg">{query.customer_name}</CardTitle>
                     <p className="text-sm text-gray-500">
-                      {new Date(query.createdAt).toLocaleDateString()} at {new Date(query.createdAt).toLocaleTimeString()}
+                      {new Date(query.created_at).toLocaleDateString()} at {new Date(query.created_at).toLocaleTimeString()}
                     </p>
                   </div>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -490,18 +490,18 @@ const CustomersPage = () => {
   
   const customers = [...new Map(
     storeOrders.map(order => [
-      order.customerId, 
+      order.customer_id, 
       {
-        id: order.customerId,
-        name: order.customerName,
-        orderCount: storeOrders.filter(o => o.customerId === order.customerId).length,
+        id: order.customer_id,
+        name: order.customer_name,
+        orderCount: storeOrders.filter(o => o.customer_id === order.customer_id).length,
         totalSpent: storeOrders
-          .filter(o => o.customerId === order.customerId)
-          .reduce((sum, o) => sum + o.totalAmount, 0),
+          .filter(o => o.customer_id === order.customer_id)
+          .reduce((sum, o) => sum + o.total_amount, 0),
         lastOrder: new Date(
           Math.max(...storeOrders
-            .filter(o => o.customerId === order.customerId)
-            .map(o => new Date(o.createdAt).getTime())
+            .filter(o => o.customer_id === order.customer_id)
+            .map(o => new Date(o.created_at).getTime())
           )
         )
       }

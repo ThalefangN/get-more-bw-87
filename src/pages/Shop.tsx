@@ -1,3 +1,4 @@
+
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CategoryCarousel from "@/components/CategoryCarousel";
@@ -19,7 +20,7 @@ const Shop = () => {
           </div>
         </div>
         
-        <ProductGrid />
+        <ProductGrid categoryName={undefined} />
       </main>
       <Footer />
       <Cart />

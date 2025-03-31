@@ -1,3 +1,4 @@
+
 import { useParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -22,7 +23,8 @@ const CategoryProductsPage = () => {
           </div>
         </div>
 
-        <ProductGrid category={categoryName} />
+        {/* We're passing categoryName as a string prop to ProductGrid */}
+        <ProductGrid categoryName={categoryName} />
       </main>
       <Footer />
       <Cart />

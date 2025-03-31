@@ -1,5 +1,5 @@
 
-import { DeliveryRequest } from "@/types/courier";
+import { DeliveryRequest, Courier } from "@/types/courier";
 
 export const mapOrderStatusToDeliveryStatus = (status: string): DeliveryRequest['status'] => {
   switch (status) {
@@ -12,15 +12,20 @@ export const mapOrderStatusToDeliveryStatus = (status: string): DeliveryRequest[
   }
 };
 
-export const formatCourierFromData = (courierData: any) => {
+export const formatCourierFromData = (courierData: any): Courier => {
   return {
     id: courierData.id,
     name: courierData.name,
     email: courierData.email,
     phone: courierData.phone,
-    vehicleType: courierData.vehicle_type,
-    isAvailable: courierData.status === 'active',
+    vehicle_type: courierData.vehicle_type,
+    status: courierData.status,
     rating: courierData.rating || 0,
+    deliveries: courierData.deliveries || 0,
+    created_at: courierData.created_at || new Date().toISOString(),
+    registered_at: courierData.registered_at || new Date().toISOString(),
+    created_by_admin: courierData.created_by_admin || false,
+    isAvailable: courierData.status === 'active',
     completedDeliveries: courierData.deliveries || 0
   };
 };

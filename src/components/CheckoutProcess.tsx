@@ -105,7 +105,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         storeId: store?.id || "",
         storeName: store?.name || "Store",
         deliveryAddress: address,
-        customerName: user?.displayName || user?.email || "Customer"
+        customerName: user?.email || "Customer"
       };
       
       // Notify the courier using our new context function
@@ -151,8 +151,8 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
           {
             id: orderId,
             store_id: store?.id || "",
-            customer_id: user?.uid || "",
-            customer_name: user?.displayName || user?.email || "Guest",
+            customer_id: user?.id || "",
+            customer_name: user?.email || "Guest",
             items: orderItems,
             total_amount: totalPrice,
             status: 'pending',
