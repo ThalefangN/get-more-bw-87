@@ -29,7 +29,7 @@ import { useCourier } from "@/contexts/CourierContext";
 const CourierDashboard = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { currentCourier, isAuthenticated } = useCourier();
+  const { currentCourier, isAuthenticated, logout } = useCourier();
   
   const [loading, setLoading] = useState(true);
   const [courier, setCourier] = useState<any>(null);
