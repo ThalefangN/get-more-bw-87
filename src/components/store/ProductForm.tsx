@@ -98,6 +98,11 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
       return;
     }
     
+    if (!currentStore?.id) {
+      toast.error("Store information is missing");
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -109,7 +114,7 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
         category: formData.category,
         description: formData.description,
         in_stock: formData.inStock,
-        store_id: currentStore?.id
+        store_id: currentStore.id
       };
       
       if (isEditing && productToEdit) {
@@ -122,7 +127,17 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
         if (error) throw error;
         
         // Update in local state
-        updateProduct(productToEdit.id, productData);
+        const localProductData = {
+          name: formData.name,
+          price: parseFloat(formData.price),
+          image: formData.images[0],
+          images: formData.images,
+          category: formData.category,
+          description: formData.description,
+          inStock: formData.inStock
+        };
+        
+        updateProduct(productToEdit.id, localProductData);
         toast.success("Product updated successfully!");
       } else {
         // Insert into Supabase
@@ -135,7 +150,9 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
         
         // Add to local state if successful
         if (data && data[0]) {
-          const newProduct: Product = {
+          const newProduct = {
+            id: data[0].id,
+            storeId: currentStore.id,
             name: formData.name,
             price: parseFloat(formData.price),
             image: formData.images[0],
@@ -143,15 +160,12 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
             category: formData.category,
             description: formData.description,
             inStock: formData.inStock,
-            storeId: currentStore?.id || '',
-            createdAt: new Date(),
-            id: data[0].id
+            createdAt: new Date()
           };
           
           addProduct(newProduct);
+          toast.success("Product added successfully!");
         }
-        
-        toast.success("Product added successfully!");
       }
       
       onSuccess();

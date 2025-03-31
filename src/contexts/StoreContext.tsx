@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export interface StoreInfo {
@@ -63,7 +62,7 @@ interface StoreContextType {
   isAuthenticated: boolean;
   login: (storeData: StoreInfo) => void;
   logout: () => void;
-  addProduct: (product: Omit<Product, 'id' | 'storeId' | 'createdAt'>) => void;
+  addProduct: (product: Product) => void;
   updateProduct: (productId: string, updates: Partial<Product>) => void;
   deleteProduct: (productId: string) => void;
   updateOrderStatus: (orderId: string, status: Order['status']) => void;
@@ -83,7 +82,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [storeQueries, setStoreQueries] = useState<Query[]>([]);
   const [allStores, setAllStores] = useState<StoreInfo[]>([]);
 
-  // Load stored data on mount
   useEffect(() => {
     const storedStoreInfo = localStorage.getItem('storeInfo');
     if (storedStoreInfo) {
@@ -92,7 +90,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         setCurrentStore(parsedStore);
         setIsAuthenticated(true);
         
-        // Load this store's products, orders, and queries
         loadStoreData(parsedStore.id);
       } catch (error) {
         console.error('Failed to parse store info from localStorage:', error);
@@ -100,7 +97,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    // Load all registered stores
     const storedAllStores = localStorage.getItem('allStores');
     if (storedAllStores) {
       try {
@@ -112,7 +108,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const loadStoreData = (storeId: string) => {
-    // Load products
     const storedProducts = localStorage.getItem('storeProducts');
     if (storedProducts) {
       try {
@@ -124,7 +119,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    // Load orders
     const storedOrders = localStorage.getItem('storeOrders');
     if (storedOrders) {
       try {
@@ -136,7 +130,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    // Load queries
     const storedQueries = localStorage.getItem('storeQueries');
     if (storedQueries) {
       try {
@@ -154,7 +147,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     setIsAuthenticated(true);
     localStorage.setItem('storeInfo', JSON.stringify(storeData));
     
-    // Update all stores list if this is a new store
     const existingStoreIndex = allStores.findIndex(s => s.id === storeData.id);
     if (existingStoreIndex === -1) {
       const updatedStores = [...allStores, storeData];
@@ -167,7 +159,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('allStores', JSON.stringify(updatedStores));
     }
     
-    // Load this store's data
     loadStoreData(storeData.id);
   };
 
@@ -180,20 +171,12 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('storeInfo');
   };
 
-  const addProduct = (productData: Omit<Product, 'id' | 'storeId' | 'createdAt'>) => {
+  const addProduct = (product: Product) => {
     if (!currentStore) return;
     
-    const newProduct: Product = {
-      ...productData,
-      id: `product-${Date.now()}`,
-      storeId: currentStore.id,
-      createdAt: new Date()
-    };
-    
-    const updatedProducts = [...storeProducts, newProduct];
+    const updatedProducts = [...storeProducts, product];
     setStoreProducts(updatedProducts);
     
-    // Update localStorage with all products
     const storedProducts = localStorage.getItem('storeProducts');
     let allProducts: Product[] = [];
     
@@ -216,7 +199,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     
     setStoreProducts(updatedProducts);
     
-    // Update in localStorage
     const storedProducts = localStorage.getItem('storeProducts');
     if (storedProducts) {
       try {
@@ -234,7 +216,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     const updatedProducts = storeProducts.filter(product => product.id !== productId);
     setStoreProducts(updatedProducts);
     
-    // Update in localStorage
     const storedProducts = localStorage.getItem('storeProducts');
     if (storedProducts) {
       try {
@@ -254,7 +235,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     
     setStoreOrders(updatedOrders);
     
-    // Update in localStorage
     const storedOrders = localStorage.getItem('storeOrders');
     if (storedOrders) {
       try {
@@ -281,7 +261,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     
     setStoreQueries(updatedQueries);
     
-    // Update in localStorage
     const storedQueries = localStorage.getItem('storeQueries');
     if (storedQueries) {
       try {
