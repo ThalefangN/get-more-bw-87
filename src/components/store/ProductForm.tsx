@@ -105,7 +105,7 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
     setIsLoading(true);
     
     try {
-      // Prepare the product data for Supabase - avoid references to the users table
+      // Prepare the product data for Supabase
       const productData = {
         name: formData.name,
         price: parseFloat(formData.price),
@@ -125,7 +125,7 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
           
         if (error) {
           console.error("Supabase update error:", error);
-          throw error;
+          throw new Error(error.message || "Failed to update product");
         }
         
         updateProduct(productToEdit.id, {
@@ -147,7 +147,7 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
           
         if (error) {
           console.error("Supabase insert error:", error);
-          throw error;
+          throw new Error(error.message || "Failed to add product");
         }
         
         if (data && data[0]) {
