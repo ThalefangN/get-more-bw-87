@@ -3,7 +3,6 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CategoryCarousel from "@/components/CategoryCarousel";
 import ProductGrid from "@/components/ProductGrid";
-import { Button } from "@/components/ui/button";
 import { Cart } from "@/components/Cart";
 
 const Shop = () => {

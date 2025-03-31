@@ -15,7 +15,7 @@ const CategoryProductsPage = () => {
         <div className="bg-gray-50 py-12">
           <div className="container-custom">
             <h1 className="text-3xl md:text-4xl font-bold mb-6">
-              {categoryName ? `${categoryName} Products` : "All Products"}
+              {categoryName ? `${decodeURIComponent(categoryName)} Products` : "All Products"}
             </h1>
             <p className="text-gray-600 mb-8">
               Browse our selection of products in this category.
@@ -23,7 +23,7 @@ const CategoryProductsPage = () => {
           </div>
         </div>
 
-        <ProductGrid category={categoryName} />
+        <ProductGrid category={decodeURIComponent(categoryName || "")} />
       </main>
       <Footer />
       <Cart />
