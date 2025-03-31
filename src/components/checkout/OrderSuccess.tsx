@@ -1,5 +1,5 @@
 
-import { CheckCheck } from "lucide-react";
+import { CheckCheck, Truck, MapPin, ShoppingBag } from "lucide-react";
 
 interface OrderSuccessProps {
   orderId: string | null;
@@ -15,7 +15,34 @@ const OrderSuccess = ({ orderId }: OrderSuccessProps) => {
       <p className="text-gray-600 text-center mb-4">
         Your order has been placed successfully. You will receive a confirmation shortly.
       </p>
-      <p className="font-medium">Order ID: {orderId}</p>
+      
+      <div className="bg-emerald-50 p-4 rounded-lg mb-4 w-full max-w-md">
+        <div className="flex items-start mb-3">
+          <ShoppingBag className="h-5 w-5 text-emerald-600 mt-0.5 mr-2" />
+          <div>
+            <p className="font-medium">Order ID: </p>
+            <p className="text-sm text-gray-700 font-mono">{orderId}</p>
+          </div>
+        </div>
+        
+        <div className="flex items-start mb-3">
+          <Truck className="h-5 w-5 text-emerald-600 mt-0.5 mr-2" />
+          <div>
+            <p className="font-medium">Delivery Status:</p>
+            <p className="text-sm text-gray-700">A courier has been assigned to your order</p>
+          </div>
+        </div>
+        
+        <div className="flex items-start">
+          <MapPin className="h-5 w-5 text-emerald-600 mt-0.5 mr-2" />
+          <div>
+            <p className="font-medium">Tracking:</p>
+            <p className="text-sm text-gray-700">You will receive tracking information soon</p>
+          </div>
+        </div>
+      </div>
+      
+      <p className="text-sm text-emerald-600 font-medium">Thank you for your purchase!</p>
     </div>
   );
 };

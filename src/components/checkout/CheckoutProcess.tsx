@@ -141,7 +141,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
           {
             id: orderId,
             store_id: store?.id || "",
-            customer_id: user?.uid || "",
+            customer_id: user?.id || "",
             customer_name: user?.email || "Guest",
             items: orderItems,
             total_amount: totalPrice,
@@ -163,7 +163,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
       }
 
       // Notify the courier about the new order
-      if (user?.uid) {
+      if (user?.id) {
         try {
           await supabase
             .from('notifications')
