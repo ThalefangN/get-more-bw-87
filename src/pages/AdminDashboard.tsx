@@ -17,9 +17,15 @@ import { supabase } from "@/integrations/supabase/client";
 const AdminHeader = () => {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    toast.success("Logged out successfully");
-    navigate("/admin-signin");
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast.success("Logged out successfully");
+      navigate("/admin-signin");
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast.error("Error signing out. Please try again.");
+    }
   };
 
   return (

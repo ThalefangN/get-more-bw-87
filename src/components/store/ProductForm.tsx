@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Product, useStore } from "@/contexts/StoreContext";
 import { X, Upload, Plus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProductFormProps {
   productToEdit?: Product;
@@ -17,7 +17,7 @@ interface ProductFormProps {
 }
 
 const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) => {
-  const { addProduct, updateProduct } = useStore();
+  const { addProduct, updateProduct, currentStore } = useStore();
   const isEditing = !!productToEdit;
   
   const [formData, setFormData] = useState({
@@ -107,21 +107,48 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
         images: formData.images,
         category: formData.category,
         description: formData.description,
-        inStock: formData.inStock
+        in_stock: formData.inStock,
+        store_id: currentStore?.id
       };
       
       if (isEditing && productToEdit) {
+        // Update in Supabase
+        const { error } = await supabase
+          .from('products')
+          .update(productData)
+          .eq('id', productToEdit.id);
+          
+        if (error) throw error;
+        
+        // Update in local state
         updateProduct(productToEdit.id, productData);
         toast.success("Product updated successfully!");
       } else {
-        addProduct(productData);
+        // Insert into Supabase
+        const { data, error } = await supabase
+          .from('products')
+          .insert(productData)
+          .select();
+          
+        if (error) throw error;
+        
+        // Add to local state if successful
+        if (data && data[0]) {
+          addProduct({
+            ...productData,
+            id: data[0].id,
+            storeId: currentStore?.id || '',
+            createdAt: new Date()
+          });
+        }
+        
         toast.success("Product added successfully!");
       }
       
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving product:", error);
-      toast.error("Something went wrong. Please try again.");
+      toast.error(error.message || "Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -132,7 +159,6 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
     "Bakery", "Meat & Poultry", "Dairy", "Snacks", "Electronics", "Fashion"
   ];
   
-  // Example image URLs for demo
   const sampleImages = [
     "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=500&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1578339850459-76b0ac239aa2?w=500&auto=format&fit=crop",
@@ -293,7 +319,7 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
             name="description"
             value={formData.description}
             onChange={handleChange}
-            placeholder="Describe your product"
+            placeholder="Enter product description"
             rows={4}
             required
           />
@@ -309,12 +335,21 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
         </div>
       </div>
       
-      <div className="flex justify-end space-x-2">
+      <div className="flex justify-end space-x-3">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
         <Button type="submit" disabled={isLoading}>
-          {isLoading ? "Saving..." : isEditing ? "Update Product" : "Add Product"}
+          {isLoading ? 
+            <span className="flex items-center">
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {isEditing ? "Updating..." : "Saving..."}
+            </span>
+            : isEditing ? "Update Product" : "Save Product"
+          }
         </Button>
       </div>
     </form>

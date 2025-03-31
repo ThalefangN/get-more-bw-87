@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/contexts/StoreContext";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const StoreNavbar = () => {
   const { currentStore, logout } = useStore();
@@ -12,9 +14,18 @@ const StoreNavbar = () => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  const handleLogout = () => {
-    logout();
-    navigate("/store-signin");
+  const handleLogout = async () => {
+    try {
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      // Local logout
+      logout();
+      toast.success("Signed out successfully");
+      navigate("/store-signin");
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast.error("Error signing out");
+    }
   };
   
   const navigation = [
