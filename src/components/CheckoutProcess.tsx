@@ -142,7 +142,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
           {
             id: orderId,
             store_id: store?.id || "",
-            customer_id: user?.id || "", // Changed from user?.uid to user?.id
+            customer_id: user?.email || "",
             customer_name: user?.email || "Guest",
             items: orderItems,
             total_amount: totalPrice,
