@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,12 +135,20 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
         
         // Add to local state if successful
         if (data && data[0]) {
-          addProduct({
-            ...productData,
-            id: data[0].id,
+          const newProduct: Product = {
+            name: formData.name,
+            price: parseFloat(formData.price),
+            image: formData.images[0],
+            images: formData.images,
+            category: formData.category,
+            description: formData.description,
+            inStock: formData.inStock,
             storeId: currentStore?.id || '',
-            createdAt: new Date()
-          });
+            createdAt: new Date(),
+            id: data[0].id
+          };
+          
+          addProduct(newProduct);
         }
         
         toast.success("Product added successfully!");

@@ -25,7 +25,7 @@ export interface DeliveryRequest {
   pickedUpAt?: Date;
   deliveredAt?: Date;
   courierId?: string;
-  items?: any[];
+  items: any[];
   customerId?: string;
 }
 

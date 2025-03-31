@@ -78,11 +78,11 @@ export const useCourierApi = (currentCourier: Courier | null) => {
         storeName: storeDetailsMap[order.store_id]?.name || 'Unknown Store',
         customerAddress: order.address,
         customerName: order.customer_name || 'Customer',
-        customerContact: order.customer_contact || '',
+        customerContact: '', // Default to empty string since customer_contact may not exist
         status: mapOrderStatusToDeliveryStatus(order.status),
         createdAt: new Date(order.created_at),
         courierId: currentCourier.id,
-        items: order.items || [],
+        items: Array.isArray(order.items) ? order.items : [],
         customerId: order.customer_id
       }));
       
@@ -98,7 +98,7 @@ export const useCourierApi = (currentCourier: Courier | null) => {
           customerContact: '',
           status: 'pending' as const,
           createdAt: new Date(order.created_at),
-          items: order.items || [],
+          items: Array.isArray(order.items) ? order.items : [],
           customerId: order.customer_id
         }));
       

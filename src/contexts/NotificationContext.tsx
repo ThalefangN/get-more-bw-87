@@ -31,7 +31,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
           id: item.id,
           title: item.title,
           message: item.message,
-          type: item.type,
+          type: item.type as 'delivery_update' | 'special_offer' | 'system',
           read: item.read,
           createdAt: new Date(item.created_at),
           orderId: item.order_id,
