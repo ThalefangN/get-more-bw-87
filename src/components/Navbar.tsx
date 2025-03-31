@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { Menu, X, ShoppingCart, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -54,11 +55,33 @@ const Navbar = () => {
             </Link>
           </div>
 
-          <div className="hidden md:flex items-center space-x-4">
-            {user ? (
+          <div className="flex items-center space-x-4">
+            {user && (
               <>
-                <NotificationBell />
-                <CartButton />
+                <div className="hidden md:block">
+                  <NotificationBell />
+                </div>
+                <div className="hidden md:block">
+                  <CartButton />
+                </div>
+              </>
+            )}
+            
+            <div className="hidden md:block">
+              {!user && (
+                <div className="flex items-center space-x-4">
+                  <Link to="/sign-in">
+                    <Button variant="outline" className="border-getmore-purple text-getmore-purple hover:bg-getmore-purple hover:text-white">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link to="/sign-up">
+                    <Button className="bg-getmore-purple hover:bg-purple-700 text-white">Sign Up</Button>
+                  </Link>
+                </div>
+              )}
+
+              {user && (
                 <div className="relative group">
                   <Avatar className="h-8 w-8 cursor-pointer">
                     <AvatarImage src="" />
@@ -78,24 +101,18 @@ const Navbar = () => {
                     </div>
                   </div>
                 </div>
-              </>
-            ) : (
-              <>
-                <Link to="/sign-in">
-                  <Button variant="outline" className="border-getmore-purple text-getmore-purple hover:bg-getmore-purple hover:text-white">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link to="/sign-up">
-                  <Button className="bg-getmore-purple hover:bg-purple-700 text-white">Sign Up</Button>
-                </Link>
-              </>
-            )}
-          </div>
+              )}
+            </div>
 
-          <button className="md:hidden" onClick={toggleMenu}>
-            {isMenuOpen ? <X /> : <Menu />}
-          </button>
+            <div className="flex items-center space-x-3">
+              {/* Always show cart button on mobile, if user is logged in */}
+              {user && <CartButton />}
+              
+              <button className="md:hidden" onClick={toggleMenu}>
+                {isMenuOpen ? <X /> : <Menu />}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -127,7 +144,6 @@ const Navbar = () => {
                       <span className="text-sm font-medium">{user.email}</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <CartButton />
                       <NotificationBell />
                     </div>
                     <button

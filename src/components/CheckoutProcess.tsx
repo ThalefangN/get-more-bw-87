@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -142,7 +143,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
           {
             id: orderId,
             store_id: store?.id || "",
-            customer_id: user?.id || "",
+            customer_id: user?.email || "", // Using email as a fallback ID
             customer_name: user?.email || "Guest",
             items: orderItems,
             total_amount: totalPrice,
