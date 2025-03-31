@@ -12,6 +12,7 @@ import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
 import CategoriesPage from "./pages/CategoriesPage";
+import CategoryProductsPage from "./pages/CategoryProductsPage";
 import HowItWorksPage from "./pages/HowItWorksPage";
 import CourierPage from "./pages/CourierPage";
 import StoreSignUp from "./pages/StoreSignUp";
@@ -58,6 +59,7 @@ const App = () => (
                       <Route path="/sign-in" element={<SignIn />} />
                       <Route path="/sign-up" element={<SignUp />} />
                       <Route path="/categories" element={<CategoriesPage />} />
+                      <Route path="/categories/:categoryName" element={<CategoryProductsPage />} />
                       <Route path="/how-it-works" element={<HowItWorksPage />} />
                       <Route path="/become-courier" element={<CourierPage />} />
                       <Route path="/store-signup" element={<StoreSignUp />} />

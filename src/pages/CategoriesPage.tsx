@@ -4,6 +4,7 @@ import Footer from "@/components/Footer";
 import Cart from "@/components/Cart";
 import { Grid, Tag, Search } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 const allCategories = [
   {
@@ -88,6 +89,11 @@ const CategoriesPage = () => {
     category.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Function to format category name for URL
+  const formatCategoryUrl = (name: string): string => {
+    return encodeURIComponent(name.toLowerCase());
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -131,7 +137,11 @@ const CategoriesPage = () => {
           {layout === "grid" ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {filteredCategories.map((category) => (
-                <div key={category.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <Link 
+                  key={category.id} 
+                  to={`/categories/${formatCategoryUrl(category.name)}`}
+                  className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                >
                   <div className="h-48 overflow-hidden">
                     <img 
                       src={category.image} 
@@ -143,13 +153,17 @@ const CategoriesPage = () => {
                     <h3 className="font-semibold text-lg mb-1">{category.name}</h3>
                     <p className="text-sm text-gray-500">{category.items}</p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           ) : (
             <div className="space-y-4">
               {filteredCategories.map((category) => (
-                <div key={category.id} className="bg-white rounded-lg shadow p-4 flex items-center">
+                <Link 
+                  key={category.id}
+                  to={`/categories/${formatCategoryUrl(category.name)}`}
+                  className="bg-white rounded-lg shadow p-4 flex items-center hover:shadow-md transition-shadow"
+                >
                   <div className="w-20 h-20 overflow-hidden rounded-lg mr-4">
                     <img 
                       src={category.image} 
@@ -161,7 +175,7 @@ const CategoriesPage = () => {
                     <h3 className="font-semibold text-lg">{category.name}</h3>
                     <p className="text-sm text-gray-500">{category.items}</p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}

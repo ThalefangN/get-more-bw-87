@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -90,6 +89,11 @@ const Categories = () => {
     ];
   };
 
+  // Function to format category name for URL
+  const formatCategoryUrl = (name: string): string => {
+    return encodeURIComponent(name.toLowerCase());
+  };
+
   return (
     <section className="py-10 bg-gray-50">
       <div className="container-custom">
@@ -112,7 +116,7 @@ const Categories = () => {
             {categories.map((category, index) => (
               <Link 
                 key={index} 
-                to={`/categories/${category.name.toLowerCase()}`}
+                to={`/categories/${formatCategoryUrl(category.name)}`}
                 className="block"
               >
                 <div className="bg-white p-4 rounded-lg shadow-sm text-center h-28 flex flex-col items-center justify-center hover:shadow transition-shadow">

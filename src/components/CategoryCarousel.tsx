@@ -132,7 +132,8 @@ const CategoryCarousel = () => {
   };
 
   const handleCategoryClick = (category: Category) => {
-    navigate(`/categories/${category.name.toLowerCase()}`);
+    const formattedCategoryName = encodeURIComponent(category.name.toLowerCase());
+    navigate(`/categories/${formattedCategoryName}`);
   };
 
   if (loading) {
