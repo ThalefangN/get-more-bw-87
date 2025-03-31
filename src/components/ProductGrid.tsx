@@ -53,7 +53,8 @@ const ProductGrid = ({ showAllProducts = false, storeId }: ProductGridProps) => 
             images: product.images || [product.image],
             category: product.category,
             description: product.description || '',
-            quantity: 1
+            quantity: 1,
+            storeId: product.store_id // Make sure store_id is included
           }));
           
           setProducts(transformedProducts);

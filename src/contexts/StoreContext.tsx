@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export interface StoreInfo {
   id: string;
@@ -70,6 +72,7 @@ interface StoreContextType {
   allStores: StoreInfo[];
   getStoreById: (storeId: string) => StoreInfo | undefined;
   getProductsByStore: (storeId: string) => Product[];
+  notifyCourier: (orderId: string, courierId: string, orderDetails: any) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -297,6 +300,44 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const notifyCourier = async (orderId: string, courierId: string, orderDetails: any) => {
+    try {
+      const { error: updateOrderError } = await supabase
+        .from('orders')
+        .update({ courier_assigned: courierId })
+        .eq('id', orderId);
+      
+      if (updateOrderError) throw updateOrderError;
+      
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          title: 'New Delivery Request',
+          message: `You've been assigned to deliver order #${orderId.substring(0, 8)}. Please respond quickly.`,
+          type: 'delivery_update',
+          user_id: courierId,
+          order_id: orderId,
+          data: {
+            orderDetails: orderDetails,
+            actionRequired: true
+          }
+        });
+      
+      if (notificationError) throw notificationError;
+      
+      setStoreOrders(prevOrders => 
+        prevOrders.map(order => 
+          order.id === orderId ? { ...order, courierAssigned: courierId } : order
+        )
+      );
+
+      toast.success('Courier has been notified about the delivery request');
+    } catch (error) {
+      console.error('Failed to notify courier:', error);
+      toast.error('Failed to notify courier');
+    }
+  };
+
   return (
     <StoreContext.Provider value={{
       currentStore,
@@ -313,7 +354,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       respondToQuery,
       allStores,
       getStoreById,
-      getProductsByStore
+      getProductsByStore,
+      notifyCourier
     }}>
       {children}
     </StoreContext.Provider>
