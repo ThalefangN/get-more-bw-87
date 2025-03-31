@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -153,8 +152,8 @@ const CourierPage = () => {
                       </div>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg">Quick Payments</h3>
-                      <p className="text-gray-600">Get paid weekly directly to your bank account or mobile money.</p>
+                      <h3 className="font-semibold text-lg">Instant Payments</h3>
+                      <p className="text-gray-600">Get paid immediately for every delivery you complete, right on the spot.</p>
                     </div>
                   </li>
                   <li className="flex items-start">
@@ -204,9 +203,9 @@ const CourierPage = () => {
                   <div className="w-16 h-16 bg-getmore-orange/10 rounded-full flex items-center justify-center mx-auto mb-4">
                     <CreditCard size={32} className="text-getmore-orange" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-2">Get Paid Weekly</h3>
+                  <h3 className="text-lg font-semibold mb-2">Get Paid Instantly</h3>
                   <p className="text-gray-600">
-                    Receive your earnings every week, with the flexibility to cash out earlier if needed.
+                    Receive your earnings immediately after each delivery is completed.
                   </p>
                 </div>
               </div>

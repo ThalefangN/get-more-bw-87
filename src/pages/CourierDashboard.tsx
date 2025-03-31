@@ -233,6 +233,10 @@ const CourierDashboard = () => {
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut();
+      if (logout) {
+        logout();
+      }
+      toast.success("Signed out successfully");
       navigate("/courier-login");
     } catch (error: any) {
       console.error("Sign out error:", error);
