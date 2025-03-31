@@ -20,7 +20,7 @@ const Shop = () => {
           </div>
         </div>
         
-        <ProductGrid categoryName={undefined} />
+        <ProductGrid category={undefined} />
       </main>
       <Footer />
       <Cart />

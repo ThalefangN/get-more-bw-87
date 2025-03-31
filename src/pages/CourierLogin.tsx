@@ -9,6 +9,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useCourier } from "@/contexts/CourierContext";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCourierFromData } from "@/utils/courierUtils";
 
 const CourierLogin = () => {
   const navigate = useNavigate();
@@ -44,17 +45,7 @@ const CourierLogin = () => {
               .maybeSingle();
               
             if (courierData) {
-              const courierInfo = {
-                id: courierData.id,
-                name: courierData.name,
-                email: courierData.email,
-                phone: courierData.phone,
-                vehicleType: courierData.vehicle_type,
-                isAvailable: true,
-                rating: courierData.rating || 0,
-                completedDeliveries: courierData.deliveries || 0
-              };
-              
+              const courierInfo = formatCourierFromData(courierData);
               login(courierInfo);
               navigate("/courier-dashboard");
             }
@@ -110,17 +101,7 @@ const CourierLogin = () => {
           
         if (!courierError && courierData) {
           // Courier found in database
-          const courierInfo = {
-            id: courierData.id,
-            name: courierData.name,
-            email: courierData.email,
-            phone: courierData.phone,
-            vehicleType: courierData.vehicle_type,
-            isAvailable: true,
-            rating: courierData.rating || 0,
-            completedDeliveries: courierData.deliveries || 0
-          };
-          
+          const courierInfo = formatCourierFromData(courierData);
           login(courierInfo);
           toast.success("Signed in successfully!");
           navigate("/courier-dashboard");
@@ -138,17 +119,7 @@ const CourierLogin = () => {
         if (!courierError && courierData) {
           // Check if password matches (for admin-created accounts)
           if (courierData.password === formData.password) {
-            const courierInfo = {
-              id: courierData.id,
-              name: courierData.name,
-              email: courierData.email,
-              phone: courierData.phone,
-              vehicleType: courierData.vehicle_type,
-              isAvailable: true,
-              rating: courierData.rating || 0,
-              completedDeliveries: courierData.deliveries || 0
-            };
-            
+            const courierInfo = formatCourierFromData(courierData);
             login(courierInfo);
             toast.success("Signed in successfully!");
             navigate("/courier-dashboard");

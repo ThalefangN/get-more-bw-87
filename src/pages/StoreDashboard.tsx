@@ -136,9 +136,9 @@ const DashboardHome = () => {
                 {storeQueries.slice(0, 5).map(query => (
                   <div key={query.id} className="flex items-start justify-between border-b pb-2">
                     <div>
-                      <p className="font-medium">{query.customer_name}</p>
+                      <p className="font-medium">{query.customerName}</p>
                       <p className="text-sm text-gray-600 line-clamp-1">{query.message}</p>
-                      <p className="text-xs text-gray-500">{new Date(query.created_at).toLocaleDateString()}</p>
+                      <p className="text-xs text-gray-500">{new Date(query.createdAt).toLocaleDateString()}</p>
                     </div>
                     <div>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -424,9 +424,9 @@ const QueriesPage = () => {
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <div>
-                    <CardTitle className="text-lg">{query.customer_name}</CardTitle>
+                    <CardTitle className="text-lg">{query.customerName}</CardTitle>
                     <p className="text-sm text-gray-500">
-                      {new Date(query.created_at).toLocaleDateString()} at {new Date(query.created_at).toLocaleTimeString()}
+                      {new Date(query.createdAt).toLocaleDateString()} at {new Date(query.createdAt).toLocaleTimeString()}
                     </p>
                   </div>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
