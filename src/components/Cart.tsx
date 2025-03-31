@@ -1,134 +1,154 @@
-
-import { X, Minus, Plus, ShoppingCart } from "lucide-react";
+import React, { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
-import { useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import CheckoutProcess from "./CheckoutProcess";
+import { Button } from "./ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
+import { ShoppingCart, Trash2 } from "lucide-react";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Separator } from "./ui/separator";
+import { ScrollArea } from "./ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
 
-const Cart = () => {
-  const { 
-    cartItems, 
-    totalPrice, 
-    updateQuantity, 
-    removeFromCart, 
-    isCartOpen, 
-    setIsCartOpen,
-    clearCart
-  } = useCart();
-
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
+export function Cart() {
+  const { cartItems, removeFromCart, updateQuantity, totalPrice, isCartOpen, setIsCartOpen, clearCart } = useCart();
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const { toast } = useToast();
 
   const handleCheckout = () => {
-    setIsCartOpen(false);
-    setCheckoutOpen(true);
+    if (!deliveryAddress.trim()) {
+      toast({
+        title: "Address Required",
+        description: "Please enter a delivery address to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setShowCheckout(true);
   };
 
-  if (!isCartOpen) return null;
+  const handleCheckoutSuccess = () => {
+    setShowCheckout(false);
+    setIsCartOpen(false);
+    setDeliveryAddress("");
+  };
+
+  const handleQuantityChange = (id: string, newQuantity: number) => {
+    if (newQuantity > 0) {
+      updateQuantity(id, newQuantity);
+    }
+  };
 
   return (
     <>
-      <div className="fixed inset-0 z-50 overflow-hidden">
-        <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setIsCartOpen(false)}></div>
-        
-        <div className="absolute right-0 top-0 bottom-0 w-full sm:w-96 bg-white shadow-lg flex flex-col h-full animate-fade-in">
-          <div className="p-4 border-b flex justify-between items-center">
-            <h2 className="text-xl font-semibold flex items-center">
-              <ShoppingCart size={20} className="mr-2" />
+      <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
+        <SheetContent className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle className="flex items-center">
+              <ShoppingCart className="mr-2 h-5 w-5" />
               Your Cart
-            </h2>
-            <button onClick={() => setIsCartOpen(false)} className="text-gray-500 hover:text-gray-700">
-              <X size={24} />
-            </button>
-          </div>
+            </SheetTitle>
+          </SheetHeader>
           
-          <div className="flex-1 overflow-y-auto p-4">
-            {cartItems.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center">
-                <ShoppingCart size={64} className="text-gray-300 mb-4" />
-                <p className="text-gray-500 mb-2">Your cart is empty</p>
-                <p className="text-sm text-gray-400">Add items to get started</p>
-              </div>
-            ) : (
-              <ul className="space-y-4">
-                {cartItems.map((item) => (
-                  <li key={item.id} className="flex border-b pb-4">
-                    <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
-                      <img 
-                        src={item.image} 
-                        alt={item.name}
-                        className="h-full w-full object-cover object-center"
-                      />
-                    </div>
-                    
-                    <div className="ml-4 flex flex-1 flex-col">
-                      <div className="flex justify-between text-base font-medium text-gray-900">
-                        <h3>{item.name}</h3>
-                        <p className="ml-4">P{item.price.toFixed(2)}</p>
+          {cartItems.length > 0 ? (
+            <>
+              <ScrollArea className="flex-1 mt-4 h-[60vh]">
+                <div className="space-y-4 pr-4">
+                  {cartItems.map((item) => (
+                    <div key={item.id} className="flex items-center space-x-4">
+                      <div className="h-16 w-16 rounded-md overflow-hidden">
+                        <img 
+                          src={item.image} 
+                          alt={item.name} 
+                          className="h-full w-full object-cover"
+                        />
                       </div>
-                      <p className="mt-1 text-sm text-gray-500">{item.category}</p>
-                      
-                      <div className="flex items-center justify-between text-sm mt-auto">
-                        <div className="flex items-center border rounded-md">
+                      <div className="flex-1">
+                        <h4 className="font-medium">{item.name}</h4>
+                        <p className="text-sm text-gray-500">P{item.price.toFixed(2)}</p>
+                        <div className="flex items-center mt-1">
                           <button 
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                            className="p-1 text-gray-500 hover:text-gray-700"
+                            className="w-6 h-6 rounded-full border flex items-center justify-center"
+                            onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
                           >
-                            <Minus size={16} />
+                            -
                           </button>
-                          <span className="px-2">{item.quantity}</span>
+                          <span className="mx-2">{item.quantity}</span>
                           <button 
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            className="p-1 text-gray-500 hover:text-gray-700"
+                            className="w-6 h-6 rounded-full border flex items-center justify-center"
+                            onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
                           >
-                            <Plus size={16} />
+                            +
                           </button>
                         </div>
-                        <button
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">P{(item.price * item.quantity).toFixed(2)}</p>
+                        <button 
+                          className="text-red-500 mt-1"
                           onClick={() => removeFromCart(item.id)}
-                          className="text-getmore-purple hover:text-red-500"
                         >
-                          Remove
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          
-          {cartItems.length > 0 && (
-            <div className="border-t p-4 space-y-4">
-              <div className="flex justify-between font-semibold text-lg">
-                <span>Total:</span>
-                <span>P{totalPrice.toFixed(2)}</span>
+                  ))}
+                </div>
+              </ScrollArea>
+              
+              <div className="mt-6 space-y-4">
+                <Separator />
+                <div className="flex justify-between">
+                  <span className="font-medium">Total</span>
+                  <span className="font-bold">P{totalPrice.toFixed(2)}</span>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="address">Delivery Address</Label>
+                  <Input 
+                    id="address"
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    placeholder="Enter your delivery address"
+                  />
+                </div>
+                
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => clearCart()}
+                  >
+                    Clear Cart
+                  </Button>
+                  <Button 
+                    className="flex-1"
+                    onClick={handleCheckout}
+                  >
+                    Checkout
+                  </Button>
+                </div>
               </div>
-              <div className="flex flex-col space-y-2">
-                <button 
-                  className="btn-primary"
-                  onClick={handleCheckout}
-                >
-                  Checkout
-                </button>
-                <button 
-                  onClick={clearCart}
-                  className="text-sm text-red-500 hover:text-red-700 text-center"
-                >
-                  Clear Cart
-                </button>
-              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-[60vh]">
+              <ShoppingCart className="h-12 w-12 text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium">Your cart is empty</h3>
+              <p className="text-gray-500 text-center mt-1">
+                Add items to your cart to get started.
+              </p>
             </div>
           )}
-        </div>
-      </div>
-      
-      <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
-        <DialogContent className="sm:max-w-[500px] p-0">
-          <CheckoutProcess onClose={() => setCheckoutOpen(false)} />
-        </DialogContent>
-      </Dialog>
+          
+          {showCheckout && (
+            <CheckoutProcess
+              address={deliveryAddress}
+              onSuccess={handleCheckoutSuccess}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
     </>
   );
-};
-
-export default Cart;
+}

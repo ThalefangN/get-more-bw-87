@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Order } from '@/types/order';
 
 export interface StoreInfo {
   id: string;
@@ -24,24 +25,6 @@ export interface Product {
   description: string;
   inStock: boolean;
   createdAt: Date;
-}
-
-export interface Order {
-  id: string;
-  storeId: string;
-  customerId: string;
-  customerName: string;
-  items: {
-    productId: string;
-    productName: string;
-    quantity: number;
-    price: number;
-  }[];
-  totalAmount: number;
-  status: 'pending' | 'approved' | 'declined' | 'delivering' | 'completed';
-  address: string;
-  createdAt: Date;
-  courierAssigned?: string;
 }
 
 export interface Query {
@@ -73,6 +56,7 @@ interface StoreContextType {
   getStoreById: (storeId: string) => StoreInfo | undefined;
   getProductsByStore: (storeId: string) => Product[];
   notifyCourier: (orderId: string, courierId: string, orderDetails: any) => void;
+  fetchStoreOrders: (storeId: string) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -94,6 +78,26 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         setIsAuthenticated(true);
         
         loadStoreData(parsedStore.id);
+        
+        const ordersChannel = supabase
+          .channel('orders-changes')
+          .on('postgres_changes', 
+            { 
+              event: '*', 
+              schema: 'public', 
+              table: 'orders',
+              filter: `store_id=eq.${parsedStore.id}`
+            }, 
+            (payload) => {
+              console.log('Orders change received:', payload);
+              fetchStoreOrders(parsedStore.id);
+            }
+          )
+          .subscribe();
+          
+        return () => {
+          supabase.removeChannel(ordersChannel);
+        };
       } catch (error) {
         console.error('Failed to parse store info from localStorage:', error);
         localStorage.removeItem('storeInfo');
@@ -122,17 +126,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    const storedOrders = localStorage.getItem('storeOrders');
-    if (storedOrders) {
-      try {
-        const allOrders = JSON.parse(storedOrders);
-        const storeOrders = allOrders.filter((o: Order) => o.storeId === storeId);
-        setStoreOrders(storeOrders);
-      } catch (error) {
-        console.error('Failed to parse orders from localStorage:', error);
-      }
-    }
-    
     const storedQueries = localStorage.getItem('storeQueries');
     if (storedQueries) {
       try {
@@ -142,6 +135,29 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error('Failed to parse queries from localStorage:', error);
       }
+    }
+    
+    fetchStoreOrders(storeId);
+  };
+
+  const fetchStoreOrders = async (storeId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('store_id', storeId)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error('Error fetching store orders:', error);
+        return;
+      }
+      
+      if (data) {
+        setStoreOrders(data as Order[]);
+      }
+    } catch (error) {
+      console.error('Unexpected error fetching store orders:', error);
     }
   };
 
@@ -327,11 +343,14 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       
       setStoreOrders(prevOrders => 
         prevOrders.map(order => 
-          order.id === orderId ? { ...order, courierAssigned: courierId } : order
+          order.id === orderId ? { ...order, courier_assigned: courierId } : order
         )
       );
 
       toast.success('Courier has been notified about the delivery request');
+      
+      fetchStoreOrders(currentStore?.id || "");
+      
     } catch (error) {
       console.error('Failed to notify courier:', error);
       toast.error('Failed to notify courier');
@@ -355,7 +374,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       allStores,
       getStoreById,
       getProductsByStore,
-      notifyCourier
+      notifyCourier,
+      fetchStoreOrders
     }}>
       {children}
     </StoreContext.Provider>

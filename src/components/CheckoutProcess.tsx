@@ -56,6 +56,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         }
 
         if (data) {
+          // Type cast to match our Courier interface
           setAvailableCouriers(data as Courier[]);
         }
       } catch (error) {
@@ -104,7 +105,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         storeId: store?.id || "",
         storeName: store?.name || "Store",
         deliveryAddress: address,
-        customerName: user?.name || "Customer"
+        customerName: user?.displayName || user?.email || "Customer"
       };
       
       // Notify the courier using our new context function
@@ -150,8 +151,8 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
           {
             id: orderId,
             store_id: store?.id || "",
-            customer_id: user?.id || "",
-            customer_name: user?.name || "Guest",
+            customer_id: user?.uid || "",
+            customer_name: user?.displayName || user?.email || "Guest",
             items: orderItems,
             total_amount: totalPrice,
             status: 'pending',

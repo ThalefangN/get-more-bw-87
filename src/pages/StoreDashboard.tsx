@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import StoreNavbar from "@/components/store/StoreNavbar";
 import { useStore } from "@/contexts/StoreContext";
@@ -15,7 +14,6 @@ const StoreDashboard = () => {
   const { currentStore, isAuthenticated, storeProducts, storeOrders, storeQueries } = useStore();
   const location = useLocation();
   
-  // If not authenticated, redirect to login
   if (!isAuthenticated) {
     return <Navigate to="/store-signin" />;
   }
@@ -37,7 +35,6 @@ const StoreDashboard = () => {
   );
 };
 
-// Dashboard Home Page
 const DashboardHome = () => {
   const { storeProducts, storeOrders, storeQueries, currentStore } = useStore();
   
@@ -167,7 +164,6 @@ const DashboardHome = () => {
   );
 };
 
-// Products Page
 const ProductsPage = () => {
   const { storeProducts, deleteProduct } = useStore();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -269,9 +265,14 @@ const ProductsPage = () => {
   );
 };
 
-// Orders Page
 const OrdersPage = () => {
-  const { storeOrders, updateOrderStatus } = useStore();
+  const { storeOrders, updateOrderStatus, currentStore, fetchStoreOrders } = useStore();
+  
+  useEffect(() => {
+    if (currentStore?.id) {
+      fetchStoreOrders(currentStore.id);
+    }
+  }, [currentStore, fetchStoreOrders]);
   
   const handleStatusChange = (orderId: string, newStatus: 'pending' | 'approved' | 'declined' | 'delivering' | 'completed') => {
     updateOrderStatus(orderId, newStatus);
@@ -389,7 +390,6 @@ const OrdersPage = () => {
   );
 };
 
-// Queries Page
 const QueriesPage = () => {
   const { storeQueries, respondToQuery } = useStore();
   const [responses, setResponses] = useState<{[key: string]: string}>({});
@@ -485,11 +485,9 @@ const QueriesPage = () => {
   );
 };
 
-// Customers Page
 const CustomersPage = () => {
   const { storeOrders } = useStore();
   
-  // Create a unique list of customers from orders
   const customers = [...new Map(
     storeOrders.map(order => [
       order.customerId, 
