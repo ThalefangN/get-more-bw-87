@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,6 +10,7 @@ import { useStore } from "@/contexts/StoreContext";
 import { useNavigate } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/integrations/supabase/client";
+import { Courier } from "@/types/courier";
 
 interface CheckoutProcessProps {
   address: string;
@@ -19,10 +21,10 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
   const [step, setStep] = useState(0);
   const [isDialogOpen, setIsDialogOpen] = useState(true);
   const [orderId, setOrderId] = useState<string | null>(null);
-  const [availableCouriers, setAvailableCouriers] = useState([]);
+  const [availableCouriers, setAvailableCouriers] = useState<Courier[]>([]);
   const [selectedCourierId, setSelectedCourierId] = useState<string | null>(null);
   const [selectedCourierName, setSelectedCourierName] = useState<string | null>(null);
-  const { cart, clearCart } = useCart();
+  const { cartItems, clearCart, totalPrice } = useCart();
   const { user } = useAuth();
   const { toast } = useToast();
   const { currentStore: store, notifyCourier } = useStore();
@@ -42,7 +44,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         const { data, error } = await supabase
           .from('couriers')
           .select('*')
-          .eq('is_available', true);
+          .eq('status', 'active');
 
         if (error) {
           console.error("Error fetching available couriers:", error);
@@ -54,7 +56,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         }
 
         if (data) {
-          setAvailableCouriers(data);
+          setAvailableCouriers(data as Courier[]);
         }
       } catch (error) {
         console.error("Unexpected error fetching couriers:", error);
@@ -86,33 +88,33 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
   };
 
   const handleCourierSelect = async (courierId: string) => {
-  setSelectedCourierId(courierId);
-  
-  // Find the courier details to display
-  const selectedCourier = availableCouriers.find(c => c.id === courierId);
-  if (selectedCourier) {
-    setSelectedCourierName(selectedCourier.name);
-  }
-  
-  // If this is part of order placement, notify the courier
-  if (step === 2 && orderId) {
-    // Create order details to send to the courier
-    const orderDetails = {
-      items: cart.items,
-      storeId: cart.storeId,
-      storeName: store?.name || "Store",
-      deliveryAddress: address,
-      customerName: user?.name || "Customer"
-    };
+    setSelectedCourierId(courierId);
     
-    // Notify the courier using our new context function
-    await notifyCourier(orderId, courierId, orderDetails);
-    toast({
-      title: "Courier notified",
-      description: "The courier has been notified about this delivery request.",
-    });
-  }
-};
+    // Find the courier details to display
+    const selectedCourier = availableCouriers.find(c => c.id === courierId);
+    if (selectedCourier) {
+      setSelectedCourierName(selectedCourier.name);
+    }
+    
+    // If this is part of order placement, notify the courier
+    if (step === 2 && orderId) {
+      // Create order details to send to the courier
+      const orderDetails = {
+        items: cartItems,
+        storeId: store?.id || "",
+        storeName: store?.name || "Store",
+        deliveryAddress: address,
+        customerName: user?.name || "Customer"
+      };
+      
+      // Notify the courier using our new context function
+      await notifyCourier(orderId, courierId, orderDetails);
+      toast({
+        title: "Courier notified",
+        description: "The courier has been notified about this delivery request.",
+      });
+    }
+  };
 
   const placeOrder = async () => {
     if (!orderId) {
@@ -135,7 +137,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
 
     try {
       // Prepare order items for Supabase
-      const orderItems = cart.items.map(item => ({
+      const orderItems = cartItems.map(item => ({
         product_id: item.id,
         product_name: item.name,
         quantity: item.quantity,
@@ -147,11 +149,11 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         .insert([
           {
             id: orderId,
-            store_id: cart.storeId,
-            customer_id: user?.id,
-            customer_name: user?.name,
+            store_id: store?.id || "",
+            customer_id: user?.id || "",
+            customer_name: user?.name || "Guest",
             items: orderItems,
-            total_amount: cart.total,
+            total_amount: totalPrice,
             status: 'pending',
             address: address,
             courier_assigned: selectedCourierId
@@ -233,7 +235,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
             <p>Confirm your order:</p>
             <p>Delivery Address: {address}</p>
             <p>Courier: {selectedCourierName || "Not selected"}</p>
-            <p>Total: P{cart.total.toFixed(2)}</p>
+            <p>Total: P{totalPrice.toFixed(2)}</p>
           </div>
         )}
 
