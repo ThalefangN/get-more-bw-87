@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,6 +105,7 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
     setIsLoading(true);
     
     try {
+      // Prepare the product data for Supabase - avoid references to the users table
       const productData = {
         name: formData.name,
         price: parseFloat(formData.price),
@@ -121,7 +123,10 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
           .update(productData)
           .eq('id', productToEdit.id);
           
-        if (error) throw error;
+        if (error) {
+          console.error("Supabase update error:", error);
+          throw error;
+        }
         
         updateProduct(productToEdit.id, {
           name: formData.name,
@@ -140,7 +145,10 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
           .insert(productData)
           .select();
           
-        if (error) throw error;
+        if (error) {
+          console.error("Supabase insert error:", error);
+          throw error;
+        }
         
         if (data && data[0]) {
           const newProduct: Product = {
