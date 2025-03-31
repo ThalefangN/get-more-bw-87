@@ -8,9 +8,10 @@ import { toast } from "sonner";
 
 interface ProductGridProps {
   showAllProducts?: boolean;
+  storeId?: string;
 }
 
-const ProductGrid = ({ showAllProducts = false }: ProductGridProps) => {
+const ProductGrid = ({ showAllProducts = false, storeId }: ProductGridProps) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,6 +25,11 @@ const ProductGrid = ({ showAllProducts = false }: ProductGridProps) => {
           .select('*')
           .eq('in_stock', true)
           .order('created_at', { ascending: false });
+        
+        // If a specific store is requested, filter products by store
+        if (storeId) {
+          query = query.eq('store_id', storeId);
+        }
         
         // Limit products only if not showing all
         if (!showAllProducts) {
@@ -87,7 +93,7 @@ const ProductGrid = ({ showAllProducts = false }: ProductGridProps) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [showAllProducts]);
+  }, [showAllProducts, storeId]);
 
   const getSampleProducts = (): Product[] => {
     return [

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,7 +64,6 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
       return;
     }
     
-    // Simple image URL validation
     if (!imageInput.startsWith('http')) {
       toast.error("Please enter a valid image URL");
       return;
@@ -118,7 +116,6 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
       };
       
       if (isEditing && productToEdit) {
-        // Update in Supabase
         const { error } = await supabase
           .from('products')
           .update(productData)
@@ -126,8 +123,7 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
           
         if (error) throw error;
         
-        // Update in local state
-        const localProductData = {
+        updateProduct(productToEdit.id, {
           name: formData.name,
           price: parseFloat(formData.price),
           image: formData.images[0],
@@ -135,12 +131,10 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
           category: formData.category,
           description: formData.description,
           inStock: formData.inStock
-        };
+        });
         
-        updateProduct(productToEdit.id, localProductData);
         toast.success("Product updated successfully!");
       } else {
-        // Insert into Supabase
         const { data, error } = await supabase
           .from('products')
           .insert(productData)
@@ -148,9 +142,8 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
           
         if (error) throw error;
         
-        // Add to local state if successful
         if (data && data[0]) {
-          const newProduct = {
+          const newProduct: Product = {
             id: data[0].id,
             storeId: currentStore.id,
             name: formData.name,
@@ -186,7 +179,7 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
     "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=500&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1578339850459-76b0ac239aa2?w=500&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1616684000067-36952fde56ec?w=500&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1546548970-71785318a17b?w=500&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1546548970067-71785318a17b?w=500&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1563536102677-8651f52bace2?w=500&auto=format&fit=crop"
   ];
 
@@ -194,15 +187,12 @@ const ProductForm = ({ productToEdit, onCancel, onSuccess }: ProductFormProps) =
     const files = event.target.files;
     if (files && files.length > 0) {
       Array.from(files).forEach(file => {
-        // In a real app, we would upload the file to a server/storage service
-        // For this demo, we're creating an object URL to simulate file upload
         const imageUrl = URL.createObjectURL(file);
         setFormData(prev => ({
           ...prev,
           images: [...prev.images, imageUrl]
         }));
       });
-      // Reset the input
       event.target.value = '';
     }
   };
