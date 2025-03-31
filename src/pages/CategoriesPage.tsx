@@ -1,3 +1,4 @@
+
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Categories from "@/components/Categories";
@@ -7,7 +8,7 @@ const CategoriesPage = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-grow">
+      <main className="flex-grow pt-16">
         <div className="bg-gray-50 py-12">
           <div className="container-custom">
             <h1 className="text-3xl md:text-4xl font-bold mb-6">Categories</h1>
