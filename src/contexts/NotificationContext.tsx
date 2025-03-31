@@ -15,13 +15,20 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const fetchNotifications = async () => {
-    if (!user?.id) return;
+    // Instead of checking for user?.id, check if the user object exists
+    if (!user) return;
     
     try {
+      // Get the session to access the authenticated user ID
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      
+      if (!userId) return;
+      
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -47,14 +54,20 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const markAsRead = async (notificationId: string) => {
-    if (!user?.id) return;
+    if (!user) return;
     
     try {
+      // Get the session to access the authenticated user ID
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      
+      if (!userId) return;
+      
       const { error } = await supabase
         .from('notifications')
         .update({ read: true })
         .eq('id', notificationId)
-        .eq('user_id', user.id);
+        .eq('user_id', userId);
       
       if (error) throw error;
       
@@ -73,13 +86,19 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const markAllAsRead = async () => {
-    if (!user?.id || notifications.length === 0) return;
+    if (!user) return;
     
     try {
+      // Get the session to access the authenticated user ID
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      
+      if (!userId) return;
+      
       const { error } = await supabase
         .from('notifications')
         .update({ read: true })
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('read', false);
       
       if (error) throw error;
@@ -98,37 +117,51 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
   // Set up real-time subscription for new notifications
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user) return;
     
     fetchNotifications();
     
-    // Subscribe to new notifications
-    const channel = supabase
-      .channel('public:notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('New notification:', payload);
-          
-          // Show toast for new notification
-          toast.info(payload.new.title, {
-            description: payload.new.message
-          });
-          
-          // Update the notifications list
-          fetchNotifications();
-        }
-      )
-      .subscribe();
+    // Get the authenticated user ID for the subscription
+    const setupSubscription = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      
+      if (!userId) return;
+      
+      // Subscribe to new notifications
+      const channel = supabase
+        .channel('public:notifications')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${userId}`
+          },
+          (payload) => {
+            console.log('New notification:', payload);
+            
+            // Show toast for new notification
+            toast.info(payload.new.title, {
+              description: payload.new.message
+            });
+            
+            // Update the notifications list
+            fetchNotifications();
+          }
+        )
+        .subscribe();
+      
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    };
+    
+    const cleanup = setupSubscription();
     
     return () => {
-      supabase.removeChannel(channel);
+      cleanup.then(cleanupFn => cleanupFn && cleanupFn());
     };
   }, [user]);
 
