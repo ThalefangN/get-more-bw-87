@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { Cart } from "@/components/Cart";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -41,6 +42,7 @@ const Index = () => {
         <HowItWorks />
       </main>
       <Footer />
+      <Cart />
     </div>
   );
 };

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import Cart from "@/components/Cart";
+import { Cart } from "@/components/Cart";
 import ProductGrid from "@/components/ProductGrid";
 import { Button } from "@/components/ui/button";
 import { Search, SlidersHorizontal } from "lucide-react";

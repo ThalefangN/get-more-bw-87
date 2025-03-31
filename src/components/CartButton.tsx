@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const CartButton = () => {
-  const { totalItems, setIsCartOpen } = useCart();
+  const { totalItems, setIsCartOpen, isCartOpen } = useCart();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   
@@ -23,8 +23,8 @@ const CartButton = () => {
       return;
     }
     
-    // If authenticated, open the cart
-    setIsCartOpen(true);
+    // If authenticated, toggle the cart
+    setIsCartOpen(!isCartOpen);
   };
   
   return (

@@ -1,8 +1,7 @@
-
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import Cart from "@/components/Cart";
 import HowItWorks from "@/components/HowItWorks";
+import Footer from "@/components/Footer";
+import { Cart } from "@/components/Cart";
 import { Download, Smartphone, Clock, Box, Check } from "lucide-react";
 import { toast } from "sonner";
 
