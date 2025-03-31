@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -31,14 +30,12 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Generate order ID only once when the dialog opens
     if (isDialogOpen && !orderId) {
       setOrderId(uuidv4());
     }
   }, [isDialogOpen, orderId]);
 
   useEffect(() => {
-    // Fetch available couriers when the component mounts
     const fetchAvailableCouriers = async () => {
       try {
         const { data, error } = await supabase
@@ -56,7 +53,6 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         }
 
         if (data) {
-          // Type cast to match our Courier interface
           setAvailableCouriers(data as Courier[]);
         }
       } catch (error) {
@@ -91,15 +87,12 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
   const handleCourierSelect = async (courierId: string) => {
     setSelectedCourierId(courierId);
     
-    // Find the courier details to display
     const selectedCourier = availableCouriers.find(c => c.id === courierId);
     if (selectedCourier) {
       setSelectedCourierName(selectedCourier.name);
     }
     
-    // If this is part of order placement, notify the courier
     if (step === 2 && orderId) {
-      // Create order details to send to the courier
       const orderDetails = {
         items: cartItems,
         storeId: store?.id || "",
@@ -108,7 +101,6 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         customerName: user?.email || "Customer"
       };
       
-      // Notify the courier using our new context function
       await notifyCourier(orderId, courierId, orderDetails);
       toast({
         title: "Courier notified",
@@ -137,7 +129,6 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
     }
 
     try {
-      // Prepare order items for Supabase
       const orderItems = cartItems.map(item => ({
         product_id: item.id,
         product_name: item.name,
@@ -151,7 +142,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
           {
             id: orderId,
             store_id: store?.id || "",
-            customer_id: user?.uid || "", // Use uid instead of id
+            customer_id: user?.id || "",
             customer_name: user?.email || "Guest",
             items: orderItems,
             total_amount: totalPrice,
@@ -171,20 +162,16 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         return;
       }
 
-      // Clear the cart
       clearCart();
 
-      // Show success message
       toast({
         title: "Order placed",
         description: "Your order has been placed successfully.",
       });
 
-      // Close the dialog and trigger success callback
       setIsDialogOpen(false);
       onSuccess();
 
-      // Redirect to home page
       navigate('/');
     } catch (error) {
       console.error("Unexpected error placing order:", error);

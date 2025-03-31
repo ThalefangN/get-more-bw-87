@@ -23,7 +23,7 @@ const CategoryProductsPage = () => {
           </div>
         </div>
 
-        {/* We're passing categoryName as a category prop to ProductGrid */}
+        {/* We're passing categoryName as the category prop to ProductGrid */}
         <ProductGrid category={categoryName} />
       </main>
       <Footer />
