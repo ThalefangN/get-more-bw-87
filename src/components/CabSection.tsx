@@ -44,9 +44,18 @@ const CabSection = () => {
               {/* Cab Image Badge */}
               <div className="absolute -bottom-6 -left-6 bg-white p-2 rounded-xl shadow-lg">
                 <img 
-                  src="https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?q=80&w=1170&auto=format&fit=crop" 
-                  alt="Premium Cab"
+                  src="https://images.unsplash.com/photo-1620794108219-aedbaded4eea?q=80&w=1289&auto=format&fit=crop" 
+                  alt="Premium Cab Driver"
                   className="w-20 h-20 object-cover rounded-lg"
+                />
+              </div>
+              
+              {/* Additional cab image */}
+              <div className="absolute -top-6 -right-6 bg-white p-2 rounded-xl shadow-lg transform rotate-6">
+                <img 
+                  src="https://images.unsplash.com/photo-1590362891991-f776e747a588?q=80&w=2069&auto=format&fit=crop" 
+                  alt="Luxury Cab"
+                  className="w-24 h-16 object-cover rounded-lg"
                 />
               </div>
               

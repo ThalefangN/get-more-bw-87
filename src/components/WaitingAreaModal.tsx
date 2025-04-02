@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MapPin, MessageSquare, Phone, Send, User } from 'lucide-react';
+import { MapPin, MessageSquare, Phone, Send, User, Car, X, PhoneCall, MessageCircle } from 'lucide-react';
 
 interface Driver {
   id: number;
@@ -30,27 +30,41 @@ interface Message {
   sender: 'user' | 'driver';
   text: string;
   timestamp: Date;
+  isSetswana?: boolean;
 }
 
+// Sample messages with Setswana language
 const sampleMessages: Message[] = [
   {
     id: 1,
     sender: 'driver',
-    text: 'Hello! I\'m on my way to pick you up.',
+    text: 'Dumela! Ke mo tseleng go tla go go tsaya.',
     timestamp: new Date(Date.now() - 120000), // 2 min ago
+    isSetswana: true
   },
   {
     id: 2,
     sender: 'user',
-    text: 'Great! I\'ll be waiting outside.',
+    text: 'Ke a leboga! Ke tlaa go leta kwa ntle.',
     timestamp: new Date(Date.now() - 60000), // 1 min ago
+    isSetswana: true
   },
   {
     id: 3,
     sender: 'driver',
-    text: 'I\'m in a white Toyota Corolla. Should be there in about 5 minutes.',
+    text: 'Ke kgweetsa Toyota Corolla e tshweu. Ke tlaa goroga mo metsotsong e metlhano.',
     timestamp: new Date(Date.now() - 30000), // 30 sec ago
+    isSetswana: true
   },
+];
+
+// Setswana responses for auto-replies
+const setswanaResponses = [
+  "Ke santse ke tla. Ke tlaa goroga ka bonako!",
+  "Ke kgonne go bona lefelo la gago. Ke mo tseleng.",
+  "Ke kopa o letele foo. Ke tlaa goroga mo nakong e khutshwane.",
+  "Ke setse ke le gaufi. O ka mpona mo mmepeng.",
+  "Ke leboga go leta. Ke tsamaya ka bofefo jo ke ka bo kgonang."
 ];
 
 const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) => {
@@ -59,6 +73,7 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
   const [newMessage, setNewMessage] = useState('');
   const [estimatedTime, setEstimatedTime] = useState('5 minutes');
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [showCallOptions, setShowCallOptions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Simulate map loading
@@ -106,16 +121,30 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
     setMessages([...messages, userMessage]);
     setNewMessage('');
 
-    // Simulate driver response after a short delay
+    // Simulate driver response in Setswana after a short delay
     setTimeout(() => {
+      const randomResponse = setswanaResponses[Math.floor(Math.random() * setswanaResponses.length)];
       const driverResponse: Message = {
         id: Date.now() + 1,
         sender: 'driver',
-        text: 'I\'m still on my way. Will be there shortly!',
+        text: randomResponse,
         timestamp: new Date(),
+        isSetswana: true
       };
       setMessages(prev => [...prev, driverResponse]);
     }, 2000);
+  };
+
+  const handleCall = (type: 'phone' | 'whatsapp') => {
+    setShowCallOptions(false);
+    
+    if (type === 'phone') {
+      window.location.href = `tel:${driver.phone}`;
+    } else {
+      // WhatsApp link (will open WhatsApp if installed)
+      const phoneWithoutPlus = driver.phone.replace('+', '');
+      window.open(`https://wa.me/${phoneWithoutPlus}`, '_blank');
+    }
   };
 
   return (
@@ -123,7 +152,7 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between mb-4 border-b pb-4">
           <div className="flex items-center">
-            <div className="w-12 h-12 rounded-full overflow-hidden mr-3">
+            <div className="w-12 h-12 rounded-full overflow-hidden mr-3 border-2 border-getmore-purple">
               <img src={driver.image} alt={driver.name} className="w-full h-full object-cover" />
             </div>
             <div>
@@ -133,15 +162,15 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
           </div>
 
           <div className="flex items-center space-x-2">
-            <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
+            <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
               Arriving in: {estimatedTime}
             </div>
-            <a
-              href={`tel:${driver.phone}`}
-              className="bg-blue-100 text-blue-800 p-2 rounded-full"
+            <button
+              onClick={() => setShowCallOptions(true)}
+              className="bg-blue-100 text-blue-800 p-2 rounded-full hover:bg-blue-200 transition-colors"
             >
               <Phone size={18} />
-            </a>
+            </button>
           </div>
         </div>
 
@@ -194,7 +223,7 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
                     
                     {/* Driver location with animation */}
                     <div
-                      className="absolute bg-getmore-purple rounded-full p-1 border-2 border-white animate-pulse"
+                      className="absolute bg-getmore-purple rounded-full p-2 border-2 border-white animate-pulse"
                       style={{
                         top: '40%',
                         left: '40%',
@@ -233,7 +262,7 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
                     }`}
                   >
                     {msg.sender === 'driver' && (
-                      <div className="w-8 h-8 rounded-full overflow-hidden mr-2 flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full overflow-hidden mr-2 flex-shrink-0 border border-getmore-purple">
                         <img
                           src={driver.image}
                           alt={driver.name}
@@ -249,6 +278,13 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
                       }`}
                     >
                       <p>{msg.text}</p>
+                      {msg.isSetswana && (
+                        <p className="text-xs italic mt-1 opacity-75">
+                          {msg.sender === 'driver' 
+                            ? "Speaking Setswana" 
+                            : "Reply in Setswana"}
+                        </p>
+                      )}
                       <p className="text-xs opacity-70 text-right mt-1">
                         {msg.timestamp.toLocaleTimeString([], {
                           hour: '2-digit',
@@ -272,7 +308,7 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
                 <Input
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
+                  placeholder="Type a message in English or Setswana..."
                   className="flex-1"
                 />
                 <Button
@@ -287,19 +323,50 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
             </div>
           )}
         </div>
+
+        {/* Call Options Dialog */}
+        {showCallOptions && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold">Contact Driver</h3>
+                <button 
+                  onClick={() => setShowCallOptions(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <p className="mb-6 text-gray-600">How would you like to contact {driver.name}?</p>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => handleCall('phone')}
+                  className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2">
+                    <PhoneCall className="text-green-600" size={24} />
+                  </div>
+                  <span className="font-medium">Phone Call</span>
+                </button>
+                
+                <button
+                  onClick={() => handleCall('whatsapp')}
+                  className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center mb-2">
+                    <MessageCircle className="text-white" size={24} />
+                  </div>
+                  <span className="font-medium">WhatsApp</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
 };
-
-// Placeholder Car component since it's not imported
-const Car = ({ size = 24, color = "currentColor" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
-    <circle cx="7" cy="17" r="2" />
-    <path d="M9 17h6" />
-    <circle cx="17" cy="17" r="2" />
-  </svg>
-);
 
 export default WaitingAreaModal;

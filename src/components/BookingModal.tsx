@@ -7,7 +7,7 @@ import { Car, Star, MessageSquare, Phone, MapPin } from 'lucide-react';
 import { NavigateFunction } from 'react-router-dom';
 import WaitingAreaModal from './WaitingAreaModal';
 
-// Sample drivers data
+// Sample drivers data with diverse Tswana names
 const sampleDrivers = [
   { 
     id: 1, 
@@ -15,7 +15,7 @@ const sampleDrivers = [
     car: 'Toyota Corolla', 
     rating: 4.8, 
     distance: '3 min away',
-    image: 'https://randomuser.me/api/portraits/men/32.jpg',
+    image: 'https://images.unsplash.com/photo-1618213837774-25b243a1e3e3?q=80&w=1287&auto=format&fit=crop',
     phone: '+267 71234567',
     location: { lat: -24.6282, lng: 25.9331 }
   },
@@ -25,7 +25,7 @@ const sampleDrivers = [
     car: 'Honda Fit', 
     rating: 4.9, 
     distance: '5 min away',
-    image: 'https://randomuser.me/api/portraits/women/44.jpg',
+    image: 'https://images.unsplash.com/photo-1531123414780-f74242c2b052?q=80&w=1287&auto=format&fit=crop',
     phone: '+267 72345678',
     location: { lat: -24.6372, lng: 25.9131 }
   },
@@ -35,7 +35,7 @@ const sampleDrivers = [
     car: 'VW Golf 5', 
     rating: 4.7, 
     distance: '7 min away',
-    image: 'https://randomuser.me/api/portraits/men/22.jpg',
+    image: 'https://images.unsplash.com/photo-1620794108219-aedbaded4eea?q=80&w=1289&auto=format&fit=crop',
     phone: '+267 73456789',
     location: { lat: -24.6452, lng: 25.9231 }
   },
@@ -45,7 +45,7 @@ const sampleDrivers = [
     car: 'Toyota Vitz', 
     rating: 4.6, 
     distance: '8 min away',
-    image: 'https://randomuser.me/api/portraits/women/29.jpg',
+    image: 'https://images.unsplash.com/photo-1589156280159-27698a70f29e?q=80&w=1286&auto=format&fit=crop',
     phone: '+267 74567890',
     location: { lat: -24.6182, lng: 25.9281 }
   },
@@ -55,9 +55,39 @@ const sampleDrivers = [
     car: 'Mazda Demio', 
     rating: 4.9, 
     distance: '4 min away',
-    image: 'https://randomuser.me/api/portraits/men/55.jpg',
+    image: 'https://images.unsplash.com/photo-1581992652564-44c42f5ad3ad?q=80&w=1290&auto=format&fit=crop',
     phone: '+267 75678901',
     location: { lat: -24.6352, lng: 25.9211 }
+  },
+  { 
+    id: 6, 
+    name: 'Mpho Ramotswe', 
+    car: 'Toyota Corolla', 
+    rating: 4.7, 
+    distance: '6 min away',
+    image: 'https://images.unsplash.com/photo-1507152832244-10d45c7eda57?q=80&w=1374&auto=format&fit=crop',
+    phone: '+267 76789012',
+    location: { lat: -24.6252, lng: 25.9151 }
+  },
+  { 
+    id: 7, 
+    name: 'Onalenna Molefe', 
+    car: 'Mazda 3', 
+    rating: 4.8, 
+    distance: '10 min away',
+    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1287&auto=format&fit=crop',
+    phone: '+267 77890123',
+    location: { lat: -24.6422, lng: 25.9291 }
+  },
+  { 
+    id: 8, 
+    name: 'Kagiso Mokgadi', 
+    car: 'Honda Fit', 
+    rating: 4.9, 
+    distance: '5 min away',
+    image: 'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?q=80&w=1289&auto=format&fit=crop',
+    phone: '+267 78901234',
+    location: { lat: -24.6302, lng: 25.9271 }
   }
 ];
 
@@ -96,9 +126,9 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
     
     // Filter drivers based on fare
     if (fareValue < 50) {
-      setAvailableDrivers(sampleDrivers.slice(0, 2));
+      setAvailableDrivers(sampleDrivers.slice(0, 3));
     } else if (fareValue < 80) {
-      setAvailableDrivers(sampleDrivers.slice(0, 4));
+      setAvailableDrivers(sampleDrivers.slice(0, 6));
     } else {
       setAvailableDrivers(sampleDrivers);
     }
@@ -198,7 +228,7 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
                     className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-all"
                     onClick={() => selectDriver(driver)}
                   >
-                    <div className="h-16 w-16 rounded-full overflow-hidden mr-4">
+                    <div className="h-16 w-16 rounded-full overflow-hidden mr-4 border-2 border-getmore-purple">
                       <img 
                         src={driver.image} 
                         alt={driver.name}
@@ -207,20 +237,20 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
                     </div>
                     
                     <div className="flex-1">
-                      <div className="flex justify-between">
+                      <div className="flex justify-between items-center">
                         <h3 className="font-semibold text-lg">{driver.name}</h3>
-                        <div className="flex items-center">
+                        <div className="flex items-center bg-yellow-50 px-2 py-1 rounded-full">
                           <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                          <span className="ml-1 text-sm">{driver.rating}</span>
+                          <span className="ml-1 text-sm font-medium">{driver.rating}</span>
                         </div>
                       </div>
                       
-                      <div className="flex justify-between">
-                        <div className="flex items-center text-gray-500">
-                          <Car className="h-4 w-4 mr-1" />
-                          <span className="text-sm">{driver.car}</span>
+                      <div className="flex justify-between mt-1">
+                        <div className="flex items-center text-gray-700 bg-gray-100 px-2 py-1 rounded-full text-sm">
+                          <Car className="h-4 w-4 mr-1 text-getmore-purple" />
+                          <span>{driver.car}</span>
                         </div>
-                        <span className="text-sm text-gray-500">{driver.distance}</span>
+                        <span className="text-sm bg-green-50 text-green-700 px-2 py-1 rounded-full">{driver.distance}</span>
                       </div>
                     </div>
                   </div>
