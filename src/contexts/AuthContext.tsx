@@ -5,6 +5,7 @@ import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 
 interface User {
+  id?: string; // Added id property to fix TypeScript errors
   name: string;
   email: string;
   address?: {
@@ -54,6 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (error) throw error;
 
             const userProfile: User = {
+              id: session.user.id, // Ensure id is passed from session user
               name: data.name || session.user.email?.split('@')[0] || 'User',
               email: data.email || session.user.email || '',
               address: {
@@ -68,6 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.error('Error fetching user profile:', error);
             // If profile fetch fails, still set basic user info
             const userProfile: User = {
+              id: session.user.id, // Ensure id is passed from session user
               name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
               email: session.user.email || '',
             };
