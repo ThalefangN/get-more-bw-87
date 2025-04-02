@@ -1,7 +1,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { Car, MapPin, Clock, Shield, MessageSquare } from 'lucide-react';
+import { Car, MapPin, Clock, Shield, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import BookingModal from './BookingModal';
@@ -25,6 +25,10 @@ const CabSection = () => {
     
     // Show the fare input modal instead of navigating
     setShowBookingModal(true);
+  };
+  
+  const handleBecomeDriverClick = () => {
+    navigate('/driver-signup');
   };
   
   return (
@@ -119,13 +123,23 @@ const CabSection = () => {
               </div>
             </div>
             
-            <button 
-              onClick={handleBookCabClick}
-              className="bg-getmore-purple text-white px-8 py-4 rounded-lg font-medium hover:bg-purple-700 transition-colors shadow-lg flex items-center text-lg transform hover:scale-105 transition-transform duration-200"
-            >
-              <Car className="mr-2" size={24} />
-              Book a Ride Now
-            </button>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button 
+                onClick={handleBookCabClick}
+                className="bg-getmore-purple text-white px-8 py-4 rounded-lg font-medium hover:bg-purple-700 transition-colors shadow-lg flex items-center justify-center text-lg transform hover:scale-105 transition-transform duration-200"
+              >
+                <Car className="mr-2" size={24} />
+                Book a Ride Now
+              </button>
+              
+              <button 
+                onClick={handleBecomeDriverClick}
+                className="bg-white border-2 border-getmore-purple text-getmore-purple px-8 py-4 rounded-lg font-medium hover:bg-getmore-purple hover:text-white transition-colors shadow-lg flex items-center justify-center text-lg transform hover:scale-105 transition-transform duration-200"
+              >
+                <UserPlus className="mr-2" size={24} />
+                Become a Driver
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -25,6 +25,10 @@ import AdminSignIn from "./pages/AdminSignIn";
 import AdminDashboard from "./pages/AdminDashboard";
 import AllProducts from "./pages/AllProducts";
 import BookCab from "./pages/BookCab";
+import DriverSignUp from "./pages/DriverSignUp";
+import DriverLogin from "./pages/DriverLogin";
+import DriverTerms from "./pages/DriverTerms";
+import DriverDashboard from "./pages/DriverDashboard";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { StoreProvider } from "@/contexts/StoreContext";
@@ -72,6 +76,11 @@ const App = () => (
                       <Route path="/admin-signup" element={<AdminSignUp />} />
                       <Route path="/admin-signin" element={<AdminSignIn />} />
                       <Route path="/admin-dashboard/*" element={<AdminDashboard />} />
+                      {/* New Driver Routes */}
+                      <Route path="/driver-signup" element={<DriverSignUp />} />
+                      <Route path="/driver-login" element={<DriverLogin />} />
+                      <Route path="/driver-terms" element={<DriverTerms />} />
+                      <Route path="/driver-dashboard" element={<DriverDashboard />} />
                       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
