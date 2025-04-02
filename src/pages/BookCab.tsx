@@ -1,501 +1,330 @@
 
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Car, MapPin, AlertCircle, Calendar, Clock, User, Phone, ChevronRight } from "lucide-react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
-import { Separator } from "@/components/ui/separator";
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Car, MapPin, Clock, Calendar, DollarSign, Check, X } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 
-interface VehicleType {
-  id: string;
-  name: string;
-  image: string;
-  description: string;
-  capacity: number;
-  pricePerKm: number;
-  estimatedTime: string;
-}
-
-const vehicles: VehicleType[] = [
+// Cab types with images and details
+const cabTypes = [
   {
-    id: "standard",
-    name: "Standard",
-    image: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800&auto=format&fit=crop&q=60",
-    description: "Comfortable sedan for everyday rides",
-    capacity: 4,
+    id: 'standard',
+    name: 'Standard',
+    image: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?q=80&w=2070&auto=format&fit=crop',
     pricePerKm: 10,
-    estimatedTime: "15 min"
+    basePrice: 30,
+    features: ['Air conditioning', '4 passengers', 'Luggage space']
   },
   {
-    id: "premium",
-    name: "Premium",
-    image: "https://images.unsplash.com/photo-1550355291-bbee04a92027?w=800&auto=format&fit=crop&q=60",
-    description: "Luxury vehicle for comfort and style",
-    capacity: 4,
+    id: 'comfort',
+    name: 'Comfort',
+    image: 'https://images.unsplash.com/photo-1550355291-bbee04a92027?q=80&w=2156&auto=format&fit=crop',
     pricePerKm: 15,
-    estimatedTime: "12 min"
+    basePrice: 50,
+    features: ['Premium interior', 'Water bottles', '4 passengers', 'Extra luggage space']
   },
   {
-    id: "suv",
-    name: "SUV",
-    image: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=800&auto=format&fit=crop&q=60",
-    description: "Spacious SUV for groups or extra luggage",
-    capacity: 6,
-    pricePerKm: 18,
-    estimatedTime: "18 min"
+    id: 'premium',
+    name: 'Premium',
+    image: 'https://images.unsplash.com/photo-1603386329225-868f9b1ee6c9?q=80&w=2069&auto=format&fit=crop',
+    pricePerKm: 25,
+    basePrice: 80,
+    features: ['Luxury vehicle', 'Professional chauffeur', '4 passengers', 'Premium amenities']
+  },
+  {
+    id: 'suv',
+    name: 'SUV/Minivan',
+    image: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?q=80&w=2070&auto=format&fit=crop',
+    pricePerKm: 20,
+    basePrice: 70,
+    features: ['Spacious interior', 'Up to 7 passengers', 'Large luggage capacity']
   }
 ];
 
-const BookCab: React.FC = () => {
-  const { toast } = useToast();
-  const navigate = useNavigate();
+// Mock available drivers data
+const mockDriversLocations = [
+  { id: 1, lat: -24.6282, lng: 25.9231, cabType: 'standard' },
+  { id: 2, lat: -24.6372, lng: 25.9111, cabType: 'comfort' },
+  { id: 3, lat: -24.6452, lng: 25.9331, cabType: 'premium' },
+  { id: 4, lat: -24.6282, lng: 25.9381, cabType: 'standard' },
+  { id: 5, lat: -24.6152, lng: 25.9231, cabType: 'suv' },
+];
+
+const BookCab = () => {
   const { user, isAuthenticated } = useAuth();
-  const [step, setStep] = useState(1);
-  const [selectedVehicle, setSelectedVehicle] = useState<VehicleType | null>(null);
-  const [pickupLocation, setPickupLocation] = useState("");
-  const [dropoffLocation, setDropoffLocation] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const [distance, setDistance] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [name, setName] = useState(user?.email?.split("@")[0] || "");
-  const [phone, setPhone] = useState("");
-  const [bookingComplete, setBookingComplete] = useState(false);
-  const [bookingId, setBookingId] = useState("");
-
+  const navigate = useNavigate();
+  const [pickupLocation, setPickupLocation] = useState('');
+  const [destination, setDestination] = useState('');
+  const [fare, setFare] = useState('');
+  const [selectedCabType, setSelectedCabType] = useState('');
+  const [availableCabs, setAvailableCabs] = useState(cabTypes);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [estimatedTime, setEstimatedTime] = useState('');
+  const [mapLoaded, setMapLoaded] = useState(false);
+  
+  // Check authentication
   useEffect(() => {
-    // Protect this page from non-authenticated users
     if (!isAuthenticated) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to book a cab",
-        variant: "destructive",
-      });
-      navigate("/sign-in");
+      navigate('/sign-in', { state: { from: '/book-cab' } });
     }
-  }, [isAuthenticated, navigate, toast]);
+  }, [isAuthenticated, navigate]);
 
+  // Set up map display
   useEffect(() => {
-    // Simulate calculating distance between pickup and dropoff
-    if (pickupLocation && dropoffLocation && step === 2) {
-      // In a real app, this would call a mapping API
-      const simulatedDistance = Math.floor(Math.random() * 20) + 5; // 5-25 km
-      setDistance(simulatedDistance);
-    }
-  }, [pickupLocation, dropoffLocation, step]);
-
-  const handleNextStep = () => {
-    if (step === 1) {
-      if (!pickupLocation || !dropoffLocation) {
-        toast({
-          title: "Missing information",
-          description: "Please enter both pickup and dropoff locations",
-          variant: "destructive",
-        });
-        return;
-      }
-      setStep(2);
-    } else if (step === 2) {
-      if (!selectedVehicle) {
-        toast({
-          title: "Select a vehicle",
-          description: "Please select a vehicle type to continue",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (!date || !time) {
-        toast({
-          title: "Missing information",
-          description: "Please select date and time for your ride",
-          variant: "destructive",
-        });
-        return;
-      }
-      setStep(3);
-    } else if (step === 3) {
-      if (!name || !phone) {
-        toast({
-          title: "Missing information",
-          description: "Please enter your name and phone number",
-          variant: "destructive",
-        });
-        return;
-      }
-      handleBookRide();
-    }
-  };
-
-  const handlePrevStep = () => {
-    if (step > 1) {
-      setStep(step - 1);
-    }
-  };
-
-  const handleSelectVehicle = (vehicle: VehicleType) => {
-    setSelectedVehicle(vehicle);
-  };
-
-  const handleBookRide = () => {
-    setIsLoading(true);
+    // This is a placeholder for real map implementation
+    // In a real app, you would initialize the map here using a library like Mapbox
+    const timer = setTimeout(() => {
+      setMapLoaded(true);
+    }, 500);
     
-    // Simulate booking process
-    setTimeout(() => {
-      setIsLoading(false);
-      setBookingComplete(true);
-      // Generate a random booking ID
-      setBookingId(`BW-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`);
-    }, 2000);
-  };
+    return () => clearTimeout(timer);
+  }, []);
 
-  const renderStepContent = () => {
-    switch (step) {
-      case 1:
-        return (
-          <div className="space-y-6">
-            <h3 className="text-xl font-semibold">Enter your ride details</h3>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="flex items-center text-gray-700">
-                  <MapPin size={18} className="mr-2 text-getmore-purple" />
-                  Pickup Location
-                </label>
-                <Input
-                  placeholder="Enter pickup location"
-                  value={pickupLocation}
-                  onChange={(e) => setPickupLocation(e.target.value)}
-                  className="border-gray-300 focus:border-getmore-purple"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="flex items-center text-gray-700">
-                  <MapPin size={18} className="mr-2 text-getmore-purple" />
-                  Dropoff Location
-                </label>
-                <Input
-                  placeholder="Enter destination"
-                  value={dropoffLocation}
-                  onChange={(e) => setDropoffLocation(e.target.value)}
-                  className="border-gray-300 focus:border-getmore-purple"
-                />
-              </div>
-            </div>
-          </div>
-        );
-      case 2:
-        return (
-          <div className="space-y-6">
-            <h3 className="text-xl font-semibold">Choose your vehicle</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {vehicles.map((vehicle) => (
-                <div
-                  key={vehicle.id}
-                  className={`border rounded-lg overflow-hidden cursor-pointer transition-all ${
-                    selectedVehicle?.id === vehicle.id
-                      ? "border-getmore-purple ring-2 ring-getmore-purple/30 shadow-md"
-                      : "border-gray-200 hover:border-getmore-purple/50"
-                  }`}
-                  onClick={() => handleSelectVehicle(vehicle)}
-                >
-                  <div className="h-32 overflow-hidden">
-                    <img
-                      src={vehicle.image}
-                      alt={vehicle.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="p-3">
-                    <div className="flex justify-between items-center mb-1">
-                      <h4 className="font-semibold">{vehicle.name}</h4>
-                      <span className="text-sm bg-gray-100 px-2 py-0.5 rounded">
-                        {vehicle.estimatedTime}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mb-2">{vehicle.description}</p>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs flex items-center">
-                        <User size={14} className="mr-1" />
-                        {vehicle.capacity} seats
-                      </span>
-                      <span className="font-medium text-getmore-purple">
-                        P{vehicle.pricePerKm}/km
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
-              <div className="space-y-2">
-                <label className="flex items-center text-gray-700">
-                  <Calendar size={18} className="mr-2 text-getmore-purple" />
-                  Date
-                </label>
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="border-gray-300 focus:border-getmore-purple"
-                  min={new Date().toISOString().split('T')[0]}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="flex items-center text-gray-700">
-                  <Clock size={18} className="mr-2 text-getmore-purple" />
-                  Time
-                </label>
-                <Input
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="border-gray-300 focus:border-getmore-purple"
-                />
-              </div>
-            </div>
-          </div>
-        );
-      case 3:
-        return (
-          <div className="space-y-6">
-            <h3 className="text-xl font-semibold">Confirm your booking</h3>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="flex items-center text-gray-700">
-                  <User size={18} className="mr-2 text-getmore-purple" />
-                  Your Name
-                </label>
-                <Input
-                  placeholder="Enter your name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="border-gray-300 focus:border-getmore-purple"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="flex items-center text-gray-700">
-                  <Phone size={18} className="mr-2 text-getmore-purple" />
-                  Phone Number
-                </label>
-                <Input
-                  placeholder="Enter your phone number"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="border-gray-300 focus:border-getmore-purple"
-                />
-              </div>
-            </div>
-            
-            <Card className="bg-gray-50 border-gray-200">
-              <CardContent className="p-4">
-                <h4 className="font-medium mb-3">Ride Details</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Pickup:</span>
-                    <span className="font-medium">{pickupLocation}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Dropoff:</span>
-                    <span className="font-medium">{dropoffLocation}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Date & Time:</span>
-                    <span className="font-medium">{date}, {time}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Vehicle:</span>
-                    <span className="font-medium">{selectedVehicle?.name}</span>
-                  </div>
-                  <Separator className="my-2" />
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Estimated Distance:</span>
-                    <span className="font-medium">{distance} km</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Price per km:</span>
-                    <span className="font-medium">P{selectedVehicle?.pricePerKm.toFixed(2)}</span>
-                  </div>
-                  <Separator className="my-2" />
-                  <div className="flex justify-between">
-                    <span className="font-medium">Estimated Total:</span>
-                    <span className="font-bold text-getmore-purple">
-                      P{(selectedVehicle?.pricePerKm && distance ? selectedVehicle.pricePerKm * distance : 0).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        );
-      default:
-        return null;
+  // Filter cabs based on fare
+  const handleFareChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFare(value);
+    
+    // Only filter if we have a numeric value
+    if (value && !isNaN(Number(value))) {
+      const fareValue = Number(value);
+      if (fareValue < 30) {
+        // Show all but mark as unavailable
+        setAvailableCabs(cabTypes);
+      } else {
+        // Filter cabs based on base price
+        const filtered = cabTypes.filter(cab => cab.basePrice <= fareValue);
+        setAvailableCabs(filtered);
+      }
+    } else {
+      setAvailableCabs(cabTypes);
     }
   };
 
-  if (bookingComplete) {
-    return (
-      <>
-        <Navbar />
-        <div className="pt-24 pb-16">
-          <div className="container-custom max-w-xl mx-auto">
-            <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-6">
-                <Car size={30} className="text-green-600" />
-              </div>
-              <h2 className="text-2xl font-bold mb-2">Booking Confirmed!</h2>
-              <p className="text-gray-600 mb-6">Your cab has been booked successfully</p>
-              
-              <Card className="bg-gray-50 border-gray-200 mb-6">
-                <CardContent className="p-4 text-left">
-                  <h4 className="font-medium mb-3">Booking Details</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Booking ID:</span>
-                      <span className="font-bold">{bookingId}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Pickup:</span>
-                      <span className="font-medium">{pickupLocation}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Dropoff:</span>
-                      <span className="font-medium">{dropoffLocation}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Date & Time:</span>
-                      <span className="font-medium">{date}, {time}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Vehicle:</span>
-                      <span className="font-medium">{selectedVehicle?.name}</span>
-                    </div>
-                    <Separator className="my-2" />
-                    <div className="flex justify-between">
-                      <span className="font-medium">Estimated Total:</span>
-                      <span className="font-bold text-getmore-purple">
-                        P{(selectedVehicle?.pricePerKm && distance ? selectedVehicle.pricePerKm * distance : 0).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <div className="flex flex-col space-y-3">
-                <Button 
-                  className="bg-getmore-purple hover:bg-purple-700"
-                  onClick={() => navigate("/")}
-                >
-                  Return to Home
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="border-getmore-purple text-getmore-purple hover:bg-getmore-purple/5"
-                  onClick={() => {
-                    setBookingComplete(false);
-                    setStep(1);
-                    setSelectedVehicle(null);
-                    setPickupLocation("");
-                    setDropoffLocation("");
-                    setDate("");
-                    setTime("");
-                    setDistance(null);
-                  }}
-                >
-                  Book Another Ride
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <Footer />
-      </>
-    );
-  }
+  const handleBookNow = (cabType: string) => {
+    setSelectedCabType(cabType);
+    
+    // Generate a random arrival time between 3-10 minutes
+    const arrivalTime = Math.floor(Math.random() * 8) + 3;
+    setEstimatedTime(`${arrivalTime} minutes`);
+    
+    setShowConfirmation(true);
+  };
+  
+  const handleConfirmBooking = () => {
+    setShowConfirmation(false);
+    // In a real app, you would send the booking details to the server here
+    navigate('/');
+  };
 
   return (
     <>
       <Navbar />
-      <div className="pt-24 pb-16 min-h-screen bg-gray-50">
+      <div className="pt-20 pb-16 min-h-screen bg-gray-50">
         <div className="container-custom">
-          <h1 className="text-3xl font-bold mb-10 flex items-center">
-            <Car className="mr-3 text-getmore-purple" />
-            Book Your Cab
-          </h1>
+          {/* Header */}
+          <div className="mb-8 text-center">
+            <h1 className="text-4xl font-bold mb-4">Book Your <span className="text-getmore-purple">Premium Ride</span></h1>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Select your pickup location, destination, and fare budget to find available cabs near you.
+            </p>
+          </div>
           
-          {/* Step Indicator */}
-          <div className="flex justify-center mb-12">
-            <div className="flex items-center">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                step >= 1 ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-600'
-              }`}>
-                1
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left side - Map */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <h2 className="text-xl font-semibold flex items-center">
+                    <MapPin className="mr-2 text-getmore-purple" />
+                    Location & Available Cabs
+                  </h2>
+                </div>
+                
+                {/* Map placeholder */}
+                <div className="relative h-[400px] bg-gray-100 flex items-center justify-center">
+                  {mapLoaded ? (
+                    <>
+                      <div className="absolute inset-0 opacity-60">
+                        {/* Simple map placeholder - in real app use actual map library */}
+                        <div className="w-full h-full relative bg-[#e8eef7]">
+                          <div className="absolute w-[80%] h-[30px] bg-getmore-purple/20 top-1/2 left-1/3 transform -translate-x-1/2 -translate-y-1/2 rounded-full"></div>
+                          <div className="absolute w-[30px] h-[80%] bg-getmore-purple/20 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full"></div>
+                          
+                          {/* Simulating car markers on map */}
+                          {mockDriversLocations.map(driver => (
+                            <div 
+                              key={driver.id}
+                              className="absolute w-4 h-4 bg-getmore-purple rounded-full"
+                              style={{ 
+                                top: `${(driver.lat + 24.65) * 400}px`, 
+                                left: `${(driver.lng - 25.9) * 400 + 200}px`,
+                                transform: 'translate(-50%, -50%)'
+                              }}
+                            />
+                          ))}
+                          
+                          {/* User location */}
+                          <div 
+                            className="absolute w-6 h-6 bg-blue-500 rounded-full animate-pulse"
+                            style={{ 
+                              top: '50%', 
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)'
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="absolute bottom-4 right-4 bg-white py-2 px-4 rounded-md shadow-md text-sm">
+                        <p>5 cabs available nearby</p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="w-12 h-12 border-4 border-getmore-purple border-t-transparent rounded-full animate-spin mb-4"></div>
+                      <p>Loading map...</p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className={`h-1 w-12 ${step >= 2 ? 'bg-getmore-purple' : 'bg-gray-200'}`}></div>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                step >= 2 ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-600'
-              }`}>
-                2
-              </div>
-              <div className={`h-1 w-12 ${step >= 3 ? 'bg-getmore-purple' : 'bg-gray-200'}`}></div>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                step >= 3 ? 'bg-getmore-purple text-white' : 'bg-gray-200 text-gray-600'
-              }`}>
-                3
+            </div>
+            
+            {/* Right side - Booking Form */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h2 className="text-xl font-semibold mb-6">Trip Details</h2>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="pickup" className="text-sm font-medium text-gray-700 block mb-1">Pickup Location</label>
+                    <Input 
+                      id="pickup"
+                      placeholder="Enter pickup location"
+                      value={pickupLocation}
+                      onChange={(e) => setPickupLocation(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="destination" className="text-sm font-medium text-gray-700 block mb-1">Destination</label>
+                    <Input 
+                      id="destination"
+                      placeholder="Enter destination"
+                      value={destination}
+                      onChange={(e) => setDestination(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="fare" className="text-sm font-medium text-gray-700 block mb-1">Your Fare Budget (P)</label>
+                    <Input 
+                      id="fare"
+                      type="number"
+                      min="30"
+                      placeholder="Minimum P30"
+                      value={fare}
+                      onChange={handleFareChange}
+                      className="w-full"
+                    />
+                    {fare && Number(fare) < 30 && (
+                      <p className="text-red-500 text-xs mt-1">Minimum fare is P30</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
           
-          {/* Main Content */}
-          <div className="max-w-2xl mx-auto">
-            <Card className="border-gray-200 shadow-md bg-white">
-              <CardContent className="p-6">
-                {renderStepContent()}
+          {/* Available cabs section */}
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold mb-6 text-center">Choose Your Ride</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+              {availableCabs.map((cab) => {
+                const isAvailable = !fare || isNaN(Number(fare)) || Number(fare) >= cab.basePrice;
                 
-                <div className="flex justify-between mt-8">
-                  {step > 1 ? (
-                    <Button
-                      variant="outline"
-                      onClick={handlePrevStep}
-                      className="border-gray-300"
-                      disabled={isLoading}
-                    >
-                      Back
-                    </Button>
-                  ) : (
-                    <div></div>
-                  )}
-                  <Button
-                    onClick={handleNextStep}
-                    className="bg-getmore-purple hover:bg-purple-700"
-                    disabled={isLoading}
+                return (
+                  <div 
+                    key={cab.id}
+                    className={`bg-white rounded-xl shadow-md overflow-hidden transition-all ${!isAvailable ? 'opacity-60' : 'hover:shadow-lg'}`}
                   >
-                    {isLoading ? (
-                      <span className="flex items-center">
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Processing...
-                      </span>
-                    ) : step === 3 ? (
-                      "Confirm Booking"
-                    ) : (
-                      <span className="flex items-center">
-                        Next
-                        <ChevronRight size={16} className="ml-1" />
-                      </span>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                    <div className="h-48 overflow-hidden">
+                      <img 
+                        src={cab.image} 
+                        alt={cab.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-lg font-semibold">{cab.name}</h3>
+                        <span className="text-getmore-purple font-bold">P{cab.basePrice}+</span>
+                      </div>
+                      
+                      <ul className="text-sm text-gray-600 mb-4">
+                        {cab.features.map((feature, index) => (
+                          <li key={index} className="flex items-center mb-1">
+                            <Check size={14} className="text-green-500 mr-2" />
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+                      
+                      <Button
+                        onClick={() => handleBookNow(cab.id)}
+                        disabled={!isAvailable || !pickupLocation || !destination}
+                        className="w-full bg-getmore-purple hover:bg-purple-700"
+                      >
+                        {isAvailable ? 'Book Now' : 'Unavailable'}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
+      
+      {/* Booking Confirmation Dialog */}
+      <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-getmore-purple text-xl">Your ride is on the way!</DialogTitle>
+            <DialogDescription className="text-center">
+              <div className="flex justify-center py-6">
+                <div className="w-20 h-20 rounded-full bg-getmore-purple/10 flex items-center justify-center">
+                  <Car size={36} className="text-getmore-purple" />
+                </div>
+              </div>
+              
+              <p className="text-lg font-medium mb-2">
+                Estimated arrival time: <span className="font-bold text-getmore-purple">{estimatedTime}</span>
+              </p>
+              <p className="text-sm text-gray-600 mb-4">
+                A {selectedCabType && cabTypes.find(c => c.id === selectedCabType)?.name} cab will arrive at your pickup location shortly.
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="p-4 bg-gray-50 rounded-lg mb-4">
+            <p className="text-xs text-gray-600 leading-relaxed">
+              If you experience any issues with your ride, including reckless driving or unprofessional conduct, please contact us at <span className="font-medium">getmorecabs@gmail.com</span> with your booking details.
+            </p>
+          </div>
+          
+          <Button onClick={handleConfirmBooking} className="w-full">
+            OK, Got It
+          </Button>
+        </DialogContent>
+      </Dialog>
+      
       <Footer />
     </>
   );

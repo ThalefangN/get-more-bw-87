@@ -31,8 +31,8 @@ const CabSection = () => {
             <div className="relative">
               <div className="rounded-xl overflow-hidden shadow-xl">
                 <img 
-                  src="https://images.unsplash.com/photo-1565621758478-5b05f2de997f?q=80&w=2070&auto=format&fit=crop" 
-                  alt="GetMore BW Cab Service"
+                  src="https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?q=80&w=2070&auto=format&fit=crop" 
+                  alt="GetMore BW Premium Cab Service"
                   className="w-full h-auto object-cover"
                 />
               </div>
