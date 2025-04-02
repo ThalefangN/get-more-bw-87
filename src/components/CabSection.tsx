@@ -1,12 +1,15 @@
 
 import { useNavigate } from 'react-router-dom';
-import { Car, MapPin, Clock, Shield } from 'lucide-react';
+import { useState } from 'react';
+import { Car, MapPin, Clock, Shield, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import BookingModal from './BookingModal';
 
 const CabSection = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const [showBookingModal, setShowBookingModal] = useState(false);
   
   const handleBookCabClick = () => {
     if (!isAuthenticated) {
@@ -20,7 +23,8 @@ const CabSection = () => {
       return;
     }
     
-    navigate('/book-cab');
+    // Show the fare input modal instead of navigating
+    setShowBookingModal(true);
   };
   
   return (
@@ -36,6 +40,17 @@ const CabSection = () => {
                   className="w-full h-auto object-cover"
                 />
               </div>
+              
+              {/* Cab Image Badge */}
+              <div className="absolute -bottom-6 -left-6 bg-white p-2 rounded-xl shadow-lg">
+                <img 
+                  src="https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?q=80&w=1170&auto=format&fit=crop" 
+                  alt="Premium Cab"
+                  className="w-20 h-20 object-cover rounded-lg"
+                />
+              </div>
+              
+              {/* 24/7 Badge */}
               <div className="absolute -bottom-6 -right-6 bg-getmore-purple p-4 rounded-xl shadow-lg text-white flex items-center">
                 <Clock className="mr-2" />
                 <span className="font-bold">Available 24/7</span>
@@ -97,14 +112,21 @@ const CabSection = () => {
             
             <button 
               onClick={handleBookCabClick}
-              className="bg-getmore-purple text-white px-8 py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors shadow-md flex items-center"
+              className="bg-getmore-purple text-white px-8 py-4 rounded-lg font-medium hover:bg-purple-700 transition-colors shadow-lg flex items-center text-lg transform hover:scale-105 transition-transform duration-200"
             >
-              <Car className="mr-2" />
-              Book a Cab Now
+              <Car className="mr-2" size={24} />
+              Book a Ride Now
             </button>
           </div>
         </div>
       </div>
+      
+      {/* Booking Modal */}
+      <BookingModal 
+        isOpen={showBookingModal} 
+        onClose={() => setShowBookingModal(false)} 
+        navigate={navigate}
+      />
     </section>
   );
 };
