@@ -1,0 +1,112 @@
+
+import { useNavigate } from 'react-router-dom';
+import { Car, MapPin, Clock, Shield } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+
+const CabSection = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  
+  const handleBookCabClick = () => {
+    if (!isAuthenticated) {
+      toast("Please sign in to book a cab", {
+        description: "You need to be signed in to book a cab",
+        action: {
+          label: "Sign in",
+          onClick: () => navigate("/sign-in")
+        },
+      });
+      return;
+    }
+    
+    navigate('/book-cab');
+  };
+  
+  return (
+    <section className="py-16 bg-white">
+      <div className="container-custom">
+        <div className="flex flex-col md:flex-row items-center">
+          <div className="md:w-1/2 pr-0 md:pr-12 mb-10 md:mb-0">
+            <div className="relative">
+              <div className="rounded-xl overflow-hidden shadow-xl">
+                <img 
+                  src="https://images.unsplash.com/photo-1565621758478-5b05f2de997f?q=80&w=2070&auto=format&fit=crop" 
+                  alt="GetMore BW Cab Service"
+                  className="w-full h-auto object-cover"
+                />
+              </div>
+              <div className="absolute -bottom-6 -right-6 bg-getmore-purple p-4 rounded-xl shadow-lg text-white flex items-center">
+                <Clock className="mr-2" />
+                <span className="font-bold">Available 24/7</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="md:w-1/2">
+            <h2 className="text-3xl md:text-4xl font-bold mb-6">
+              Need a <span className="text-getmore-purple">ride?</span> Get more with our <span className="text-getmore-turquoise">cab service</span>
+            </h2>
+            
+            <p className="text-gray-600 mb-8">
+              Book a safe, comfortable ride anywhere in Botswana with our professional drivers. 
+              Enjoy fixed prices, no hidden fees, and track your ride in real-time.
+            </p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+              <div className="flex items-start">
+                <div className="bg-getmore-purple/10 p-3 rounded-lg mr-4">
+                  <Car className="text-getmore-purple" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">Professional Drivers</h3>
+                  <p className="text-sm text-gray-600">Trained, verified drivers for your safety</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start">
+                <div className="bg-getmore-purple/10 p-3 rounded-lg mr-4">
+                  <MapPin className="text-getmore-purple" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">Anywhere in Botswana</h3>
+                  <p className="text-sm text-gray-600">City trips or long distance transportation</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start">
+                <div className="bg-getmore-purple/10 p-3 rounded-lg mr-4">
+                  <Clock className="text-getmore-purple" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">On-time Service</h3>
+                  <p className="text-sm text-gray-600">Prompt pickups and efficient routes</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start">
+                <div className="bg-getmore-purple/10 p-3 rounded-lg mr-4">
+                  <Shield className="text-getmore-purple" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">Safe & Secure</h3>
+                  <p className="text-sm text-gray-600">Vehicle tracking and ride monitoring</p>
+                </div>
+              </div>
+            </div>
+            
+            <button 
+              onClick={handleBookCabClick}
+              className="bg-getmore-purple text-white px-8 py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors shadow-md flex items-center"
+            >
+              <Car className="mr-2" />
+              Book a Cab Now
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default CabSection;

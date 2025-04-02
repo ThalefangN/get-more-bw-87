@@ -24,6 +24,7 @@ import AdminSignUp from "./pages/AdminSignUp";
 import AdminSignIn from "./pages/AdminSignIn";
 import AdminDashboard from "./pages/AdminDashboard";
 import AllProducts from "./pages/AllProducts";
+import BookCab from "./pages/BookCab";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { StoreProvider } from "@/contexts/StoreContext";
@@ -62,6 +63,7 @@ const App = () => (
                       <Route path="/categories/:categoryName" element={<CategoryProductsPage />} />
                       <Route path="/how-it-works" element={<HowItWorksPage />} />
                       <Route path="/become-courier" element={<CourierPage />} />
+                      <Route path="/book-cab" element={<BookCab />} />
                       <Route path="/store-signup" element={<StoreSignUp />} />
                       <Route path="/store-signin" element={<StoreSignIn />} />
                       <Route path="/store-dashboard/*" element={<StoreDashboard />} />
