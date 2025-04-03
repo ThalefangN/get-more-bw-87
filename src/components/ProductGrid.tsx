@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import ProductCard from "./ProductCard";
@@ -66,15 +67,15 @@ const ProductGrid = ({ showAllProducts = false, storeId, category }: ProductGrid
           setProducts(transformedProducts);
         } else {
           // If no data is returned, use sample data
-          setProducts(getSampleProducts());
+          setProducts(getSampleProducts().filter(p => !category || p.category === category));
         }
       } catch (error) {
         console.error('Error fetching products:', error);
         toast.error("Failed to load products", {
           description: "Using sample products instead"
         });
-        // Fallback to sample data if fetch fails
-        setProducts(getSampleProducts());
+        // Fallback to sample data if fetch fails, but respect the category filter
+        setProducts(getSampleProducts().filter(p => !category || p.category === category));
       } finally {
         setLoading(false);
       }
@@ -177,13 +178,15 @@ const ProductGrid = ({ showAllProducts = false, storeId, category }: ProductGrid
         <div className="flex justify-between items-center mb-10">
           <div>
             <h2 className="text-3xl font-bold">
-              {showAllProducts ? "All Products" : "Featured Products"}
+              {category ? `${category}` : (showAllProducts ? "All Products" : "Featured Products")}
             </h2>
             <p className="text-gray-600 mt-2">
-              {showAllProducts ? "Browse our complete selection" : "Top picks for you"}
+              {category 
+                ? `Browse our selection of ${category} products` 
+                : (showAllProducts ? "Browse our complete selection" : "Top picks for you")}
             </p>
           </div>
-          {!showAllProducts && (
+          {!showAllProducts && !category && (
             <Link to="/all-products" className="flex items-center text-getmore-purple hover:underline">
               View All
               <ChevronRight size={16} className="ml-1" />
@@ -212,7 +215,7 @@ const ProductGrid = ({ showAllProducts = false, storeId, category }: ProductGrid
         
         {products.length === 0 && !loading && (
           <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No products found</p>
+            <p className="text-gray-500 text-lg">No products found {category ? `in ${category}` : ""}</p>
             <p className="text-gray-400">Check back later for new products</p>
           </div>
         )}

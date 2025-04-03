@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Category {
@@ -13,6 +13,7 @@ interface Category {
 const Categories = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -141,9 +142,9 @@ const Categories = () => {
     ];
   };
 
-  // Function to format category name for URL
-  const formatCategoryUrl = (name: string): string => {
-    return encodeURIComponent(name.toLowerCase());
+  const handleCategoryClick = (category: Category) => {
+    // Update to use the same URL pattern as the category carousel
+    navigate(`/shop?category=${encodeURIComponent(category.name)}`);
   };
 
   return (
@@ -164,25 +165,23 @@ const Categories = () => {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
             {categories.map((category) => (
-              <Link 
-                key={category.id} 
-                to={`/categories/${formatCategoryUrl(category.name)}`}
-                className="block"
+              <div 
+                key={category.id}
+                className="bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => handleCategoryClick(category)}
               >
-                <div className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="h-40 overflow-hidden">
-                    <img 
-                      src={category.image} 
-                      alt={category.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="p-3">
-                    <h3 className="font-medium">{category.name}</h3>
-                    <p className="text-xs text-gray-500">{category.count} items</p>
-                  </div>
+                <div className="h-40 overflow-hidden">
+                  <img 
+                    src={category.image} 
+                    alt={category.name}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-              </Link>
+                <div className="p-3">
+                  <h3 className="font-medium">{category.name}</h3>
+                  <p className="text-xs text-gray-500">{category.count} items</p>
+                </div>
+              </div>
             ))}
           </div>
         )}

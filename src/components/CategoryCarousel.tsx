@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -130,8 +131,8 @@ const CategoryCarousel = () => {
   };
 
   const handleCategoryClick = (category: Category) => {
-    const formattedCategoryName = encodeURIComponent(category.name.toLowerCase());
-    navigate(`/categories/${formattedCategoryName}`);
+    // Changed to use query parameter approach for better compatibility
+    navigate(`/shop?category=${encodeURIComponent(category.name)}`);
   };
 
   if (loading) {
