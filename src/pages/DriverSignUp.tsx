@@ -43,8 +43,9 @@ const formSchema = z.object({
   carYear: z.string().min(4, {
     message: "Please enter a valid year.",
   }),
-  termsAgreed: z.literal(true, {
-    errorMap: () => ({ message: "You must accept the terms and conditions." }),
+  // The key fix is here - using boolean().refine() instead of literal(true)
+  termsAgreed: z.boolean().refine(val => val === true, {
+    message: "You must accept the terms and conditions."
   }),
 });
 
