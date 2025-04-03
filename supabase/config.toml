@@ -1,5 +1,6 @@
 
 project_id = "bilgilserakwnmiugvot"
 
-[storage.driver-documents]
-public = true
+[storage]
+[storage.buckets]
+driver-documents = { public = true }
