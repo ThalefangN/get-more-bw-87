@@ -20,6 +20,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const formSchema = z.object({
   fullName: z.string().min(2, {
@@ -43,7 +44,10 @@ const formSchema = z.object({
   carYear: z.string().min(4, {
     message: "Please enter a valid year.",
   }),
-  // The key fix is here - using boolean().refine() instead of literal(true)
+  password: z.string().min(6, {
+    message: "Password must be at least 6 characters.",
+  }),
+  // Using boolean().refine() instead of literal(true)
   termsAgreed: z.boolean().refine(val => val === true, {
     message: "You must accept the terms and conditions."
   }),
@@ -55,6 +59,7 @@ const DriverSignUp = () => {
   const [licenseUploaded, setLicenseUploaded] = useState(false);
   const [carPhotoUploaded, setCarPhotoUploaded] = useState(false);
   const [profilePhotoUploaded, setProfilePhotoUploaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -66,11 +71,12 @@ const DriverSignUp = () => {
       licenseNumber: "",
       carModel: "",
       carYear: "",
+      password: "",
       termsAgreed: false,
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     // Check if all required files are uploaded
     if (!idDocUploaded || !licenseUploaded || !carPhotoUploaded || !profilePhotoUploaded) {
       toast.error("Please upload all required documents", {
@@ -79,17 +85,61 @@ const DriverSignUp = () => {
       return;
     }
     
-    console.log(values);
+    setIsLoading(true);
     
-    // In a real application, this would send the form data to the backend
-    toast.success("Application submitted successfully!", {
-      description: "We'll review your application and get back to you soon.",
-    });
-    
-    // Navigate to the driver login page after submission
-    setTimeout(() => {
-      navigate('/driver-login');
-    }, 2000);
+    try {
+      // 1. Create user account with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: {
+            full_name: values.fullName,
+          },
+        },
+      });
+      
+      if (authError) throw authError;
+      
+      if (authData.user) {
+        // 2. Store driver details in the drivers table
+        const { error: driverError } = await supabase
+          .from('drivers')
+          .insert({
+            id: authData.user.id,
+            full_name: values.fullName,
+            email: values.email,
+            phone: values.phone,
+            id_number: values.idNumber,
+            license_number: values.licenseNumber,
+            car_model: values.carModel,
+            car_year: values.carYear,
+            id_document_url: "placeholder_url", // In a real app, would be the URL from your file upload
+            license_document_url: "placeholder_url", 
+            car_photos_url: "placeholder_url",
+            profile_photo_url: "placeholder_url",
+          });
+        
+        if (driverError) throw driverError;
+        
+        toast.success("Application submitted successfully!", {
+          description: "Please check your email to verify your account.",
+        });
+        
+        // Navigate to the driver login page after submission
+        setTimeout(() => {
+          navigate('/driver-login');
+        }, 2000);
+      }
+      
+    } catch (error: any) {
+      console.error("Error submitting application:", error);
+      toast.error("Failed to submit application", {
+        description: error.message || "Please try again later.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   const simulateFileUpload = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
@@ -216,6 +266,20 @@ const DriverSignUp = () => {
                         </FormItem>
                       )}
                     />
+                    
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="Create a secure password" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                   
                   <div className="bg-gray-50 p-6 rounded-lg space-y-6">
@@ -317,8 +381,9 @@ const DriverSignUp = () => {
                       type="submit" 
                       className="w-full bg-getmore-purple hover:bg-purple-700"
                       size="lg"
+                      disabled={isLoading}
                     >
-                      Submit Application
+                      {isLoading ? "Submitting..." : "Submit Application"}
                       <ChevronRight className="ml-2 h-4 w-4" />
                     </Button>
                     

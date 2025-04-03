@@ -1,4 +1,3 @@
-
 import { Facebook, Twitter, Instagram, MapPin, Phone, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -101,7 +100,7 @@ const Footer = () => {
         
         <div className="border-t border-gray-800 mt-12 pt-8 text-center">
           <p className="text-gray-400">© {new Date().getFullYear()} Get More BW. All rights reserved.</p>
-          <p className="text-gray-500 mt-2">Built with ❤️ by DevGen Botswana</p>
+          <p className="text-gray-500 mt-2">A product of DevGen Botswana | Built with ❤️ by DevGen Botswana</p>
         </div>
       </div>
     </footer>

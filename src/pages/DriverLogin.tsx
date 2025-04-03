@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const formSchema = z.object({
   email: z.string().email({
@@ -30,6 +31,7 @@ const formSchema = z.object({
 
 const DriverLogin = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -39,18 +41,54 @@ const DriverLogin = () => {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
     
-    // In a real application, this would authenticate the driver
-    toast.success("Login successful!", {
-      description: "Welcome back to GetMore BW.",
-    });
-    
-    // Navigate to the driver dashboard after successful login
-    setTimeout(() => {
-      navigate('/driver-dashboard');
-    }, 1500);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password,
+      });
+      
+      if (error) throw error;
+      
+      if (data) {
+        // Fetch the driver details to verify they exist
+        const { data: driverData, error: driverError } = await supabase
+          .from('drivers')
+          .select('*')
+          .eq('email', values.email)
+          .single();
+          
+        if (driverError) {
+          if (driverError.code === 'PGRST116') {
+            // No matching driver record found
+            toast.error("Account not found", {
+              description: "No driver account associated with this email. Please sign up first.",
+            });
+            await supabase.auth.signOut();
+            return;
+          }
+          throw driverError;
+        }
+        
+        toast.success("Login successful!", {
+          description: "Welcome back to GetMore BW.",
+        });
+        
+        // Navigate to the driver dashboard after successful login
+        setTimeout(() => {
+          navigate('/driver-dashboard');
+        }, 1000);
+      }
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast.error("Login failed", {
+        description: error.message || "Please check your credentials and try again.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
   
   return (
@@ -108,9 +146,10 @@ const DriverLogin = () => {
                     type="submit" 
                     className="w-full bg-getmore-purple hover:bg-purple-700"
                     size="lg"
+                    disabled={isLoading}
                   >
                     <LogIn className="mr-2 h-4 w-4" />
-                    Sign In
+                    {isLoading ? "Signing in..." : "Sign In"}
                   </Button>
                   
                   <div className="space-y-4 pt-4">

@@ -1,34 +1,77 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Car, LogOut, User, Clock, DollarSign, MapPin, 
-  Truck, BarChart3, Settings, Bell, MessageSquare
+  Truck, BarChart3, Settings, Bell, MessageSquare, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+
+interface DriverData {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  status: string;
+  car_model: string;
+  car_year: string;
+  id_number: string;
+  license_number: string;
+}
 
 const DriverDashboard = () => {
   const navigate = useNavigate();
   const [isOnline, setIsOnline] = useState(false);
+  const [driverData, setDriverData] = useState<DriverData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Dummy data for the dashboard
-  const driverData = {
-    name: "Kabo Moeng",
-    rating: 4.8,
-    totalTrips: 152,
-    earnings: {
-      today: 250,
-      week: 1750,
-      month: 6800
-    },
-    recentTrips: [
-      { id: 1, passenger: "Lesego Phiri", pickup: "Mall of Botswana", dropoff: "Gaborone CBD", amount: 75, time: "Today, 14:35" },
-      { id: 2, passenger: "Boitumelo Ntsima", pickup: "Airport", dropoff: "Phakalane", amount: 120, time: "Today, 12:10" },
-      { id: 3, passenger: "Tebogo Kgotla", pickup: "Grand Palm", dropoff: "Phase 2", amount: 55, time: "Yesterday, 19:45" }
-    ]
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      
+      if (!data.session) {
+        // Not authenticated, redirect to login
+        navigate('/driver-login');
+        return;
+      }
+      
+      // Fetch driver data
+      fetchDriverData(data.session.user.id);
+    };
+    
+    checkAuth();
+  }, [navigate]);
+  
+  const fetchDriverData = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('drivers')
+        .select('*')
+        .eq('id', userId)
+        .single();
+        
+      if (error) throw error;
+      
+      if (data) {
+        setDriverData(data as DriverData);
+      }
+    } catch (error) {
+      console.error("Error fetching driver data:", error);
+      toast.error("Could not load driver profile");
+    } finally {
+      setIsLoading(false);
+    }
   };
+  
+  // Example trip data - in a real app, this would come from the database
+  const recentTrips = [
+    { id: 1, passenger: "Lesego Phiri", pickup: "Mall of Botswana", dropoff: "Gaborone CBD", amount: 75, time: "Today, 14:35" },
+    { id: 2, passenger: "Boitumelo Ntsima", pickup: "Airport", dropoff: "Phakalane", amount: 120, time: "Today, 12:10" },
+    { id: 3, passenger: "Tebogo Kgotla", pickup: "Grand Palm", dropoff: "Phase 2", amount: 55, time: "Yesterday, 19:45" }
+  ];
   
   const handleToggleOnline = () => {
     const newStatus = !isOnline;
@@ -42,13 +85,28 @@ const DriverDashboard = () => {
     });
   };
   
-  const handleLogout = () => {
+  const handleLogout = async () => {
     toast.info("Logging out...");
     
-    setTimeout(() => {
+    try {
+      await supabase.auth.signOut();
       navigate('/');
-    }, 1500);
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast.error("Logout failed. Please try again.");
+    }
   };
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin w-12 h-12 border-4 border-getmore-purple border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading driver profile...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -87,34 +145,96 @@ const DriverDashboard = () => {
                 <User size={24} />
               </div>
               <div>
-                <h2 className="font-bold text-lg">{driverData.name}</h2>
+                <h2 className="font-bold text-lg">{driverData?.full_name || 'Driver'}</h2>
                 <div className="flex items-center text-sm text-gray-600">
                   <div className="flex items-center">
-                    <span className="text-yellow-500">★</span> {driverData.rating}
+                    {driverData?.status === 'active' ? (
+                      <>
+                        <CheckCircle size={14} className="text-green-500 mr-1" />
+                        <span className="text-green-600">Verified</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={14} className="text-amber-500 mr-1" />
+                        <span className="text-amber-600">{driverData?.status || 'Pending'}</span>
+                      </>
+                    )}
                   </div>
-                  <span className="mx-2">•</span>
-                  <div>{driverData.totalTrips} trips</div>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center">
-              <span className="mr-3 font-medium">
-                {isOnline ? 'Online' : 'Offline'}
-              </span>
-              <Switch 
-                checked={isOnline} 
-                onCheckedChange={handleToggleOnline} 
-                className={isOnline ? 'bg-green-500' : ''} 
-              />
-            </div>
+            {driverData?.status === 'active' ? (
+              <div className="flex items-center">
+                <span className="mr-3 font-medium">
+                  {isOnline ? 'Online' : 'Offline'}
+                </span>
+                <Switch 
+                  checked={isOnline} 
+                  onCheckedChange={handleToggleOnline} 
+                  className={isOnline ? 'bg-green-500' : ''} 
+                />
+              </div>
+            ) : (
+              <div className="bg-amber-50 text-amber-700 px-3 py-1 rounded-md text-sm">
+                {driverData?.status === 'pending' ? 'Verification Pending' : 'Account Inactive'}
+              </div>
+            )}
           </div>
         </div>
       </div>
       
       {/* Dashboard Content */}
       <div className="container mx-auto py-8 px-4">
+        {driverData?.status !== 'active' && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-amber-700">
+            <h3 className="font-medium flex items-center">
+              <AlertCircle size={18} className="mr-2" /> 
+              Account Verification Status: {driverData?.status || 'Pending'}
+            </h3>
+            <p className="mt-2 text-sm">
+              Your driver account is currently being verified. We'll notify you via email once your account is active.
+              Please ensure your documents are valid and clearly visible.
+            </p>
+          </div>
+        )}
+        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* Driver Details Card */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-lg">Driver Details</h3>
+              <User className="text-getmore-purple" size={20} />
+            </div>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-gray-600">Full Name</span>
+                <span className="font-medium">{driverData?.full_name}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-gray-600">Email</span>
+                <span className="font-medium">{driverData?.email}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-gray-600">Phone</span>
+                <span className="font-medium">{driverData?.phone}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-gray-600">ID Number</span>
+                <span className="font-medium">{driverData?.id_number}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-gray-600">Vehicle</span>
+                <span className="font-medium">{driverData?.car_model} ({driverData?.car_year})</span>
+              </div>
+            </div>
+          </div>
+          
           {/* Earnings Card */}
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
@@ -125,55 +245,15 @@ const DriverDashboard = () => {
             <div className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-gray-600">Today</span>
-                <span className="font-bold">P{driverData.earnings.today}</span>
+                <span className="font-bold">P250</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">This Week</span>
-                <span className="font-bold">P{driverData.earnings.week}</span>
+                <span className="font-bold">P1,750</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">This Month</span>
-                <span className="font-bold">P{driverData.earnings.month}</span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Quick Stats */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-lg">Your Activity</h3>
-              <BarChart3 className="text-getmore-purple" size={20} />
-            </div>
-            
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                    <Car size={16} className="text-blue-500" />
-                  </div>
-                  <span className="text-gray-600">Trips Completed</span>
-                </div>
-                <span className="font-bold">{driverData.totalTrips}</span>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center mr-3">
-                    <Clock size={16} className="text-yellow-500" />
-                  </div>
-                  <span className="text-gray-600">Hours Online</span>
-                </div>
-                <span className="font-bold">86</span>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center mr-3">
-                    <Truck size={16} className="text-green-500" />
-                  </div>
-                  <span className="text-gray-600">Km Driven</span>
-                </div>
-                <span className="font-bold">1,245</span>
+                <span className="font-bold">P6,800</span>
               </div>
             </div>
           </div>
@@ -187,13 +267,13 @@ const DriverDashboard = () => {
             
             <div className="space-y-4">
               <div className="flex items-center">
-                <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                <span className="text-gray-700">Account Active</span>
+                <div className={`w-3 h-3 rounded-full ${driverData?.status === 'active' ? 'bg-green-500' : 'bg-amber-500'} mr-2`}></div>
+                <span className="text-gray-700">Account {driverData?.status === 'active' ? 'Active' : 'Pending'}</span>
               </div>
               
               <div className="flex items-center">
-                <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                <span className="text-gray-700">Documents Verified</span>
+                <div className={`w-3 h-3 rounded-full ${driverData?.status === 'active' ? 'bg-green-500' : 'bg-gray-300'} mr-2`}></div>
+                <span className="text-gray-700">Documents {driverData?.status === 'active' ? 'Verified' : 'Under Review'}</span>
               </div>
               
               <div className="flex items-center">
@@ -231,7 +311,7 @@ const DriverDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {driverData.recentTrips.map((trip) => (
+                {recentTrips.map((trip) => (
                   <tr key={trip.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trip.passenger}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
