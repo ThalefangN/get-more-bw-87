@@ -53,7 +53,7 @@ const DriverLogin = () => {
       if (error) throw error;
       
       if (data) {
-        // Fetch the driver details to verify they exist
+        // Fetch the driver details to verify they exist and are verified
         const { data: driverData, error: driverError } = await supabase
           .from('drivers')
           .select('*')
@@ -72,9 +72,25 @@ const DriverLogin = () => {
           throw driverError;
         }
         
+        // Check if the account is verified/approved by admin
+        if (driverData.status === 'pending') {
+          toast.info("Account pending verification", {
+            description: "Your driver account is pending verification. Please check your email for updates.",
+          });
+        } else if (driverData.status === 'rejected') {
+          toast.error("Account verification failed", {
+            description: "Your driver application was not approved. Please contact support for more information.",
+          });
+          await supabase.auth.signOut();
+          return;
+        }
+        
         toast.success("Login successful!", {
           description: "Welcome back to GetMore BW.",
         });
+        
+        // Store driver data in local storage for easy access
+        localStorage.setItem('driverProfile', JSON.stringify(driverData));
         
         // Navigate to the driver dashboard after successful login
         setTimeout(() => {

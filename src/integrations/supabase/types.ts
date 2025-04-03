@@ -96,6 +96,60 @@ export type Database = {
         }
         Relationships: []
       }
+      drivers: {
+        Row: {
+          car_model: string
+          car_photos_url: string | null
+          car_year: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          id_document_url: string | null
+          id_number: string
+          license_document_url: string | null
+          license_number: string
+          phone: string
+          profile_photo_url: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          car_model: string
+          car_photos_url?: string | null
+          car_year: string
+          created_at?: string
+          email: string
+          full_name: string
+          id: string
+          id_document_url?: string | null
+          id_number: string
+          license_document_url?: string | null
+          license_number: string
+          phone: string
+          profile_photo_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          car_model?: string
+          car_photos_url?: string | null
+          car_year?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          id_document_url?: string | null
+          id_number?: string
+          license_document_url?: string | null
+          license_number?: string
+          phone?: string
+          profile_photo_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
