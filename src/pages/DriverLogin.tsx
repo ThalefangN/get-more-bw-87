@@ -53,7 +53,7 @@ const DriverLogin = () => {
       if (error) throw error;
       
       if (data) {
-        // Fetch the driver details to verify they exist and are verified
+        // Fetch the driver details to verify they exist
         const { data: driverData, error: driverError } = await supabase
           .from('drivers')
           .select('*')
@@ -72,25 +72,24 @@ const DriverLogin = () => {
           throw driverError;
         }
         
+        // Store driver data in local storage for easy access
+        localStorage.setItem('driverProfile', JSON.stringify(driverData));
+        
         // Check if the account is verified/approved by admin
         if (driverData.status === 'pending') {
           toast.info("Account pending verification", {
-            description: "Your driver account is pending verification. Please check your email for updates.",
+            description: "Your driver account is pending verification by our admin team. You can check your status in the dashboard.",
           });
         } else if (driverData.status === 'rejected') {
           toast.error("Account verification failed", {
             description: "Your driver application was not approved. Please contact support for more information.",
           });
-          await supabase.auth.signOut();
-          return;
+          // Even with rejected status, we'll let them log in to see details
+        } else if (driverData.status === 'active') {
+          toast.success("Login successful!", {
+            description: "Welcome back to GetMore BW.",
+          });
         }
-        
-        toast.success("Login successful!", {
-          description: "Welcome back to GetMore BW.",
-        });
-        
-        // Store driver data in local storage for easy access
-        localStorage.setItem('driverProfile', JSON.stringify(driverData));
         
         // Navigate to the driver dashboard after successful login
         setTimeout(() => {
@@ -170,7 +169,7 @@ const DriverLogin = () => {
                   
                   <div className="space-y-4 pt-4">
                     <div className="text-sm text-center">
-                      <Link to="#" className="text-getmore-purple hover:underline">
+                      <Link to="/forgot-password" className="text-getmore-purple hover:underline">
                         Forgot your password?
                       </Link>
                     </div>

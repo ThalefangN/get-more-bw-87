@@ -178,7 +178,7 @@ const DriverSignUp = () => {
       if (driverError) throw driverError;
       
       toast.success("Application submitted successfully!", {
-        description: "Please check your email to verify your account. Once verified, you can log in.",
+        description: "You can now sign in to check your application status.",
       });
       
       // Navigate to the login page after successful signup
@@ -199,7 +199,7 @@ const DriverSignUp = () => {
     <>
       <Navbar />
       <div className="pt-24 pb-16 bg-gray-50">
-        <div className="container-custom max-w-xl">
+        <div className="container-custom max-w-4xl">
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="bg-getmore-purple p-6 text-center text-white">
               <Car size={48} className="mx-auto mb-2" />
@@ -227,7 +227,7 @@ const DriverSignUp = () => {
                       )}
                     />
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <FormField
                         control={form.control}
                         name="email"
@@ -255,9 +255,23 @@ const DriverSignUp = () => {
                           </FormItem>
                         )}
                       />
+                      
+                      <FormField
+                        control={form.control}
+                        name="idNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>ID Number</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter your ID number" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <FormField
                         control={form.control}
                         name="password"
@@ -285,26 +299,6 @@ const DriverSignUp = () => {
                           </FormItem>
                         )}
                       />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4 pt-4">
-                    <h2 className="text-lg font-semibold">Vehicle & License Information</h2>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="idNumber"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>ID Number</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter your ID number" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
                       
                       <FormField
                         control={form.control}
@@ -320,8 +314,12 @@ const DriverSignUp = () => {
                         )}
                       />
                     </div>
+                  </div>
+                  
+                  <div className="space-y-4 pt-4">
+                    <h2 className="text-lg font-semibold">Vehicle Information</h2>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <FormField
                         control={form.control}
                         name="carModel"
@@ -356,7 +354,7 @@ const DriverSignUp = () => {
                     <h2 className="text-lg font-semibold">Document Upload</h2>
                     <p className="text-sm text-gray-500">Please upload the required documents for verification</p>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <FormLabel className="block mb-2">ID Document</FormLabel>
                         <div className="border border-gray-300 rounded-lg p-3">
@@ -394,9 +392,7 @@ const DriverSignUp = () => {
                           </label>
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      
                       <div>
                         <FormLabel className="block mb-2">Car Photos</FormLabel>
                         <div className="border border-gray-300 rounded-lg p-3">
@@ -415,7 +411,9 @@ const DriverSignUp = () => {
                           </label>
                         </div>
                       </div>
-                      
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <FormLabel className="block mb-2">Profile Photo</FormLabel>
                         <div className="border border-gray-300 rounded-lg p-3">
@@ -492,9 +490,9 @@ const DriverSignUp = () => {
                 <h3 className="font-semibold text-lg">What happens next?</h3>
                 <ul className="text-gray-600 mt-2 space-y-2 text-sm list-disc pl-5">
                   <li>Your application will be reviewed by our team.</li>
-                  <li>You'll receive a verification email - please verify your email address.</li>
-                  <li>After verification, our team will review your documents.</li>
-                  <li>Once approved, you'll be able to log in and start accepting ride requests.</li>
+                  <li>You'll be able to sign in to check your application status.</li>
+                  <li>Our team will review your documents.</li>
+                  <li>Once approved, you'll be able to start accepting ride requests.</li>
                 </ul>
                 <p className="mt-3 text-sm text-gray-500">
                   For any questions, please contact our support team at support@getmorebw.com
