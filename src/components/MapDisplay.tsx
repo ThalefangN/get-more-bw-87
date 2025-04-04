@@ -23,10 +23,8 @@ interface MapDisplayProps {
   height?: string;
 }
 
-// Default location for Gaborone if no locations provided
 const DEFAULT_CENTER = { lat: -24.6282, lng: 25.9231 };
 
-// Set your Mapbox token here - replace with your actual token from mapbox.com
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiZ2V0bW9yZSIsImEiOiJjbG5vbGJqbW8wYTFkMmlwMjRzanRzOGQyIn0.imMKzo-HMMj5NuoXw2j2Zw';
 
 const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverClick, height = "400px" }: MapDisplayProps) => {
@@ -38,12 +36,10 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
   const [locationError, setLocationError] = useState<string | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
 
-  // Get user's real location if available
   useEffect(() => {
     if (!initialUserLocation) {
       setGeolocating(true);
       if ('geolocation' in navigator) {
-        // Show toast to let user know we're requesting their location
         toast.info("Location access required", {
           description: "Please allow access to your location for better experience"
         });
@@ -57,7 +53,6 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
             setUserLocation(userPos);
             setGeolocating(false);
             
-            // Center map on user position if map is already initialized
             if (map.current && mapLoaded) {
               map.current.flyTo({
                 center: [userPos.lng, userPos.lat] as [number, number],
@@ -90,27 +85,22 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
     }
   }, [initialUserLocation]);
 
-  // Initialize map
   useEffect(() => {
     if (!mapContainer.current) return;
     
-    // First clear any existing map instance
     if (map.current) {
       map.current.remove();
       map.current = null;
     }
     
-    // Make sure we have a token
-    if (!MAPBOX_TOKEN || MAPBOX_TOKEN === '') {
+    if (!MAPBOX_TOKEN || MAPBOX_TOKEN.length === 0) {
       setLocationError('Mapbox token is missing. Please contact support.');
       return;
     }
     
-    // Use the pre-configured token
     mapboxgl.accessToken = MAPBOX_TOKEN;
     
     try {
-      // Fix: Use a tuple for the center coordinates
       const centerCoordinates: [number, number] = [userLocation.lng, userLocation.lat];
       
       map.current = new mapboxgl.Map({
@@ -121,17 +111,12 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
         attributionControl: false
       });
 
-      // Add attribution control
       map.current.addControl(new mapboxgl.AttributionControl(), 'bottom-right');
-
-      // Add navigation controls
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
       
-      // Add user location marker and drivers when map loads
       map.current.on('load', () => {
         setMapLoaded(true);
         
-        // Add pulsating user marker
         const userMarkerEl = document.createElement('div');
         userMarkerEl.className = 'relative';
         userMarkerEl.innerHTML = `
@@ -145,11 +130,9 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
           .setLngLat([userLocation.lng, userLocation.lat] as [number, number])
           .addTo(map.current!);
         
-        // Add driver markers
         addDriverMarkers();
       });
 
-      // Handle map loading errors
       map.current.on('error', (e) => {
         console.error('Map error:', e);
         setMapLoaded(false);
@@ -167,7 +150,6 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
       });
     }
 
-    // Cleanup
     return () => {
       if (map.current) {
         markersRef.current.forEach(marker => marker.remove());
@@ -175,9 +157,8 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
         map.current.remove();
       }
     };
-  }, [userLocation]); // Reinitialize map when user location changes
+  }, [userLocation]);
 
-  // Add driver markers whenever drivers array changes
   useEffect(() => {
     if (map.current && mapLoaded) {
       addDriverMarkers();
@@ -187,11 +168,9 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
   const addDriverMarkers = () => {
     if (!map.current) return;
     
-    // Remove existing markers first to avoid duplicates
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
     
-    // Add driver markers
     drivers.forEach(driver => {
       const markerEl = document.createElement('div');
       markerEl.className = 'driver-marker';
@@ -214,7 +193,6 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
           color = 'bg-gray-500';
       }
       
-      // Create a car icon with shadow and animation
       markerEl.innerHTML = `
         <div class="relative">
           <div class="w-10 h-10 rounded-full ${color} flex items-center justify-center border-2 border-white cursor-pointer hover:scale-110 transition-transform shadow-lg">
@@ -229,7 +207,6 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
         </div>
       `;
       
-      // Add popup with driver info
       const popup = new mapboxgl.Popup({ 
         offset: 25,
         closeButton: false,
@@ -260,26 +237,21 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
         </div>
       `);
       
-      // Fix: Use a tuple for the LngLat coordinates
       const driverCoordinates: [number, number] = [driver.lng, driver.lat];
       
-      // Create marker and add to map
       const marker = new mapboxgl.Marker({ element: markerEl })
         .setLngLat(driverCoordinates)
         .setPopup(popup)
         .addTo(map.current!);
       
-      // Store reference for cleanup
       markersRef.current.push(marker);
       
-      // Add click handler to both marker element and select button
       markerEl.addEventListener('click', () => {
         if (onDriverClick) {
           onDriverClick(driver);
         }
       });
 
-      // Show popup on hover
       markerEl.addEventListener('mouseenter', () => {
         popup.addTo(map.current!);
       });
@@ -290,7 +262,6 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
     });
   };
 
-  // Display loading state while initializing geolocation
   if (geolocating) {
     return (
       <div className="bg-gray-100 rounded-xl flex flex-col items-center justify-center" style={{ height }}>
@@ -301,7 +272,6 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
     );
   }
 
-  // Display error state if there was a geolocation error
   if (locationError && !mapLoaded) {
     return (
       <div className="bg-gray-100 rounded-xl flex flex-col items-center justify-center p-6" style={{ height }}>
@@ -317,12 +287,10 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
     );
   }
 
-  // Render the map container
   return (
     <div className="relative rounded-xl overflow-hidden" style={{ height }}>
       <div ref={mapContainer} className="absolute inset-0" />
       
-      {/* Legend */}
       <div className="absolute bottom-4 right-4 bg-white py-2 px-4 rounded-md shadow-md text-sm z-10">
         <p className="font-medium">Available Drivers</p>
         <div className="mt-2 flex flex-wrap gap-2">
@@ -333,11 +301,9 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
         </div>
       </div>
 
-      {/* Recenter button */}
       <button 
         onClick={() => {
           if (map.current) {
-            // Fix: Use a tuple for the center coordinates
             const centerCoordinates: [number, number] = [userLocation.lng, userLocation.lat];
             
             map.current.flyTo({
