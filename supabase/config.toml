@@ -1,6 +1,1 @@
-
 project_id = "bilgilserakwnmiugvot"
-
-[storage]
-[storage.buckets]
-driver-documents = { public = true }
