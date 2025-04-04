@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -74,6 +75,7 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
   const [estimatedTime, setEstimatedTime] = useState('5 minutes');
   const [mapLoaded, setMapLoaded] = useState(false);
   const [showCallOptions, setShowCallOptions] = useState(false);
+  const [simulateArrival, setSimulateArrival] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Simulate map loading
@@ -92,6 +94,8 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
       if (seconds <= 0) {
         clearInterval(interval);
         setEstimatedTime('Arrived');
+        // Auto-simulate arrival when timer completes
+        setSimulateArrival(true);
       } else {
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = seconds % 60;
@@ -166,6 +170,11 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
     lng: driver.location ? driver.location.lng + 0.01 : -24.9331
   };
 
+  // Handle manual simulation start
+  const handleStartSimulation = () => {
+    setSimulateArrival(true);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
@@ -222,11 +231,23 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
               <MapDisplay 
                 drivers={[mapDriver]} 
                 userLocation={userLocation} 
-                height="100%"
+                height="100%" 
+                simulateArrival={simulateArrival}
               />
               
-              <div className="absolute bottom-4 left-4 bg-white py-2 px-4 rounded-md shadow-md">
-                <p className="font-semibold">ETA: {estimatedTime}</p>
+              <div className="absolute bottom-4 left-4 z-10 flex flex-col space-y-2">
+                <div className="bg-white py-2 px-4 rounded-md shadow-md">
+                  <p className="font-semibold">ETA: {estimatedTime}</p>
+                </div>
+                
+                {!simulateArrival && estimatedTime !== 'Arrived' && (
+                  <button 
+                    onClick={handleStartSimulation}
+                    className="bg-getmore-purple text-white py-2 px-4 rounded-md shadow-md hover:bg-purple-700 transition-colors"
+                  >
+                    Watch Driver Approach
+                  </button>
+                )}
               </div>
             </div>
           )}

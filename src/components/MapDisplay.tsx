@@ -22,6 +22,7 @@ interface MapDisplayProps {
   userLocation?: { lat: number; lng: number };
   onDriverClick?: (driver: Driver) => void;
   height?: string;
+  simulateArrival?: boolean;
 }
 
 const DEFAULT_CENTER = { lat: -24.6282, lng: 25.9231 };
@@ -29,7 +30,13 @@ const DEFAULT_CENTER = { lat: -24.6282, lng: 25.9231 };
 // Updated Mapbox token
 const MAPBOX_TOKEN = 'pk.eyJ1IjoidGhhbGVmYW5nbiIsImEiOiJjbTduZWxmeGcwMGVsMmpxdHdnNDE5eWV5In0.3vBZkIw59Js0YIlogvKuzQ';
 
-const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverClick, height = "400px" }: MapDisplayProps) => {
+const MapDisplay = ({ 
+  drivers = [], 
+  userLocation: initialUserLocation, 
+  onDriverClick, 
+  height = "400px",
+  simulateArrival = false 
+}: MapDisplayProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -37,11 +44,16 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
   const [geolocating, setGeolocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
-  // Fix: Change the type from Map['id'] to string - these are just layer/source IDs we create
+  const driverMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const routeLinesRef = useRef<string[]>([]);
   const driverProfilesRef = useRef<HTMLDivElement[]>([]);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
   const animationRef = useRef<number | null>(null);
+  const [driverArrived, setDriverArrived] = useState(false);
+  const [simulationActive, setSimulationActive] = useState(false);
+  const routePointsRef = useRef<[number, number][]>([]);
+  const currentPointIndexRef = useRef(0);
 
   // Clean up function to safely remove markers, route lines and event listeners
   const cleanupMapResources = useCallback(() => {
@@ -153,7 +165,7 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
     }
   }, [initialUserLocation, mapLoaded]);
 
-  // Function to draw route between driver and user
+  // Function to draw route between driver and user with enhanced styling
   const drawRoute = useCallback((driverId: number, driverCoords: [number, number], userCoords: [number, number]) => {
     if (!map.current || !mapLoaded) return;
     
@@ -167,8 +179,23 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
       }
       map.current.removeSource(sourceId);
     }
+
+    // Generate more points along the route for smoother animation
+    const numPoints = 100;
+    const points: [number, number][] = [];
     
-    // Add the route line
+    for (let i = 0; i <= numPoints; i++) {
+      const t = i / numPoints;
+      points.push([
+        driverCoords[0] + (userCoords[0] - driverCoords[0]) * t,
+        driverCoords[1] + (userCoords[1] - driverCoords[1]) * t
+      ]);
+    }
+    
+    // Store points for animation
+    routePointsRef.current = points;
+    
+    // Add the route line with enhanced styling
     map.current.addSource(sourceId, {
       type: 'geojson',
       data: {
@@ -176,11 +203,12 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
         properties: {},
         geometry: {
           type: 'LineString',
-          coordinates: [driverCoords, userCoords]
+          coordinates: points
         }
       }
     });
     
+    // Add the main route line with bold styling
     map.current.addLayer({
       id: layerId,
       type: 'line',
@@ -190,10 +218,9 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
         'line-cap': 'round'
       },
       paint: {
-        'line-color': '#4285F4',
-        'line-width': 4,
+        'line-color': '#6528F7', // GetMore purple
+        'line-width': 6,         // Make the line thicker
         'line-opacity': 0.8,
-        'line-dasharray': [0, 2]
       }
     });
     
@@ -201,41 +228,7 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
     routeLinesRef.current.push(layerId);
     routeLinesRef.current.push(sourceId);
     
-    // Animate the dash pattern for moving effect
-    let dashArraySequence = [
-      [0, 4, 3],
-      [0.5, 4, 2.5],
-      [1, 4, 2],
-      [1.5, 4, 1.5],
-      [2, 4, 1],
-      [2.5, 4, 0.5],
-      [3, 4, 0],
-      [0, 0.5, 3, 3.5],
-      [0, 1, 3, 3],
-      [0, 1.5, 3, 2.5],
-      [0, 2, 3, 2],
-      [0, 2.5, 3, 1.5],
-      [0, 3, 3, 1],
-      [0, 3.5, 3, 0.5]
-    ];
-    
-    let step = 0;
-    
-    function animateDashArray(timestamp: number) {
-      if (!map.current || !map.current.getLayer(layerId)) return;
-      
-      // Update the dasharray
-      map.current.setPaintProperty(
-        layerId,
-        'line-dasharray',
-        dashArraySequence[step % dashArraySequence.length]
-      );
-      
-      step = (step + 1) % dashArraySequence.length;
-      animationRef.current = window.requestAnimationFrame(animateDashArray);
-    }
-    
-    animationRef.current = window.requestAnimationFrame(animateDashArray);
+    return points;
   }, [mapLoaded]);
 
   useEffect(() => {
@@ -268,6 +261,7 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
         console.log("Map loaded successfully");
         setMapLoaded(true);
         
+        // Add user marker with pulsing effect
         const userMarkerEl = document.createElement('div');
         userMarkerEl.className = 'relative';
         userMarkerEl.innerHTML = `
@@ -278,10 +272,11 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
         `;
         
         if (map.current) {
-          new mapboxgl.Marker({ element: userMarkerEl })
+          const userMarker = new mapboxgl.Marker({ element: userMarkerEl })
             .setLngLat([userLocation.lng, userLocation.lat] as [number, number])
             .addTo(map.current);
-        
+          
+          userMarkerRef.current = userMarker;
           addDriverMarkers();
         }
       });
@@ -321,6 +316,13 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
       drawRoute(selectedDriver.id, driverCoords, userCoords);
     }
   }, [selectedDriver, mapLoaded, userLocation, drawRoute]);
+
+  // Effect to auto-simulate arrival when prop is set
+  useEffect(() => {
+    if (simulateArrival && selectedDriver && !simulationActive && mapLoaded) {
+      simulateCarMovement(selectedDriver.id);
+    }
+  }, [simulateArrival, selectedDriver, simulationActive, mapLoaded]);
 
   const addDriverMarkers = () => {
     if (!map.current) return;
@@ -432,6 +434,10 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
           
           markersRef.current.push(marker);
           
+          if (driver.id === selectedDriver?.id) {
+            driverMarkerRef.current = marker;
+          }
+          
           markerEl.addEventListener('click', () => {
             // Set this driver as selected
             setSelectedDriver(driver);
@@ -460,48 +466,142 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
     });
   };
 
-  // Function to simulate car movement along the route
+  // Enhanced function to simulate car movement along the route with arrival notification
   const simulateCarMovement = (driverId: number) => {
     if (!map.current || !selectedDriver) return;
+
+    // Set simulation active flag
+    setSimulationActive(true);
+    setDriverArrived(false);
     
-    const marker = markersRef.current.find(m => {
-      const markerEl = m.getElement();
-      return markerEl.querySelector('.driver-marker');
-    });
+    // Reset current point index
+    currentPointIndexRef.current = 0;
     
-    if (!marker) return;
+    // Create new car marker element
+    const carMarkerEl = document.createElement('div');
+    carMarkerEl.className = 'car-marker-animated';
+    carMarkerEl.innerHTML = `
+      <div class="relative">
+        <div class="w-10 h-10 rounded-full bg-getmore-purple flex items-center justify-center border-2 border-white shadow-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path>
+            <circle cx="7" cy="17" r="2"></circle>
+            <path d="M9 17h6"></path>
+            <circle cx="17" cy="17" r="2"></circle>
+          </svg>
+        </div>
+        <div class="absolute -bottom-1 w-8 h-2 bg-black/20 rounded-full mx-auto left-0 right-0"></div>
+      </div>
+    `;
     
-    const startPoint = [selectedDriver.lng, selectedDriver.lat];
-    const endPoint = [userLocation.lng, userLocation.lat];
-    
-    // Calculate points along the route
-    const numPoints = 100;
-    const points = Array.from({ length: numPoints }).map((_, i) => {
-      const t = i / (numPoints - 1);
-      return [
-        startPoint[0] + (endPoint[0] - startPoint[0]) * t,
-        startPoint[1] + (endPoint[1] - startPoint[1]) * t
-      ] as [number, number];
-    });
-    
-    let currentPointIndex = 0;
-    
-    function animate() {
-      if (currentPointIndex >= points.length || !marker) {
-        return;
-      }
-      
-      marker.setLngLat(points[currentPointIndex]);
-      currentPointIndex++;
-      
-      if (currentPointIndex < points.length) {
-        setTimeout(() => {
-          window.requestAnimationFrame(animate);
-        }, 100); // Control speed of movement
-      }
+    // Remove previous driver marker if exists
+    if (driverMarkerRef.current) {
+      driverMarkerRef.current.remove();
     }
     
-    animate();
+    // Create new animated car marker
+    const animatedCarMarker = new mapboxgl.Marker({ element: carMarkerEl })
+      .setLngLat(routePointsRef.current[0])
+      .addTo(map.current);
+    
+    driverMarkerRef.current = animatedCarMarker;
+    
+    // Calculate bearing between points for rotation
+    const calculateBearing = (startPoint: [number, number], endPoint: [number, number]): number => {
+      const startLat = startPoint[1] * Math.PI / 180;
+      const startLng = startPoint[0] * Math.PI / 180;
+      const endLat = endPoint[1] * Math.PI / 180;
+      const endLng = endPoint[0] * Math.PI / 180;
+      
+      const y = Math.sin(endLng - startLng) * Math.cos(endLat);
+      const x = Math.cos(startLat) * Math.sin(endLat) - 
+                Math.sin(startLat) * Math.cos(endLat) * Math.cos(endLng - startLng);
+      
+      let bearing = Math.atan2(y, x) * 180 / Math.PI;
+      bearing = (bearing + 360) % 360; // Normalize to 0-360
+      
+      return bearing;
+    };
+    
+    // Animate car along route
+    const animateCar = () => {
+      if (currentPointIndexRef.current >= routePointsRef.current.length - 1) {
+        // Car has arrived at destination
+        if (!driverArrived) {
+          setDriverArrived(true);
+          setSimulationActive(false);
+          // Play notification sound (small beep)
+          const audio = new Audio('data:audio/wav;base64,//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAGDgYtAgAyN+QWaAAihwMWm4G8QQRDiMcCBcH3Cc+CDv/7xA4Tvh9Rz/y8QADBwMWgQAZG/ILNAARQ4GLTcDeIIIhxGOBAuD7hOfBB3/94gcJ3w+o5/5eIAIAAAVwWgQAVQ2ORaIQwEMAJiDg95G4nQL7mQVWI6GwRcfsZAcsKkJvxgxEjzFUgfHoSQ9Qq7KNwqHwuB13MA4a1q/DmBrHgPcmjiGoh//EwC5nGPEmS4RcfkVKOhJf+WOgoxJclFz3kgn//dBA+ya1GhurNn8zb//9NNutNuhz31f////9vt///z+IdAEAAAK4LQIAKobHItEIYCGAExBwe8jcToF9zIKrEdDYIuP2MgOWFSE34wYiR5iqQPj0JIeoVdlG4VD4XA67mAcNa1fhzA1jwHuTRxDUQ//iYBczjHiTJcIuPyKlHQkv/LHQUYkuSi57yQT//uggfZNajQ3Vm//Lz////zs///Oc///nP//8L///yH5BAEAAAEALAAAAAAQABAAAAeCEAEUhDAQolB4Ew8QEVZCwkBkokgVPlkKd8qkKvNlCkYhDwNhGGQMDJ6GGAOlhBkDQsEwoKViGFAIZW+KgpCNhmuMwICQwz5TDQaTxeCEBIYSwnAEJYZChdDY2JgwwkDBMAQlhkLr7OzsQhUSDINK5+fn8xjDf+iIubq5Eri5ucTDxMTIvsjIyiEAOw==');
+          audio.play();
+          
+          toast.success("Your driver has arrived!", {
+            description: `${selectedDriver?.name} has reached your location`
+          });
+          
+          // Make the user marker pulse more intensely to indicate arrival
+          if (userMarkerRef.current) {
+            const userEl = userMarkerRef.current.getElement();
+            userEl.querySelector('.animate-ping')?.classList.add('opacity-90', 'scale-125');
+          }
+          
+          return;
+        }
+      }
+
+      // Get current and next points
+      const currentPoint = routePointsRef.current[currentPointIndexRef.current];
+      const nextPoint = routePointsRef.current[currentPointIndexRef.current + 1];
+      
+      if (currentPoint && nextPoint) {
+        // Calculate bearing for car rotation
+        const bearing = calculateBearing(currentPoint, nextPoint);
+        
+        // Update car position and rotation
+        animatedCarMarker.setLngLat(currentPoint);
+        
+        // Rotate car icon in direction of travel
+        const carEl = animatedCarMarker.getElement().querySelector('svg');
+        if (carEl) {
+          carEl.style.transform = `rotate(${bearing}deg)`;
+        }
+        
+        // Move map to follow car if it's out of view
+        if (map.current && currentPointIndexRef.current % 10 === 0) {
+          map.current.easeTo({
+            center: currentPoint,
+            duration: 1000,
+            easing: (t) => t
+          });
+        }
+        
+        // Move to next point
+        currentPointIndexRef.current++;
+        
+        // Continue animation at appropriate speed (slower at beginning and end)
+        const totalPoints = routePointsRef.current.length;
+        const progress = currentPointIndexRef.current / totalPoints;
+        
+        // Ease in/out timing for more natural movement
+        let delay = 100; // Base delay in ms
+        
+        if (progress < 0.2) {
+          // Slow at beginning (acceleration)
+          delay = 200 - progress * 500;
+        } else if (progress > 0.8) {
+          // Slow at end (deceleration)
+          delay = 100 + (progress - 0.8) * 500;
+        }
+        
+        setTimeout(() => {
+          if (!driverArrived) {
+            animationRef.current = requestAnimationFrame(animateCar);
+          }
+        }, delay);
+      }
+    };
+    
+    // Start animation
+    animationRef.current = requestAnimationFrame(animateCar);
   };
 
   if (geolocating) {
@@ -552,14 +652,11 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
               <p className="text-xs text-gray-500">{selectedDriver.car}</p>
             </div>
             <button 
-              onClick={() => {
-                if (selectedDriver) {
-                  simulateCarMovement(selectedDriver.id);
-                }
-              }}
-              className="ml-3 bg-getmore-purple text-white text-xs px-2 py-1 rounded hover:bg-purple-700"
+              onClick={() => simulateCarMovement(selectedDriver.id)}
+              disabled={simulationActive}
+              className={`ml-3 ${simulationActive ? 'bg-gray-300' : 'bg-getmore-purple'} text-white text-xs px-2 py-1 rounded hover:bg-purple-700 transition-colors`}
             >
-              Simulate
+              {simulationActive ? 'En Route' : 'Simulate'}
             </button>
           </div>
         ) : (
@@ -584,6 +681,24 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
       >
         <MapPin className="h-5 w-5 text-getmore-purple" />
       </button>
+
+      {driverArrived && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 rounded-lg shadow-xl z-50 animate-scale-in">
+          <div className="text-center">
+            <div className="w-12 h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-2">
+              <Car className="text-green-600" size={24} />
+            </div>
+            <h3 className="text-lg font-bold">Driver Arrived!</h3>
+            <p className="text-gray-600">{selectedDriver?.name} has reached your location</p>
+            <button 
+              onClick={() => setDriverArrived(false)}
+              className="mt-3 bg-getmore-purple text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
