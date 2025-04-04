@@ -110,7 +110,7 @@ const DriverLogin = () => {
     <>
       <Navbar />
       <div className="pt-24 pb-16 bg-gray-50 min-h-screen flex items-center">
-        <div className="container-custom max-w-md">
+        <div className="container-custom max-w-lg">
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="bg-getmore-purple p-6 text-center text-white">
               <Car size={48} className="mx-auto mb-2" />
