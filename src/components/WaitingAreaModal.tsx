@@ -1,9 +1,9 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MapPin, MessageSquare, Phone, Send, User, Car, X, PhoneCall, MessageCircle } from 'lucide-react';
+import MapDisplay from '@/components/MapDisplay';
 
 interface Driver {
   id: number;
@@ -147,6 +147,25 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
     }
   };
 
+  // Convert driver data for MapDisplay
+  const mapDriver = {
+    id: driver.id,
+    name: driver.name,
+    car: driver.car,
+    cabType: 'standard', // Default type if not provided
+    lat: driver.location?.lat || -24.6282,
+    lng: driver.location?.lng || 25.9231,
+    rating: driver.rating,
+    phone: driver.phone,
+    image: driver.image
+  };
+
+  // User location (typically would be obtained from geolocation)
+  const userLocation = {
+    lat: driver.location ? driver.location.lat + 0.01 : -24.6382, // Slightly offset from driver
+    lng: driver.location ? driver.location.lng + 0.01 : -24.9331
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
@@ -200,54 +219,15 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
         <div className="flex-grow overflow-hidden">
           {activeTab === 'map' && (
             <div className="h-96 relative">
-              {mapLoaded ? (
-                <div className="absolute inset-0">
-                  {/* Simple map placeholder - in a real app use actual map library */}
-                  <div className="w-full h-full relative bg-[#e8eef7]">
-                    {/* Roads representation */}
-                    <div className="absolute w-[80%] h-[20px] bg-white top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full"></div>
-                    <div className="absolute w-[20px] h-[80%] bg-white top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full"></div>
-                    
-                    {/* User location */}
-                    <div
-                      className="absolute w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white"
-                      style={{
-                        top: '60%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        zIndex: 10
-                      }}
-                    >
-                      <User size={14} color="white" />
-                    </div>
-                    
-                    {/* Driver location with animation */}
-                    <div
-                      className="absolute bg-getmore-purple rounded-full p-2 border-2 border-white animate-pulse"
-                      style={{
-                        top: '40%',
-                        left: '40%',
-                        transform: 'translate(-50%, -50%)',
-                        zIndex: 10
-                      }}
-                    >
-                      <Car size={16} color="white" />
-                    </div>
-                    
-                    {/* Path between driver and user */}
-                    <div className="absolute w-[15%] h-[2px] bg-getmore-purple top-[50%] left-[45%] transform -rotate-45"></div>
-                  </div>
-                  
-                  <div className="absolute bottom-4 left-4 bg-white py-2 px-4 rounded-md shadow-md">
-                    <p className="font-semibold">ETA: {estimatedTime}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full">
-                  <div className="w-10 h-10 border-4 border-getmore-purple border-t-transparent rounded-full animate-spin mb-4"></div>
-                  <p>Loading map...</p>
-                </div>
-              )}
+              <MapDisplay 
+                drivers={[mapDriver]} 
+                userLocation={userLocation} 
+                height="100%"
+              />
+              
+              <div className="absolute bottom-4 left-4 bg-white py-2 px-4 rounded-md shadow-md">
+                <p className="font-semibold">ETA: {estimatedTime}</p>
+              </div>
             </div>
           )}
 
@@ -275,7 +255,8 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
                         msg.sender === 'user'
                           ? 'bg-getmore-purple text-white'
                           : 'bg-gray-100'
-                      }`}
+                      } animate-fade-in`}
+                      style={{ animationDelay: '100ms' }}
                     >
                       <p>{msg.text}</p>
                       {msg.isSetswana && (
@@ -313,7 +294,7 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
                 />
                 <Button
                   type="submit"
-                  className="ml-2 bg-getmore-purple hover:bg-purple-700"
+                  className="ml-2 bg-getmore-purple hover:bg-purple-700 transition-transform hover:scale-105 duration-300"
                   size="icon"
                   disabled={!newMessage.trim()}
                 >
@@ -326,13 +307,13 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
 
         {/* Call Options Dialog */}
         {showCallOptions && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center animate-fade-in">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 animate-scale-in">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold">Contact Driver</h3>
                 <button 
                   onClick={() => setShowCallOptions(false)}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-500 hover:text-gray-700 transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -343,7 +324,7 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => handleCall('phone')}
-                  className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all hover:scale-105 duration-300"
                 >
                   <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-2">
                     <PhoneCall className="text-green-600" size={24} />
@@ -353,7 +334,7 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
                 
                 <button
                   onClick={() => handleCall('whatsapp')}
-                  className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all hover:scale-105 duration-300"
                 >
                   <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center mb-2">
                     <MessageCircle className="text-white" size={24} />

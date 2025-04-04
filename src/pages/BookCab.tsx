@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Car, MapPin, Clock, Calendar, DollarSign, Check, X, MessageSquare, Phone } from 'lucide-react';
@@ -8,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import MapDisplay from '@/components/MapDisplay';
+import WaitingAreaModal from '@/components/WaitingAreaModal';
+import { toast } from "sonner";
 
 // Cab types with images and details
 const cabTypes = [
@@ -69,10 +71,9 @@ const BookCab = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showWaitingArea, setShowWaitingArea] = useState(false);
   const [estimatedTime, setEstimatedTime] = useState('');
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const [selectedDriver, setSelectedDriver] = useState<any>(null);
   const [connectingToDriver, setConnectingToDriver] = useState(false);
   const [countdown, setCountdown] = useState(5);
+  const [selectedDriver, setSelectedDriver] = useState<any>(null);
   
   // Check authentication
   useEffect(() => {
@@ -80,16 +81,6 @@ const BookCab = () => {
       navigate('/sign-in', { state: { from: '/book-cab' } });
     }
   }, [isAuthenticated, navigate]);
-
-  // Set up map display
-  useEffect(() => {
-    // This is a placeholder for real map implementation
-    const timer = setTimeout(() => {
-      setMapLoaded(true);
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, []);
 
   // Filter cabs based on fare
   const handleFareChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,6 +101,13 @@ const BookCab = () => {
     } else {
       setAvailableCabs(cabTypes);
     }
+  };
+
+  const handleDriverClick = (driver: any) => {
+    toast.info(`${driver.name} selected`, {
+      description: `${driver.car} - Rating: ${driver.rating}/5`
+    });
+    setSelectedDriver(driver);
   };
 
   const handleBookNow = (cabType: string) => {
@@ -172,7 +170,7 @@ const BookCab = () => {
       <div className="pt-20 pb-16 min-h-screen bg-gray-50">
         <div className="container-custom">
           {/* Header */}
-          <div className="mb-8 text-center">
+          <div className="mb-8 text-center animate-fade-in">
             <h1 className="text-4xl font-bold mb-4">Book Your <span className="text-getmore-purple">Premium Ride</span></h1>
             <p className="text-gray-600 max-w-2xl mx-auto">
               Select your pickup location, destination, and fare budget to find available cabs near you.
@@ -181,8 +179,8 @@ const BookCab = () => {
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left side - Map */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <div className="lg:col-span-2 animate-fade-in">
+              <div className="bg-white rounded-xl shadow-md overflow-hidden transform transition-all duration-500 hover:shadow-lg">
                 <div className="p-6 border-b border-gray-100">
                   <h2 className="text-xl font-semibold flex items-center">
                     <MapPin className="mr-2 text-getmore-purple" />
@@ -190,92 +188,17 @@ const BookCab = () => {
                   </h2>
                 </div>
                 
-                {/* Map placeholder */}
-                <div className="relative h-[400px] bg-gray-100 flex items-center justify-center">
-                  {mapLoaded ? (
-                    <>
-                      <div className="absolute inset-0 opacity-60">
-                        {/* Simple map placeholder - in real app use actual map library */}
-                        <div className="w-full h-full relative bg-[#e8eef7]">
-                          {/* Roads representation */}
-                          <div className="absolute w-[80%] h-[30px] bg-white top-1/2 left-1/3 transform -translate-x-1/2 -translate-y-1/2 rounded-full"></div>
-                          <div className="absolute w-[30px] h-[80%] bg-white top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full"></div>
-                          
-                          {/* Simulating driver markers on map with tooltips */}
-                          {mockDriversLocations.map(driver => (
-                            <div 
-                              key={driver.id}
-                              className="absolute group"
-                              style={{ 
-                                top: `${(driver.lat + 24.65) * 400}px`, 
-                                left: `${(driver.lng - 25.9) * 400 + 200}px`,
-                                transform: 'translate(-50%, -50%)',
-                                zIndex: 10
-                              }}
-                            >
-                              {/* Driver pin */}
-                              <div 
-                                className={`w-8 h-8 rounded-full border-2 border-white shadow-md p-1 flex items-center justify-center
-                                ${driver.cabType === 'standard' ? 'bg-blue-500' : 
-                                   driver.cabType === 'comfort' ? 'bg-green-500' : 
-                                   driver.cabType === 'premium' ? 'bg-purple-600' : 'bg-orange-500'}`}
-                              >
-                                <Car size={15} color="white" />
-                              </div>
-                              
-                              {/* Tooltip */}
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 bg-white p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                <div className="flex items-center">
-                                  <div className="w-8 h-8 rounded-full overflow-hidden mr-2">
-                                    <img src={driver.image} alt={driver.name} className="w-full h-full object-cover" />
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-sm">{driver.name}</p>
-                                    <p className="text-xs text-gray-500">{driver.car}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                          
-                          {/* User location */}
-                          <div 
-                            className="absolute w-6 h-6 bg-blue-500 rounded-full animate-pulse z-20"
-                            style={{ 
-                              top: '50%', 
-                              left: '50%',
-                              transform: 'translate(-50%, -50%)'
-                            }}
-                          >
-                            <div className="w-full h-full rounded-full bg-blue-500 flex items-center justify-center border-2 border-white">
-                              <div className="w-2 h-2 bg-white rounded-full"></div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="absolute bottom-4 right-4 bg-white py-2 px-4 rounded-md shadow-md text-sm">
-                        <p className="font-medium">5 drivers available nearby</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <div className="flex items-center"><div className="w-3 h-3 bg-blue-500 rounded-full mr-1"></div><span className="text-xs">Standard</span></div>
-                          <div className="flex items-center"><div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div><span className="text-xs">Comfort</span></div>
-                          <div className="flex items-center"><div className="w-3 h-3 bg-purple-600 rounded-full mr-1"></div><span className="text-xs">Premium</span></div>
-                          <div className="flex items-center"><div className="w-3 h-3 bg-orange-500 rounded-full mr-1"></div><span className="text-xs">SUV</span></div>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center">
-                      <div className="w-12 h-12 border-4 border-getmore-purple border-t-transparent rounded-full animate-spin mb-4"></div>
-                      <p>Loading map...</p>
-                    </div>
-                  )}
-                </div>
+                <MapDisplay 
+                  drivers={mockDriversLocations}
+                  onDriverClick={handleDriverClick}
+                  height="400px"
+                />
               </div>
             </div>
             
             {/* Right side - Booking Form */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="lg:col-span-1 animate-fade-in" style={{ animationDelay: "200ms" }}>
+              <div className="bg-white rounded-xl shadow-md p-6 transform transition-all duration-500 hover:shadow-lg">
                 <h2 className="text-xl font-semibold mb-6">Trip Details</h2>
                 
                 <div className="space-y-4">
@@ -322,7 +245,7 @@ const BookCab = () => {
           </div>
           
           {/* Available cabs section */}
-          <div className="mt-12">
+          <div className="mt-12 animate-fade-in" style={{ animationDelay: "400ms" }}>
             <h2 className="text-2xl font-bold mb-6 text-center">Choose Your Ride</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
@@ -332,13 +255,13 @@ const BookCab = () => {
                 return (
                   <div 
                     key={cab.id}
-                    className={`bg-white rounded-xl shadow-md overflow-hidden transition-all ${!isAvailable ? 'opacity-60' : 'hover:shadow-lg'}`}
+                    className={`bg-white rounded-xl shadow-md overflow-hidden transition-all transform hover:-translate-y-1 duration-300 ${!isAvailable ? 'opacity-60' : 'hover:shadow-xl'}`}
                   >
                     <div className="h-48 overflow-hidden">
                       <img 
                         src={cab.image} 
                         alt={cab.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover transform transition-transform duration-500 hover:scale-105"
                       />
                     </div>
                     <div className="p-4">
@@ -353,7 +276,7 @@ const BookCab = () => {
                       
                       <ul className="text-sm text-gray-600 mb-4">
                         {cab.features.map((feature, index) => (
-                          <li key={index} className="flex items-center mb-1">
+                          <li key={index} className="flex items-center mb-1 transform transition-all hover:translate-x-1 duration-300">
                             <Check size={14} className="text-green-500 mr-2" />
                             {feature}
                           </li>
@@ -363,9 +286,14 @@ const BookCab = () => {
                       <Button
                         onClick={() => handleBookNow(cab.id)}
                         disabled={!isAvailable || !pickupLocation || !destination}
-                        className="w-full bg-getmore-purple hover:bg-purple-700"
+                        className={`w-full relative overflow-hidden group ${isAvailable && pickupLocation && destination ? 'bg-getmore-purple hover:bg-purple-700' : 'bg-gray-400'}`}
                       >
-                        {isAvailable ? 'Book Now' : 'Unavailable'}
+                        {isAvailable && pickupLocation && destination && (
+                          <span className="absolute top-0 left-0 w-full h-full bg-white/10 transform -skew-x-12 -translate-x-full group-hover:translate-x-0 transition-transform duration-700"></span>
+                        )}
+                        <span className="relative">
+                          {isAvailable ? 'Book Now' : 'Unavailable'}
+                        </span>
                       </Button>
                     </div>
                   </div>
@@ -384,7 +312,7 @@ const BookCab = () => {
             <DialogDescription className="text-center">
               <div className="flex justify-center py-6">
                 {selectedDriver && (
-                  <div className="text-center">
+                  <div className="text-center animate-pulse">
                     <div className="w-20 h-20 mx-auto rounded-full overflow-hidden border-4 border-getmore-purple mb-2">
                       <img src={selectedDriver.image} alt={selectedDriver.name} className="w-full h-full object-cover" />
                     </div>
@@ -394,7 +322,7 @@ const BookCab = () => {
                 )}
               </div>
               
-              <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-getmore-purple text-white text-2xl font-bold">
+              <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-getmore-purple text-white text-2xl font-bold animate-pulse">
                 {countdown}
               </div>
             </DialogDescription>
@@ -409,7 +337,7 @@ const BookCab = () => {
             <DialogTitle className="text-center text-getmore-purple text-xl">Your ride is on the way!</DialogTitle>
             <DialogDescription className="text-center">
               <div className="flex justify-center py-6">
-                <div className="w-20 h-20 rounded-full bg-getmore-purple/10 flex items-center justify-center">
+                <div className="w-20 h-20 rounded-full bg-getmore-purple/10 flex items-center justify-center animate-pulse">
                   <Car size={36} className="text-getmore-purple" />
                 </div>
               </div>
@@ -432,7 +360,7 @@ const BookCab = () => {
           <div className="flex flex-col space-y-2">
             <Button
               onClick={handleWaitingArea}
-              className="bg-getmore-purple hover:bg-purple-700"
+              className="bg-getmore-purple hover:bg-purple-700 transform transition-transform hover:scale-105"
             >
               <MapPin className="mr-2" size={16} />
               Go to Waiting Area
@@ -441,6 +369,7 @@ const BookCab = () => {
             <Button 
               onClick={handleReportIssue}
               variant="outline"
+              className="transition-colors hover:bg-red-50 hover:text-red-600"
             >
               Report an Issue
             </Button>
@@ -448,7 +377,7 @@ const BookCab = () => {
             <Button 
               onClick={handleConfirmBooking} 
               variant="ghost"
-              className="text-gray-500"
+              className="text-gray-500 hover:bg-gray-100"
             >
               Close
             </Button>
@@ -456,93 +385,13 @@ const BookCab = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Waiting Area Dialog */}
+      {/* Waiting Area Dialog using WaitingAreaModal component */}
       {selectedDriver && (
-        <Dialog open={showWaitingArea} onOpenChange={setShowWaitingArea}>
-          <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="w-10 h-10 rounded-full overflow-hidden mr-2">
-                    <img src={selectedDriver.image} alt={selectedDriver.name} className="w-full h-full object-cover" />
-                  </div>
-                  <div>
-                    {selectedDriver.name}
-                    <div className="text-sm font-normal text-gray-500">{selectedDriver.car}</div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
-                    Arriving in: {estimatedTime}
-                  </div>
-                  <a
-                    href={`tel:${selectedDriver.phone}`}
-                    className="bg-blue-100 text-blue-800 p-2 rounded-full"
-                  >
-                    <Phone size={16} />
-                  </a>
-                </div>
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="flex border-b mb-4">
-              <button className="flex-1 py-2 text-center font-medium text-getmore-purple border-b-2 border-getmore-purple">
-                <MapPin className="inline-block mr-1" size={16} /> Track Location
-              </button>
-              <button className="flex-1 py-2 text-center font-medium text-gray-500">
-                <MessageSquare className="inline-block mr-1" size={16} /> Chat with Driver
-              </button>
-            </div>
-            
-            <div className="h-96 relative">
-              {/* Simple map placeholder */}
-              <div className="w-full h-full relative bg-[#e8eef7]">
-                {/* Roads representation */}
-                <div className="absolute w-[80%] h-[20px] bg-white top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full"></div>
-                <div className="absolute w-[20px] h-[80%] bg-white top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full"></div>
-                
-                {/* User location */}
-                <div
-                  className="absolute w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white"
-                  style={{
-                    top: '60%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    zIndex: 10
-                  }}
-                >
-                  <div className="w-2 h-2 bg-white rounded-full"></div>
-                </div>
-                
-                {/* Driver location with animation */}
-                <div
-                  className="absolute bg-getmore-purple rounded-full p-1 border-2 border-white animate-pulse"
-                  style={{
-                    top: '40%',
-                    left: '40%',
-                    transform: 'translate(-50%, -50%)',
-                    zIndex: 10
-                  }}
-                >
-                  <Car size={16} color="white" />
-                </div>
-                
-                {/* Path between driver and user */}
-                <div className="absolute w-[15%] h-[2px] bg-getmore-purple top-[50%] left-[45%] transform -rotate-45"></div>
-              </div>
-              
-              <div className="absolute bottom-4 left-4 bg-white py-2 px-4 rounded-md shadow-md">
-                <p className="font-semibold">ETA: {estimatedTime}</p>
-              </div>
-            </div>
-            
-            <div className="mt-4">
-              <Button onClick={handleCloseWaitingArea} className="w-full">
-                Close Waiting Area
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <WaitingAreaModal 
+          isOpen={showWaitingArea}
+          onClose={handleCloseWaitingArea}
+          driver={selectedDriver}
+        />
       )}
       
       <Footer />

@@ -9,6 +9,8 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { supabase } from "@/integrations/supabase/client";
+import { useRef } from "react";
+import type { CarouselApi } from "@/components/ui/carousel";
 
 interface Category {
   id: number;
@@ -20,7 +22,51 @@ interface Category {
 const CategoryCarousel = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [api, setApi] = useState<CarouselApi>();
   const navigate = useNavigate();
+  const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Set up auto slide
+  useEffect(() => {
+    if (!api || categories.length <= 4) return;
+    
+    const startAutoplay = () => {
+      autoPlayRef.current = setInterval(() => {
+        api.scrollNext();
+      }, 3000);
+    };
+    
+    const stopAutoplay = () => {
+      if (autoPlayRef.current) {
+        clearInterval(autoPlayRef.current);
+        autoPlayRef.current = null;
+      }
+    };
+    
+    // Start autoplay
+    startAutoplay();
+    
+    // Setup event listeners to pause on hover
+    const carouselElement = document.querySelector('.category-carousel-container');
+    
+    if (carouselElement) {
+      carouselElement.addEventListener('mouseenter', stopAutoplay);
+      carouselElement.addEventListener('mouseleave', startAutoplay);
+      carouselElement.addEventListener('touchstart', stopAutoplay);
+      carouselElement.addEventListener('touchend', startAutoplay);
+    }
+    
+    // Cleanup
+    return () => {
+      stopAutoplay();
+      if (carouselElement) {
+        carouselElement.removeEventListener('mouseenter', stopAutoplay);
+        carouselElement.removeEventListener('mouseleave', startAutoplay);
+        carouselElement.removeEventListener('touchstart', stopAutoplay);
+        carouselElement.removeEventListener('touchend', startAutoplay);
+      }
+    };
+  }, [api, categories]);
 
   useEffect(() => {
     // Use the same categories as in CategoriesPage
@@ -153,42 +199,45 @@ const CategoryCarousel = () => {
   }
 
   return (
-    <section className="py-10 bg-gray-50">
+    <section className="py-10 bg-gray-50 overflow-hidden">
       <div className="container-custom">
         <h2 className="text-2xl font-bold mb-6">Shop by Category</h2>
         
-        <Carousel
-          opts={{
-            align: "start",
-            loop: true,
-          }}
-          className="w-full"
-        >
-          <CarouselContent>
-            {categories.map((category) => (
-              <CarouselItem key={category.id} className="md:basis-1/3 lg:basis-1/4 xl:basis-1/5">
-                <div 
-                  className="bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => handleCategoryClick(category)}
-                >
-                  <div className="h-32 overflow-hidden">
-                    <img 
-                      src={category.image} 
-                      alt={category.name}
-                      className="w-full h-full object-cover"
-                    />
+        <div className="category-carousel-container">
+          <Carousel
+            opts={{
+              align: "start",
+              loop: true,
+            }}
+            className="w-full"
+            setApi={setApi}
+          >
+            <CarouselContent>
+              {categories.map((category) => (
+                <CarouselItem key={category.id} className="md:basis-1/3 lg:basis-1/4 xl:basis-1/5">
+                  <div 
+                    className="bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow transform hover:scale-105 transition-transform duration-300"
+                    onClick={() => handleCategoryClick(category)}
+                  >
+                    <div className="h-32 overflow-hidden">
+                      <img 
+                        src={category.image} 
+                        alt={category.name}
+                        className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-500"
+                      />
+                    </div>
+                    <div className="p-3">
+                      <h3 className="font-medium">{category.name}</h3>
+                      <p className="text-xs text-gray-500">{category.items}</p>
+                    </div>
                   </div>
-                  <div className="p-3">
-                    <h3 className="font-medium">{category.name}</h3>
-                    <p className="text-xs text-gray-500">{category.items}</p>
-                  </div>
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <CarouselPrevious className="left-1 bg-white" />
-          <CarouselNext className="right-1 bg-white" />
-        </Carousel>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="left-1 bg-white hover:bg-getmore-purple hover:text-white transition-colors duration-300" />
+            <CarouselNext className="right-1 bg-white hover:bg-getmore-purple hover:text-white transition-colors duration-300" />
+          </Carousel>
+        </div>
       </div>
     </section>
   );
