@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -88,7 +89,10 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
   useEffect(() => {
     if (!mapContainer.current) return;
     
+    // Clear any existing map first
     if (map.current) {
+      markersRef.current.forEach(marker => marker.remove());
+      markersRef.current = [];
       map.current.remove();
       map.current = null;
     }
@@ -145,11 +149,28 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
       });
     }
 
+    // Fix for the cleanup issue - don't try to remove if not needed
     return () => {
       if (map.current) {
-        markersRef.current.forEach(marker => marker.remove());
-        markersRef.current = [];
-        map.current.remove();
+        try {
+          // First clear all markers
+          markersRef.current.forEach(marker => {
+            if (marker) marker.remove();
+          });
+          markersRef.current = [];
+          
+          // Then remove the map safely with checks
+          if (map.current && typeof map.current.remove === 'function') {
+            // Fix the main issue - check if map element still exists 
+            // before trying to remove it
+            if (mapContainer.current && document.body.contains(mapContainer.current)) {
+              map.current.remove();
+            }
+          }
+        } catch (e) {
+          console.error('Error during map cleanup:', e);
+        }
+        map.current = null;
       }
     };
   }, [userLocation]);
@@ -163,6 +184,7 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
   const addDriverMarkers = () => {
     if (!map.current) return;
     
+    // Clear existing markers first
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
     
