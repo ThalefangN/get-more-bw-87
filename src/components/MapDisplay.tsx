@@ -25,7 +25,7 @@ interface MapDisplayProps {
 
 const DEFAULT_CENTER = { lat: -24.6282, lng: 25.9231 };
 
-const MAPBOX_TOKEN = 'pk.eyJ1IjoiZ2V0bW9yZSIsImEiOiJjbG5vbGJqbW8wYTFkMmlwMjRzanRzOGQyIn0.imMKzo-HMMj5NuoXw2j2Zw';
+const MAPBOX_TOKEN = 'pk.eyJ1IjoibG92YWJsZWRldiIsImEiOiJjbG5nZHd3aHkwN3Y1MmttejA3bWR4NXJsIn0.IYmWI2c_I2bRSW_sjCrxiw';
 
 const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverClick, height = "400px" }: MapDisplayProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -91,11 +91,6 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
     if (map.current) {
       map.current.remove();
       map.current = null;
-    }
-    
-    if (!MAPBOX_TOKEN || MAPBOX_TOKEN.length === 0) {
-      setLocationError('Mapbox token is missing. Please contact support.');
-      return;
     }
     
     mapboxgl.accessToken = MAPBOX_TOKEN;
