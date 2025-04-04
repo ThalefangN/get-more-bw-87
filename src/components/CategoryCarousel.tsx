@@ -26,9 +26,9 @@ const CategoryCarousel = () => {
   const navigate = useNavigate();
   const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Set up auto slide
+  // Set up auto slide - ensuring it works even with fewer categories
   useEffect(() => {
-    if (!api || categories.length <= 4) return;
+    if (!api) return;
     
     const startAutoplay = () => {
       autoPlayRef.current = setInterval(() => {
@@ -234,8 +234,8 @@ const CategoryCarousel = () => {
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="left-1 bg-white hover:bg-getmore-purple hover:text-white transition-colors duration-300" />
-            <CarouselNext className="right-1 bg-white hover:bg-getmore-purple hover:text-white transition-colors duration-300" />
+            <CarouselPrevious className="left-1 md:-left-12 bg-white hover:bg-getmore-purple hover:text-white transition-colors duration-300" />
+            <CarouselNext className="right-1 md:-right-12 bg-white hover:bg-getmore-purple hover:text-white transition-colors duration-300" />
           </Carousel>
         </div>
       </div>

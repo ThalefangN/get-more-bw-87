@@ -6,6 +6,7 @@ import CategoryCarousel from "@/components/CategoryCarousel";
 import HowItWorks from "@/components/HowItWorks";
 import CabSection from "@/components/CabSection";
 import Footer from "@/components/Footer";
+import ProductGrid from "@/components/ProductGrid";
 
 const Index = () => {
   return (
@@ -14,8 +15,9 @@ const Index = () => {
       <main className="flex-grow">
         <Hero />
         <CategoryCarousel />
-        <HowItWorks />
+        <ProductGrid />
         <CabSection />
+        <HowItWorks />
       </main>
       <Footer />
     </div>
