@@ -1,46 +1,49 @@
 
-import { Link } from "react-router-dom";
-import { Menu, X, ShoppingCart, Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import CartButton from "@/components/CartButton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Menu, X, ChevronDown, User, LogOut, ShoppingBag, Home } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState, useEffect } from "react";
-import NotificationBell from "./NotificationBell";
+import CartButton from "./CartButton";
+import NotificationButton from "./NotificationButton";
+import { Cart } from "./Cart";
+import { NotificationsPanel } from "./NotificationsPanel";
 
 const Navbar = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  const [isOpen, setIsOpen] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const { isAuthenticated, logout, user } = useAuth();
+  const navigate = useNavigate();
 
   const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
+    setIsOpen(!isOpen);
+    // Close dropdown when toggling menu
+    setShowDropdown(false);
+  };
+
+  const toggleDropdown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDropdown(!showDropdown);
   };
 
   const handleLogout = () => {
     logout();
+    setShowDropdown(false);
+    setIsOpen(false);
+    navigate("/");
   };
 
   return (
-    <div className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? "bg-white shadow-md py-2" : "bg-transparent py-4"}`}>
-      <div className="container-custom">
-        <div className="flex justify-between items-center">
-          <Link to="/" className="inline-flex items-center">
+    <>
+      <nav className="bg-white shadow-sm py-4 sticky top-0 z-30 w-full">
+        <div className="container-custom flex justify-between items-center">
+          <Link to="/" className="flex items-center">
             <span className="text-2xl font-bold text-getmore-purple">Get</span>
             <span className="text-2xl font-bold text-getmore-turquoise">More</span>
-            <span className="text-xl font-bold text-gray-700">BW</span>
+            <span className="text-xl font-bold">BW</span>
           </Link>
 
-          <div className="hidden md:flex items-center space-x-6">
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-8">
             <Link to="/" className="text-gray-700 hover:text-getmore-purple transition-colors">
               Home
             </Link>
@@ -50,130 +53,184 @@ const Navbar = () => {
             <Link to="/categories" className="text-gray-700 hover:text-getmore-purple transition-colors">
               Categories
             </Link>
+            <Link to="/book-cab" className="text-gray-700 hover:text-getmore-purple transition-colors">
+              Book Cab
+            </Link>
             <Link to="/how-it-works" className="text-gray-700 hover:text-getmore-purple transition-colors">
               How It Works
             </Link>
           </div>
 
           <div className="flex items-center space-x-4">
-            {user && (
-              <>
-                <div className="hidden md:block">
-                  <NotificationBell />
-                </div>
-                <div className="hidden md:block">
-                  <CartButton />
-                </div>
-              </>
-            )}
-            
-            <div className="hidden md:block">
-              {!user && (
-                <div className="flex items-center space-x-4">
-                  <Link to="/sign-in">
-                    <Button variant="outline" className="border-getmore-purple text-getmore-purple hover:bg-getmore-purple hover:text-white">
-                      Sign In
-                    </Button>
-                  </Link>
-                  <Link to="/sign-up">
-                    <Button className="bg-getmore-purple hover:bg-purple-700 text-white">Sign Up</Button>
-                  </Link>
-                </div>
-              )}
+            {/* Cart & Notification buttons - visible on all views */}
+            <div className="flex items-center">
+              <CartButton />
+              <NotificationButton />
+            </div>
 
-              {user && (
-                <div className="relative group">
-                  <Avatar className="h-8 w-8 cursor-pointer">
-                    <AvatarImage src="" />
-                    <AvatarFallback className="bg-getmore-purple text-white">{user.email ? user.email.charAt(0).toUpperCase() : "U"}</AvatarFallback>
-                  </Avatar>
-                  <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-md overflow-hidden z-10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                    <div className="p-3 border-b border-gray-100">
-                      <p className="text-sm font-medium">{user.email}</p>
-                    </div>
-                    <div className="p-2">
-                      <button
-                        onClick={handleLogout}
-                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+            {/* Auth buttons - desktop */}
+            <div className="hidden md:block">
+              {isAuthenticated ? (
+                <div className="relative">
+                  <button 
+                    onClick={toggleDropdown}
+                    className="flex items-center space-x-2 text-gray-700 hover:text-getmore-purple px-3 py-2 rounded-lg hover:bg-gray-100"
+                  >
+                    <span>{user?.email?.split('@')[0] || 'User'}</span>
+                    <ChevronDown size={16} />
+                  </button>
+                  {showDropdown && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                      <Link 
+                        to="/profile" 
+                        className="block px-4 py-2 text-gray-700 hover:bg-gray-100 flex items-center"
+                        onClick={() => setShowDropdown(false)}
                       >
-                        Sign out
+                        <User size={16} className="mr-2" />
+                        Profile
+                      </Link>
+                      <Link 
+                        to="/orders" 
+                        className="block px-4 py-2 text-gray-700 hover:bg-gray-100 flex items-center"
+                        onClick={() => setShowDropdown(false)}
+                      >
+                        <ShoppingBag size={16} className="mr-2" />
+                        Orders
+                      </Link>
+                      <button 
+                        onClick={handleLogout}
+                        className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100 flex items-center"
+                      >
+                        <LogOut size={16} className="mr-2" />
+                        Logout
                       </button>
                     </div>
-                  </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex space-x-2">
+                  <Link 
+                    to="/sign-in" 
+                    className="px-4 py-2 border border-getmore-purple text-getmore-purple rounded-lg hover:bg-getmore-purple hover:text-white transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                  <Link 
+                    to="/sign-up" 
+                    className="px-4 py-2 bg-getmore-purple text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    Sign Up
+                  </Link>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center space-x-3">
-              {/* Always show cart button on mobile, if user is logged in */}
-              {user && <CartButton />}
-              
-              <button className="md:hidden" onClick={toggleMenu}>
-                {isMenuOpen ? <X /> : <Menu />}
-              </button>
-            </div>
+            {/* Mobile menu button */}
+            <button 
+              className="md:hidden text-gray-700 hover:text-getmore-purple"
+              onClick={toggleMenu}
+            >
+              {isOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
         </div>
-      </div>
+      </nav>
 
-      {/* Mobile Menu */}
-      {isMenuOpen && (
-        <div className="md:hidden bg-white shadow-md">
-          <div className="container-custom py-4">
-            <div className="flex flex-col space-y-4">
-              <Link to="/" className="text-gray-700 hover:text-getmore-purple transition-colors" onClick={toggleMenu}>
-                Home
-              </Link>
-              <Link to="/shop" className="text-gray-700 hover:text-getmore-purple transition-colors" onClick={toggleMenu}>
-                Shop
-              </Link>
-              <Link to="/categories" className="text-gray-700 hover:text-getmore-purple transition-colors" onClick={toggleMenu}>
-                Categories
-              </Link>
-              <Link to="/how-it-works" className="text-gray-700 hover:text-getmore-purple transition-colors" onClick={toggleMenu}>
-                How It Works
-              </Link>
-              <div className="pt-4 border-t border-gray-200">
-                {user ? (
-                  <div className="flex flex-col space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src="" />
-                        <AvatarFallback className="bg-getmore-purple text-white">{user.email ? user.email.charAt(0).toUpperCase() : "U"}</AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm font-medium">{user.email}</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <NotificationBell />
-                    </div>
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        toggleMenu();
-                      }}
-                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-                    >
-                      Sign out
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex space-x-3">
-                    <Link to="/sign-in" className="w-full" onClick={toggleMenu}>
-                      <Button variant="outline" className="w-full border-getmore-purple text-getmore-purple hover:bg-getmore-purple hover:text-white">
-                        Sign In
-                      </Button>
-                    </Link>
-                    <Link to="/sign-up" className="w-full" onClick={toggleMenu}>
-                      <Button className="w-full bg-getmore-purple hover:bg-purple-700 text-white">Sign Up</Button>
-                    </Link>
-                  </div>
-                )}
+      {/* Mobile menu */}
+      {isOpen && (
+        <div className="md:hidden bg-white shadow-lg absolute top-16 left-0 right-0 z-20">
+          <div className="flex flex-col p-4 space-y-4">
+            <Link 
+              to="/" 
+              className="flex items-center py-2 px-4 hover:bg-gray-100 rounded-lg"
+              onClick={() => setIsOpen(false)}
+            >
+              <Home size={20} className="mr-2" />
+              Home
+            </Link>
+            <Link 
+              to="/shop" 
+              className="flex items-center py-2 px-4 hover:bg-gray-100 rounded-lg"
+              onClick={() => setIsOpen(false)}
+            >
+              <ShoppingBag size={20} className="mr-2" />
+              Shop
+            </Link>
+            <Link 
+              to="/categories" 
+              className="flex items-center py-2 px-4 hover:bg-gray-100 rounded-lg"
+              onClick={() => setIsOpen(false)}
+            >
+              Categories
+            </Link>
+            <Link 
+              to="/book-cab" 
+              className="flex items-center py-2 px-4 hover:bg-gray-100 rounded-lg"
+              onClick={() => setIsOpen(false)}
+            >
+              Book Cab
+            </Link>
+            <Link 
+              to="/how-it-works" 
+              className="flex items-center py-2 px-4 hover:bg-gray-100 rounded-lg"
+              onClick={() => setIsOpen(false)}
+            >
+              How It Works
+            </Link>
+            
+            {/* Auth buttons for mobile */}
+            {isAuthenticated ? (
+              <>
+                <Link 
+                  to="/profile" 
+                  className="flex items-center py-2 px-4 hover:bg-gray-100 rounded-lg"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <User size={20} className="mr-2" />
+                  Profile
+                </Link>
+                <Link 
+                  to="/orders" 
+                  className="flex items-center py-2 px-4 hover:bg-gray-100 rounded-lg"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <ShoppingBag size={20} className="mr-2" />
+                  Orders
+                </Link>
+                <button 
+                  onClick={handleLogout}
+                  className="flex items-center py-2 px-4 hover:bg-gray-100 rounded-lg text-left w-full"
+                >
+                  <LogOut size={20} className="mr-2" />
+                  Logout
+                </button>
+              </>
+            ) : (
+              <div className="flex flex-col space-y-2 pt-2">
+                <Link 
+                  to="/sign-in" 
+                  className="w-full py-2 border border-getmore-purple text-getmore-purple rounded-lg hover:bg-getmore-purple hover:text-white transition-colors text-center"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Sign In
+                </Link>
+                <Link 
+                  to="/sign-up" 
+                  className="w-full py-2 bg-getmore-purple text-white rounded-lg hover:bg-purple-700 transition-colors text-center"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Sign Up
+                </Link>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
-    </div>
+      
+      {/* Cart and Notifications components */}
+      <Cart />
+      <NotificationsPanel />
+    </>
   );
 };
 

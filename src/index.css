@@ -14,35 +14,29 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 262 74% 54%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 176 71% 56%;
-    --secondary-foreground: 0 0% 0%;
-
-    --accent: 16 100% 65%;
-    --accent-foreground: 0 0% 0%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 262 74% 54%;
+    --ring: 222.2 84% 4.9%;
 
-    --radius: 0.75rem;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --radius: 0.5rem;
+    
+    --getmore-purple: #6528F7;
+    --getmore-turquoise: #22A699;
   }
 
   .dark {
@@ -55,24 +49,24 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 262 74% 54%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 176 71% 56%;
-    --secondary-foreground: 0 0% 0%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 16 100% 65%;
-    --accent-foreground: 0 0% 0%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 262 74% 54%;
+    --ring: 212.7 26.8% 83.9%;
   }
 }
 
@@ -80,7 +74,6 @@
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground;
   }
@@ -88,50 +81,67 @@
 
 @layer components {
   .container-custom {
-    @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+    @apply container mx-auto px-4;
   }
   
   .btn-primary {
-    @apply bg-getmore-purple hover:bg-opacity-90 text-white px-6 py-3 rounded-lg font-medium transition-all shadow-md hover:shadow-lg;
+    @apply bg-getmore-purple text-white px-6 py-3 rounded-lg font-medium 
+           hover:bg-purple-700 transition-colors shadow-lg;
   }
   
   .btn-secondary {
-    @apply bg-getmore-turquoise hover:bg-opacity-90 text-black px-6 py-3 rounded-lg font-medium transition-all shadow-md hover:shadow-lg;
+    @apply bg-white text-getmore-purple border border-getmore-purple px-6 py-3 
+           rounded-lg font-medium hover:bg-getmore-purple hover:text-white 
+           transition-colors shadow-lg;
   }
   
-  .category-card {
-    @apply bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-gray-100;
-  }
-  
-  .product-card {
-    @apply bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition-all flex flex-col h-full border border-gray-100;
+  @screen md {
+    .btn-primary, .btn-secondary {
+      @apply px-8 py-3.5 text-lg;
+    }
   }
 }
 
-/* Custom animations */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes scaleIn {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-
+/* Animation Utilities */
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.6s ease-out forwards;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.animate-scale-in {
-  animation: scaleIn 0.3s ease-out forwards;
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
-.animate-pulse {
-  animation: pulse 1.5s ease-in-out infinite;
+@layer utilities {
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out forwards;
+  }
 }
