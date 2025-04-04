@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Car, MapPin, Loader } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Driver {
   id: number;
@@ -36,12 +37,18 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number }>(initialUserLocation || DEFAULT_CENTER);
   const [geolocating, setGeolocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
 
   // Get user's real location if available
   useEffect(() => {
     if (!initialUserLocation) {
       setGeolocating(true);
       if ('geolocation' in navigator) {
+        // Show toast to let user know we're requesting their location
+        toast.info("Location access required", {
+          description: "Please allow access to your location for better experience"
+        });
+
         navigator.geolocation.getCurrentPosition(
           (position) => {
             const userPos = {
@@ -54,23 +61,32 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
             // Center map on user position if map is already initialized
             if (map.current && mapLoaded) {
               map.current.flyTo({
-                center: [userPos.lng, userPos.lat],
+                center: [userPos.lng, userPos.lat] as [number, number],
                 zoom: 14,
                 essential: true
               });
             }
+            
+            toast.success("Location found", {
+              description: "Using your current location"
+            });
           },
           (error) => {
             console.error('Geolocation error:', error);
             setLocationError('Could not access your location. Using default position.');
             setGeolocating(false);
-            // Continue with default location
+            toast.error("Location error", {
+              description: "Using default location instead"
+            });
           },
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
       } else {
         setLocationError('Geolocation is not supported by your browser. Using default position.');
         setGeolocating(false);
+        toast.error("Location not supported", {
+          description: "Your browser doesn't support location services"
+        });
       }
     }
   }, [initialUserLocation]);
@@ -78,6 +94,18 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current) return;
+    
+    // First clear any existing map instance
+    if (map.current) {
+      map.current.remove();
+      map.current = null;
+    }
+    
+    // Make sure we have a token
+    if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'your-mapbox-token-here') {
+      setLocationError('Mapbox token is missing. Please contact support.');
+      return;
+    }
     
     // Use the pre-configured token
     mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -88,10 +116,14 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
       
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/streets-v12', // You can change this style as needed
+        style: 'mapbox://styles/mapbox/streets-v12',
         center: centerCoordinates,
         zoom: 13,
+        attributionControl: false
       });
+
+      // Add attribution control
+      map.current.addControl(new mapboxgl.AttributionControl(), 'bottom-right');
 
       // Add navigation controls
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
@@ -111,20 +143,38 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
         `;
         
         new mapboxgl.Marker({ element: userMarkerEl })
-          .setLngLat([userLocation.lng, userLocation.lat])
+          .setLngLat([userLocation.lng, userLocation.lat] as [number, number])
           .addTo(map.current!);
         
         // Add driver markers
         addDriverMarkers();
       });
+
+      // Handle map loading errors
+      map.current.on('error', (e) => {
+        console.error('Map error:', e);
+        setMapLoaded(false);
+        setLocationError('Error loading map. Please try again later.');
+        toast.error("Map error", {
+          description: "Couldn't load the map. Please try again."
+        });
+      });
     } catch (error) {
       console.error('Error initializing Mapbox map:', error);
       setMapLoaded(false);
+      setLocationError('Failed to initialize map. Please reload the page.');
+      toast.error("Map initialization failed", {
+        description: "Please check your internet connection and try again"
+      });
     }
 
     // Cleanup
     return () => {
-      if (map.current) map.current.remove();
+      if (map.current) {
+        markersRef.current.forEach(marker => marker.remove());
+        markersRef.current = [];
+        map.current.remove();
+      }
     };
   }, [userLocation]); // Reinitialize map when user location changes
 
@@ -139,8 +189,8 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
     if (!map.current) return;
     
     // Remove existing markers first to avoid duplicates
-    const existingMarkers = document.querySelectorAll('.driver-marker');
-    existingMarkers.forEach(marker => marker.remove());
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
     
     // Add driver markers
     drivers.forEach(driver => {
@@ -220,6 +270,9 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
         .setPopup(popup)
         .addTo(map.current!);
       
+      // Store reference for cleanup
+      markersRef.current.push(marker);
+      
       // Add click handler to both marker element and select button
       markerEl.addEventListener('click', () => {
         if (onDriverClick) {
@@ -261,16 +314,6 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
         >
           Try Again
         </button>
-      </div>
-    );
-  }
-
-  // Display loading state while map initializes
-  if (!mapLoaded) {
-    return (
-      <div className="bg-gray-100 rounded-xl flex flex-col items-center justify-center" style={{ height }}>
-        <div className="w-12 h-12 border-4 border-getmore-purple border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p>Loading map...</p>
       </div>
     );
   }
