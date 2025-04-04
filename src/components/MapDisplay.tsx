@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -102,7 +101,7 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
     }
     
     // Make sure we have a token
-    if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'your-mapbox-token-here') {
+    if (!MAPBOX_TOKEN || MAPBOX_TOKEN === '') {
       setLocationError('Mapbox token is missing. Please contact support.');
       return;
     }
