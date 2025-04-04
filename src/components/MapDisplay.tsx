@@ -1,5 +1,5 @@
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Car, MapPin, Loader } from 'lucide-react';
@@ -37,6 +37,67 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
   const [geolocating, setGeolocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const routeLinesRef = useRef<mapboxgl.Map['id'] | null[]>([]);
+  const driverProfilesRef = useRef<HTMLDivElement[]>([]);
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
+  const animationRef = useRef<number | null>(null);
+
+  // Clean up function to safely remove markers, route lines and event listeners
+  const cleanupMapResources = useCallback(() => {
+    try {
+      // Clear all markers
+      if (markersRef.current && markersRef.current.length > 0) {
+        markersRef.current.forEach(marker => {
+          if (marker) {
+            try {
+              marker.remove();
+            } catch (e) {
+              console.error('Error removing marker during cleanup:', e);
+            }
+          }
+        });
+        markersRef.current = [];
+      }
+
+      // Remove animation frame if it exists
+      if (animationRef.current !== null) {
+        window.cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+
+      // Remove route lines if they exist
+      if (map.current && routeLinesRef.current.length > 0) {
+        routeLinesRef.current.forEach(id => {
+          if (id && map.current?.getLayer(id)) {
+            try {
+              map.current.removeLayer(id);
+              map.current.removeSource(id);
+            } catch (e) {
+              console.error('Error removing route layer/source:', e);
+            }
+          }
+        });
+        routeLinesRef.current = [];
+      }
+
+      // Remove the map instance safely
+      if (map.current) {
+        try {
+          // Check if map container element still exists before trying to remove the map
+          if (mapContainer.current && document.body.contains(mapContainer.current)) {
+            map.current.remove();
+          } else {
+            console.log('Map container no longer in DOM, skipping map.remove()');
+          }
+        } catch (e) {
+          console.error('Error during map removal:', e);
+        }
+        map.current = null;
+      }
+    } catch (error) {
+      console.error('Error during map cleanup:', error);
+    }
+  }, []);
 
   useEffect(() => {
     if (!initialUserLocation) {
@@ -87,25 +148,96 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
     }
   }, [initialUserLocation, mapLoaded]);
 
+  // Function to draw route between driver and user
+  const drawRoute = useCallback((driverId: number, driverCoords: [number, number], userCoords: [number, number]) => {
+    if (!map.current || !mapLoaded) return;
+    
+    const sourceId = `route-source-${driverId}`;
+    const layerId = `route-layer-${driverId}`;
+    
+    // Check if source already exists and remove it
+    if (map.current.getSource(sourceId)) {
+      if (map.current.getLayer(layerId)) {
+        map.current.removeLayer(layerId);
+      }
+      map.current.removeSource(sourceId);
+    }
+    
+    // Add the route line
+    map.current.addSource(sourceId, {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: [driverCoords, userCoords]
+        }
+      }
+    });
+    
+    map.current.addLayer({
+      id: layerId,
+      type: 'line',
+      source: sourceId,
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': '#4285F4',
+        'line-width': 4,
+        'line-opacity': 0.8,
+        'line-dasharray': [0, 2]
+      }
+    });
+    
+    // Add to refs for cleanup
+    routeLinesRef.current.push(layerId);
+    routeLinesRef.current.push(sourceId);
+    
+    // Animate the dash pattern for moving effect
+    let dashArraySequence = [
+      [0, 4, 3],
+      [0.5, 4, 2.5],
+      [1, 4, 2],
+      [1.5, 4, 1.5],
+      [2, 4, 1],
+      [2.5, 4, 0.5],
+      [3, 4, 0],
+      [0, 0.5, 3, 3.5],
+      [0, 1, 3, 3],
+      [0, 1.5, 3, 2.5],
+      [0, 2, 3, 2],
+      [0, 2.5, 3, 1.5],
+      [0, 3, 3, 1],
+      [0, 3.5, 3, 0.5]
+    ];
+    
+    let step = 0;
+    
+    function animateDashArray(timestamp: number) {
+      if (!map.current || !map.current.getLayer(layerId)) return;
+      
+      // Update the dasharray
+      map.current.setPaintProperty(
+        layerId,
+        'line-dasharray',
+        dashArraySequence[step % dashArraySequence.length]
+      );
+      
+      step = (step + 1) % dashArraySequence.length;
+      animationRef.current = window.requestAnimationFrame(animateDashArray);
+    }
+    
+    animationRef.current = window.requestAnimationFrame(animateDashArray);
+  }, [mapLoaded]);
+
   useEffect(() => {
     if (!mapContainer.current) return;
     
     // Cleanup any existing map resources first
-    if (map.current) {
-      try {
-        markersRef.current.forEach(marker => {
-          if (marker) marker.remove();
-        });
-        markersRef.current = [];
-        
-        if (map.current && typeof map.current.remove === 'function') {
-          map.current.remove();
-        }
-      } catch (e) {
-        console.error('Error cleaning up existing map:', e);
-      }
-      map.current = null;
-    }
+    cleanupMapResources();
     
     // Set the token and initialize map with error handling
     try {
@@ -166,45 +298,24 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
       });
     }
 
-    // Improved cleanup function with safety checks
-    return () => {
-      if (map.current) {
-        try {
-          // First clear all markers safely
-          markersRef.current.forEach(marker => {
-            if (marker) {
-              try {
-                marker.remove();
-              } catch (e) {
-                console.error('Error removing marker:', e);
-              }
-            }
-          });
-          markersRef.current = [];
-          
-          // Then remove the map safely with checks
-          if (map.current && typeof map.current.remove === 'function') {
-            // Check if map container element still exists before trying to remove the map
-            if (mapContainer.current && document.body.contains(mapContainer.current)) {
-              map.current.remove();
-            } else {
-              // If container is gone, just nullify references
-              console.log('Map container no longer in DOM, skipping map.remove()');
-            }
-          }
-        } catch (e) {
-          console.error('Error during map cleanup:', e);
-        }
-        map.current = null;
-      }
-    };
-  }, [userLocation]);
+    // Cleanup function with safety checks
+    return cleanupMapResources;
+  }, [userLocation, cleanupMapResources]);
 
   useEffect(() => {
     if (map.current && mapLoaded) {
       addDriverMarkers();
     }
   }, [drivers, mapLoaded]);
+
+  // Effect to update route when selected driver changes
+  useEffect(() => {
+    if (selectedDriver && map.current && mapLoaded) {
+      const driverCoords: [number, number] = [selectedDriver.lng, selectedDriver.lat];
+      const userCoords: [number, number] = [userLocation.lng, userLocation.lat];
+      drawRoute(selectedDriver.id, driverCoords, userCoords);
+    }
+  }, [selectedDriver, mapLoaded, userLocation, drawRoute]);
 
   const addDriverMarkers = () => {
     if (!map.current) return;
@@ -254,6 +365,24 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
                 <circle cx="17" cy="17" r="2"></circle>
               </svg>
             </div>
+            ${driver.id === selectedDriver?.id ? `
+            <div class="absolute -top-28 w-44 bg-white p-2 rounded-md shadow-lg z-20 left-1/2 transform -translate-x-1/2">
+              <div class="flex flex-col items-center">
+                <img src="${driver.image}" alt="${driver.name}" class="w-12 h-12 rounded-full border-2 border-getmore-purple object-cover" />
+                <div class="text-center mt-1">
+                  <div class="font-bold">${driver.name}</div>
+                  <div class="text-sm text-gray-500">${driver.car}</div>
+                  <div class="flex items-center justify-center mt-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="yellow" stroke="orange" stroke-width="1">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                    <span class="text-sm ml-1">${driver.rating}/5</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="absolute -top-4 left-1/2 transform -translate-x-1/2 w-2 h-8 bg-white"></div>
+            ` : ''}
             <div class="absolute -bottom-1 w-6 h-1 bg-black/20 rounded-full mx-auto left-0 right-0"></div>
           </div>
         `;
@@ -299,25 +428,75 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
           markersRef.current.push(marker);
           
           markerEl.addEventListener('click', () => {
+            // Set this driver as selected
+            setSelectedDriver(driver);
+            
             if (onDriverClick) {
               onDriverClick(driver);
             }
           });
 
-          markerEl.addEventListener('mouseenter', () => {
-            if (map.current) {
-              popup.addTo(map.current);
-            }
-          });
+          // For non-selected drivers, show popup on hover
+          if (driver.id !== selectedDriver?.id) {
+            markerEl.addEventListener('mouseenter', () => {
+              if (map.current) {
+                popup.addTo(map.current);
+              }
+            });
 
-          markerEl.addEventListener('mouseleave', () => {
-            popup.remove();
-          });
+            markerEl.addEventListener('mouseleave', () => {
+              popup.remove();
+            });
+          }
         }
       } catch (e) {
         console.error('Error adding driver marker:', e);
       }
     });
+  };
+
+  // Function to simulate car movement along the route
+  const simulateCarMovement = (driverId: number) => {
+    if (!map.current || !selectedDriver) return;
+    
+    const marker = markersRef.current.find(m => {
+      const markerEl = m.getElement();
+      return markerEl.querySelector('.driver-marker');
+    });
+    
+    if (!marker) return;
+    
+    const startPoint = [selectedDriver.lng, selectedDriver.lat];
+    const endPoint = [userLocation.lng, userLocation.lat];
+    
+    // Calculate points along the route
+    const numPoints = 100;
+    const points = Array.from({ length: numPoints }).map((_, i) => {
+      const t = i / (numPoints - 1);
+      return [
+        startPoint[0] + (endPoint[0] - startPoint[0]) * t,
+        startPoint[1] + (endPoint[1] - startPoint[1]) * t
+      ] as [number, number];
+    });
+    
+    let currentPointIndex = 0;
+    
+    function animate() {
+      if (currentPointIndex >= points.length || !marker) {
+        return;
+      }
+      
+      marker.setLngLat(points[currentPointIndex]);
+      currentPointIndex++;
+      
+      if (currentPointIndex < points.length) {
+        setTimeout(() => {
+          window.requestAnimationFrame(animate);
+        }, 100); // Control speed of movement
+      }
+    }
+    
+    animate();
   };
 
   if (geolocating) {
@@ -357,6 +536,30 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
           <div className="flex items-center"><div className="w-3 h-3 bg-purple-600 rounded-full mr-1"></div><span className="text-xs">Premium</span></div>
           <div className="flex items-center"><div className="w-3 h-3 bg-orange-500 rounded-full mr-1"></div><span className="text-xs">SUV</span></div>
         </div>
+      </div>
+
+      <div className="absolute top-4 left-4 bg-white rounded-md shadow-md z-10 p-2">
+        {selectedDriver ? (
+          <div className="flex items-center">
+            <img src={selectedDriver.image} alt={selectedDriver.name} className="w-8 h-8 rounded-full mr-2 border border-getmore-purple" />
+            <div>
+              <p className="font-medium text-sm">{selectedDriver.name}</p>
+              <p className="text-xs text-gray-500">{selectedDriver.car}</p>
+            </div>
+            <button 
+              onClick={() => {
+                if (selectedDriver) {
+                  simulateCarMovement(selectedDriver.id);
+                }
+              }}
+              className="ml-3 bg-getmore-purple text-white text-xs px-2 py-1 rounded hover:bg-purple-700"
+            >
+              Simulate
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">Select a driver to see route</p>
+        )}
       </div>
 
       <button 
