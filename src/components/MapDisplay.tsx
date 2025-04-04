@@ -37,7 +37,8 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
   const [geolocating, setGeolocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
-  const routeLinesRef = useRef<mapboxgl.Map['id'] | null[]>([]);
+  // Fix: Change the type from Map['id'] to string - these are just layer/source IDs we create
+  const routeLinesRef = useRef<string[]>([]);
   const driverProfilesRef = useRef<HTMLDivElement[]>([]);
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
   const animationRef = useRef<number | null>(null);
@@ -68,10 +69,14 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
       // Remove route lines if they exist
       if (map.current && routeLinesRef.current.length > 0) {
         routeLinesRef.current.forEach(id => {
-          if (id && map.current?.getLayer(id)) {
+          if (id && map.current) {
             try {
-              map.current.removeLayer(id);
-              map.current.removeSource(id);
+              if (map.current.getLayer(id)) {
+                map.current.removeLayer(id);
+              }
+              if (map.current.getSource(id)) {
+                map.current.removeSource(id);
+              }
             } catch (e) {
               console.error('Error removing route layer/source:', e);
             }
@@ -192,7 +197,7 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
       }
     });
     
-    // Add to refs for cleanup
+    // Add to refs for cleanup - store the string IDs
     routeLinesRef.current.push(layerId);
     routeLinesRef.current.push(sourceId);
     
