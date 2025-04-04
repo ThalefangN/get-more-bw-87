@@ -83,12 +83,13 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
     mapboxgl.accessToken = MAPBOX_TOKEN;
     
     try {
-      const center = [userLocation.lng, userLocation.lat];
+      // Fix: Use a tuple for the center coordinates
+      const centerCoordinates: [number, number] = [userLocation.lng, userLocation.lat];
       
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/streets-v12', // You can change this style as needed
-        center: center,
+        center: centerCoordinates,
         zoom: 13,
       });
 
@@ -210,9 +211,12 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
         </div>
       `);
       
+      // Fix: Use a tuple for the LngLat coordinates
+      const driverCoordinates: [number, number] = [driver.lng, driver.lat];
+      
       // Create marker and add to map
       const marker = new mapboxgl.Marker({ element: markerEl })
-        .setLngLat([driver.lng, driver.lat])
+        .setLngLat(driverCoordinates)
         .setPopup(popup)
         .addTo(map.current!);
       
@@ -291,8 +295,11 @@ const MapDisplay = ({ drivers = [], userLocation: initialUserLocation, onDriverC
       <button 
         onClick={() => {
           if (map.current) {
+            // Fix: Use a tuple for the center coordinates
+            const centerCoordinates: [number, number] = [userLocation.lng, userLocation.lat];
+            
             map.current.flyTo({
-              center: [userLocation.lng, userLocation.lat],
+              center: centerCoordinates,
               zoom: 14,
               essential: true
             });
