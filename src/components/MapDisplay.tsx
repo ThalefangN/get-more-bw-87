@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Car, MapPin, Loader } from 'lucide-react';
+import { Car, MapPin, Loader, X, User } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Driver {
@@ -30,6 +30,15 @@ const DEFAULT_CENTER = { lat: -24.6282, lng: 25.9231 };
 // Updated Mapbox token
 const MAPBOX_TOKEN = 'pk.eyJ1IjoidGhhbGVmYW5nbiIsImEiOiJjbTduZWxmeGcwMGVsMmpxdHdnNDE5eWV5In0.3vBZkIw59Js0YIlogvKuzQ';
 
+// Additional sample drivers to populate the map
+const additionalDrivers: Driver[] = [
+  { id: 101, name: "Mpho Kgosidintsi", car: "Toyota Corolla", cabType: 'comfort', lat: -24.6392, lng: 25.9131, rating: 4.7, phone: "+267 71112233", image: "https://randomuser.me/api/portraits/men/42.jpg" },
+  { id: 102, name: "Gorata Tlotleng", car: "Honda Fit", cabType: 'standard', lat: -24.6182, lng: 25.9431, rating: 4.8, phone: "+267 72223344", image: "https://randomuser.me/api/portraits/women/35.jpg" },
+  { id: 103, name: "Kagiso Molefhi", car: "BMW 5 Series", cabType: 'premium', lat: -24.6452, lng: 25.9031, rating: 4.9, phone: "+267 73334455", image: "https://randomuser.me/api/portraits/men/64.jpg" },
+  { id: 104, name: "Naledi Moremi", car: "Toyota Fortuner", cabType: 'suv', lat: -24.6352, lng: 25.9531, rating: 4.7, phone: "+267 74445566", image: "https://randomuser.me/api/portraits/women/52.jpg" },
+  { id: 105, name: "Thabo Seretse", car: "Mazda 3", cabType: 'comfort', lat: -24.6082, lng: 25.9131, rating: 4.6, phone: "+267 75556677", image: "https://randomuser.me/api/portraits/men/18.jpg" },
+];
+
 const MapDisplay = ({ 
   drivers = [], 
   userLocation: initialUserLocation, 
@@ -54,6 +63,9 @@ const MapDisplay = ({
   const [simulationActive, setSimulationActive] = useState(false);
   const routePointsRef = useRef<[number, number][]>([]);
   const currentPointIndexRef = useRef(0);
+  const [showProfile, setShowProfile] = useState(true);
+  // Combine provided drivers with additional sample drivers
+  const allDrivers = [...drivers, ...additionalDrivers];
 
   // Clean up function to safely remove markers, route lines and event listeners
   const cleanupMapResources = useCallback(() => {
@@ -261,14 +273,18 @@ const MapDisplay = ({
         console.log("Map loaded successfully");
         setMapLoaded(true);
         
-        // Add user marker with pulsing effect
+        // Add user marker with pulsing effect and user icon
         const userMarkerEl = document.createElement('div');
         userMarkerEl.className = 'relative';
         userMarkerEl.innerHTML = `
-          <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white z-10 relative">
-            <div class="w-2 h-2 bg-white rounded-full"></div>
+          <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white z-10 relative">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user">
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
           </div>
-          <div class="absolute top-0 left-0 w-12 h-12 -mt-3 -ml-3 bg-blue-500 rounded-full animate-ping opacity-60"></div>
+          <div class="absolute top-0 left-0 w-12 h-12 -mt-2 -ml-2 bg-blue-500 rounded-full animate-ping opacity-60"></div>
+          <div class="absolute -bottom-1 w-6 h-1 bg-black/20 rounded-full mx-auto left-0 right-0"></div>
         `;
         
         if (map.current) {
@@ -306,7 +322,7 @@ const MapDisplay = ({
     if (map.current && mapLoaded) {
       addDriverMarkers();
     }
-  }, [drivers, mapLoaded]);
+  }, [allDrivers, mapLoaded, showProfile]);
 
   // Effect to update route when selected driver changes
   useEffect(() => {
@@ -339,7 +355,7 @@ const MapDisplay = ({
     });
     markersRef.current = [];
     
-    drivers.forEach(driver => {
+    allDrivers.forEach(driver => {
       try {
         const markerEl = document.createElement('div');
         markerEl.className = 'driver-marker';
@@ -372,8 +388,13 @@ const MapDisplay = ({
                 <circle cx="17" cy="17" r="2"></circle>
               </svg>
             </div>
-            ${driver.id === selectedDriver?.id ? `
+            ${driver.id === selectedDriver?.id && showProfile ? `
             <div class="absolute -top-28 w-44 bg-white p-2 rounded-md shadow-lg z-20 left-1/2 transform -translate-x-1/2">
+              <div class="absolute top-1 right-1 cursor-pointer hover:bg-gray-100 p-1 rounded-full z-50" onclick="window.hideDriverProfile(${driver.id})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
+                </svg>
+              </div>
               <div class="flex flex-col items-center">
                 <img src="${driver.image}" alt="${driver.name}" class="w-12 h-12 rounded-full border-2 border-getmore-purple object-cover" />
                 <div class="text-center mt-1">
@@ -441,6 +462,7 @@ const MapDisplay = ({
           markerEl.addEventListener('click', () => {
             // Set this driver as selected
             setSelectedDriver(driver);
+            setShowProfile(true); // Show profile when selecting a driver
             
             if (onDriverClick) {
               onDriverClick(driver);
@@ -465,6 +487,24 @@ const MapDisplay = ({
       }
     });
   };
+
+  // Function to hide driver profile
+  const hideDriverProfile = (driverId: number) => {
+    if (selectedDriver?.id === driverId) {
+      setShowProfile(false);
+    }
+  };
+
+  // Add the function to the window object so the onclick handler can access it
+  useEffect(() => {
+    // @ts-ignore - Adding custom function to window
+    window.hideDriverProfile = hideDriverProfile;
+    
+    return () => {
+      // @ts-ignore - Clean up
+      delete window.hideDriverProfile;
+    };
+  }, [selectedDriver]);
 
   // Enhanced function to simulate car movement along the route with arrival notification
   const simulateCarMovement = (driverId: number) => {
@@ -651,13 +691,21 @@ const MapDisplay = ({
               <p className="font-medium text-sm">{selectedDriver.name}</p>
               <p className="text-xs text-gray-500">{selectedDriver.car}</p>
             </div>
-            <button 
-              onClick={() => simulateCarMovement(selectedDriver.id)}
-              disabled={simulationActive}
-              className={`ml-3 ${simulationActive ? 'bg-gray-300' : 'bg-getmore-purple'} text-white text-xs px-2 py-1 rounded hover:bg-purple-700 transition-colors`}
-            >
-              {simulationActive ? 'En Route' : 'Simulate'}
-            </button>
+            <div className="flex ml-2 gap-2">
+              <button 
+                onClick={() => setShowProfile(!showProfile)}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-2 py-1 rounded transition-colors"
+              >
+                {showProfile ? 'Hide' : 'Show'} Profile
+              </button>
+              <button 
+                onClick={() => simulateCarMovement(selectedDriver.id)}
+                disabled={simulationActive}
+                className={`${simulationActive ? 'bg-gray-300' : 'bg-getmore-purple'} text-white text-xs px-2 py-1 rounded hover:bg-purple-700 transition-colors`}
+              >
+                {simulationActive ? 'En Route' : 'Simulate'}
+              </button>
+            </div>
           </div>
         ) : (
           <p className="text-sm text-gray-500">Select a driver to see route</p>

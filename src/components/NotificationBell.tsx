@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -68,7 +69,7 @@ const NotificationBell = () => {
                       {notification.title}
                     </h4>
                     <span className="text-xs text-gray-500">
-                      {formatTime(notification.created_at)}
+                      {formatTime(new Date(notification.created_at))}
                     </span>
                   </div>
                   <p className="text-sm text-gray-600">{notification.message}</p>
