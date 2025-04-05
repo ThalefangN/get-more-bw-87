@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -15,6 +15,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -56,6 +57,7 @@ const formSchema = z.object({
 const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState(1);
+  const [signupError, setSignupError] = useState<string | null>(null);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -86,11 +88,13 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
   const prevStep = () => {
     if (step > 1) {
       setStep(step - 1);
+      setSignupError(null); // Clear any errors when going back
     }
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
+    setSignupError(null);
     
     try {
       // Step 1: Create user account first in Supabase Auth
@@ -129,8 +133,15 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
         .insert([driverData]);
       
       if (driverError) {
-        // Cleanup: If driver record creation fails, delete the auth user
-        await supabase.auth.admin.deleteUser(authData.user.id);
+        console.error("Driver registration error:", driverError);
+        
+        // If specific error related to RLS policy, provide a clearer message
+        if (driverError.message?.includes('violates row-level security policy')) {
+          throw new Error("Registration failed due to security policy. Please try again or contact support.");
+        }
+        
+        // Clean up auth user if driver record creation fails
+        await supabase.auth.signOut();
         throw driverError;
       }
       
@@ -146,6 +157,10 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
       
     } catch (error: any) {
       console.error("Driver signup error:", error);
+      
+      // Set a user-friendly error message
+      setSignupError(error.message || "Registration failed. Please try again later.");
+      
       toast.error("Registration failed", {
         description: error.message || "Please try again later.",
       });
@@ -157,6 +172,14 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Error alert */}
+        {signupError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{signupError}</AlertDescription>
+          </Alert>
+        )}
+        
         {/* Step indicator */}
         <div className="flex items-center justify-center mb-6">
           <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step === 1 ? 'bg-getmore-purple text-white' : 'bg-gray-200'} mr-2`}>

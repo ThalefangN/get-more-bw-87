@@ -5,28 +5,31 @@ import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 
 interface User {
-  id?: string; // Added id property to fix TypeScript errors
+  id?: string; 
   name: string;
   email: string;
   address?: {
     street: string;
     city: string;
   };
+  role?: string;
 }
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   isAuthenticated: boolean;
-  login: (userData: User) => void;
-  logout: () => void;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -52,16 +55,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               .eq('id', session.user.id)
               .single();
 
-            if (error) throw error;
+            if (error && error.code !== 'PGRST116') {
+              throw error;
+            }
 
             const userProfile: User = {
-              id: session.user.id, // Ensure id is passed from session user
-              name: data.name || session.user.email?.split('@')[0] || 'User',
-              email: data.email || session.user.email || '',
-              address: {
+              id: session.user.id,
+              name: data?.name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+              email: data?.email || session.user.email || '',
+              address: data ? {
                 street: data.street || '',
                 city: data.city || ''
-              }
+              } : undefined,
+              role: data?.role || 'user'
             };
 
             setUser(userProfile);
@@ -70,8 +76,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.error('Error fetching user profile:', error);
             // If profile fetch fails, still set basic user info
             const userProfile: User = {
-              id: session.user.id, // Ensure id is passed from session user
-              name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+              id: session.user.id,
+              name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
               email: session.user.email || '',
             };
             setUser(userProfile);
@@ -106,10 +112,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const login = async (userData: User) => {
-    // In the real app with Supabase, the actual login happens elsewhere
-    // This function is kept for backward compatibility but won't be used directly
-    console.log('Legacy login function called with:', userData);
+  const login = async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (error) throw error;
+      
+      toast.success('Signed in successfully');
+      return data;
+    } catch (error: any) {
+      console.error('Error signing in:', error);
+      toast.error('Error signing in', {
+        description: error.message
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = async () => {
@@ -120,18 +140,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw error;
       }
       setUser(null);
+      setSession(null);
       setIsAuthenticated(false);
       toast.success('Signed out successfully');
     } catch (error: any) {
       console.error('Error signing out:', error);
-      toast.error('Error signing out. Please try again.');
+      toast.error('Error signing out', {
+        description: error.message
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session, 
+      isAuthenticated, 
+      isLoading,
+      login, 
+      logout 
+    }}>
       {children}
     </AuthContext.Provider>
   );

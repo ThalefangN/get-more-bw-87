@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Car, LogOut, User, Clock, DollarSign, MapPin, 
-  Truck, BarChart3, Settings, Bell, MessageSquare, CheckCircle, AlertCircle
+  Truck, BarChart3, Settings, Bell, MessageSquare, CheckCircle, AlertCircle, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -27,22 +27,49 @@ const DriverDashboard = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [driverData, setDriverData] = useState<DriverData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
   
+  // Effect for auth state changes
   useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!session) {
+          // Not authenticated, redirect to login
+          navigate('/driver-login');
+          return;
+        }
+        
+        setUser(session.user);
+        
+        // Use setTimeout to prevent Supabase auth deadlock
+        setTimeout(() => {
+          fetchDriverData(session.user.id);
+        }, 0);
+      }
+    );
+    
+    // Check for existing session
     const checkAuth = async () => {
       const { data } = await supabase.auth.getSession();
       
       if (!data.session) {
         // Not authenticated, redirect to login
+        setIsLoading(false);
         navigate('/driver-login');
         return;
       }
+      
+      setUser(data.session.user);
       
       // Fetch driver data
       fetchDriverData(data.session.user.id);
     };
     
     checkAuth();
+    
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [navigate]);
   
   const fetchDriverData = async (userId: string) => {
@@ -58,9 +85,24 @@ const DriverDashboard = () => {
       if (data) {
         setDriverData(data as DriverData);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching driver data:", error);
-      toast.error("Could not load driver profile");
+      toast.error("Could not load driver profile", {
+        description: error.message
+      });
+      
+      // If the error is specifically that no driver record was found, redirect to signup
+      if (error.code === 'PGRST116') {
+        toast.error("Driver profile not found", {
+          description: "No driver account is associated with your login. Please sign up first."
+        });
+        
+        // Sign out and redirect to driver signup
+        setTimeout(async () => {
+          await supabase.auth.signOut();
+          navigate('/driver-signup');
+        }, 2000);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -90,10 +132,13 @@ const DriverDashboard = () => {
     
     try {
       await supabase.auth.signOut();
-      navigate('/');
-    } catch (error) {
+      localStorage.removeItem('driverProfile');
+      navigate('/driver-login');
+    } catch (error: any) {
       console.error("Error signing out:", error);
-      toast.error("Logout failed. Please try again.");
+      toast.error("Logout failed. Please try again.", {
+        description: error.message
+      });
     }
   };
   
@@ -101,8 +146,38 @@ const DriverDashboard = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin w-12 h-12 border-4 border-getmore-purple border-t-transparent rounded-full mx-auto mb-4"></div>
+          <Loader2 className="w-12 h-12 animate-spin text-getmore-purple mx-auto mb-4" />
           <p className="text-gray-600">Loading driver profile...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // If we have a user but no driver data, show an error
+  if (user && !driverData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md p-6 bg-white rounded-lg shadow-md">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold mb-2">No Driver Profile Found</h1>
+          <p className="text-gray-600 mb-4">
+            Your account exists, but no driver profile is associated with it. 
+            Please register as a driver or contact support.
+          </p>
+          <div className="flex justify-center space-x-4">
+            <Button 
+              variant="outline" 
+              onClick={handleLogout}
+            >
+              Sign Out
+            </Button>
+            <Button 
+              onClick={() => navigate('/driver-signup')}
+              className="bg-getmore-purple hover:bg-purple-700"
+            >
+              Register as Driver
+            </Button>
+          </div>
         </div>
       </div>
     );

@@ -1,13 +1,14 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Car, LogIn, ChevronRight, User } from 'lucide-react';
+import { Car, LogIn, ChevronRight, User, AlertCircle } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Form,
   FormControl,
@@ -32,6 +33,29 @@ const formSchema = z.object({
 const DriverLogin = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        // If session exists, check if driver record exists
+        const { data: driverData } = await supabase
+          .from('drivers')
+          .select('*')
+          .eq('id', data.session.user.id)
+          .single();
+          
+        if (driverData) {
+          // Driver already logged in, redirect to dashboard
+          navigate('/driver-dashboard');
+        }
+      }
+    };
+    
+    checkSession();
+  }, [navigate]);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -43,6 +67,7 @@ const DriverLogin = () => {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
+    setLoginError(null);
     
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -63,6 +88,7 @@ const DriverLogin = () => {
         if (driverError) {
           if (driverError.code === 'PGRST116') {
             // No matching driver record found
+            setLoginError("No driver account associated with this email. Please sign up first.");
             toast.error("Account not found", {
               description: "No driver account associated with this email. Please sign up first.",
             });
@@ -98,6 +124,7 @@ const DriverLogin = () => {
       }
     } catch (error: any) {
       console.error("Login error:", error);
+      setLoginError(error.message || "Please check your credentials and try again.");
       toast.error("Login failed", {
         description: error.message || "Please check your credentials and try again.",
       });
@@ -119,6 +146,13 @@ const DriverLogin = () => {
             </div>
             
             <div className="p-8">
+              {loginError && (
+                <Alert variant="destructive" className="mb-6">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{loginError}</AlertDescription>
+                </Alert>
+              )}
+              
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <FormField
