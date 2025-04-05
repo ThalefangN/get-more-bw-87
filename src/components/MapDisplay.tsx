@@ -167,7 +167,7 @@ const MapDisplay = ({
     }
   }, [initialUserLocation, mapLoaded]);
 
-  const drawRoute = useCallback((driverId: number, driverCoords: [number, number], userCoords: [number, number]) => {
+  const drawRoute = useCallback(async (driverId: number, driverCoords: [number, number], userCoords: [number, number]) => {
     if (!map.current || !mapLoaded) return;
     
     const sourceId = `route-source-${driverId}`;
@@ -180,100 +180,158 @@ const MapDisplay = ({
       map.current.removeSource(sourceId);
     }
 
-    const numPoints = 200;
-    const points: [number, number][] = [];
-    
-    const midX = (driverCoords[0] + userCoords[0]) / 2;
-    const midY = (driverCoords[1] + userCoords[1]) / 2;
-    
-    const distance = Math.sqrt(
-      Math.pow(userCoords[0] - driverCoords[0], 2) + 
-      Math.pow(userCoords[1] - driverCoords[1], 2)
-    );
-    
-    const offsetScale = distance * 0.25;
-    const jitter = distance * 0.05;
-    const randomOffset = (Math.random() - 0.5) * jitter;
-    
-    const dx = userCoords[0] - driverCoords[0];
-    const dy = userCoords[1] - driverCoords[1];
-    const perpX = -dy;
-    const perpY = dx;
-    
-    const perpLength = Math.sqrt(perpX * perpX + perpY * perpY);
-    const normPerpX = perpX / perpLength;
-    const normPerpY = perpY / perpLength;
-    
-    const offsetX = normPerpX * offsetScale + randomOffset;
-    const offsetY = normPerpY * offsetScale + randomOffset;
-    
-    const controlPoint1: [number, number] = [
-      midX + offsetX * 0.8, 
-      midY + offsetY * 0.8
-    ];
-    
-    const controlPoint2: [number, number] = [
-      midX + offsetX * 0.3, 
-      midY + offsetY * 0.3
-    ];
-    
-    for (let i = 0; i <= numPoints; i++) {
-      const t = i / numPoints;
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/directions/v5/mapbox/driving/${driverCoords[0]},${driverCoords[1]};${userCoords[0]},${userCoords[1]}?steps=true&geometries=geojson&access_token=${MAPBOX_TOKEN}`
+      );
       
-      const omt = 1 - t;
-      const omt2 = omt * omt;
-      const omt3 = omt2 * omt;
-      const t2 = t * t;
-      const t3 = t2 * t;
+      const data = await response.json();
       
-      const x = omt3 * driverCoords[0] + 
-                3 * omt2 * t * controlPoint1[0] + 
-                3 * omt * t2 * controlPoint2[0] + 
-                t3 * userCoords[0];
-                
-      const y = omt3 * driverCoords[1] + 
-                3 * omt2 * t * controlPoint1[1] + 
-                3 * omt * t2 * controlPoint2[1] + 
-                t3 * userCoords[1];
+      if (data.code !== 'Ok' || !data.routes || !data.routes[0]) {
+        console.error('No route found:', data);
+        throw new Error('No route found');
+      }
       
-      points.push([x, y]);
-    }
-    
-    routePointsRef.current = points;
-    
-    map.current.addSource(sourceId, {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'LineString',
-          coordinates: points
+      const route = data.routes[0];
+      const routeCoordinates = route.geometry.coordinates;
+      
+      routePointsRef.current = routeCoordinates;
+      
+      map.current.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: routeCoordinates
+          }
         }
+      });
+      
+      map.current.addLayer({
+        id: layerId,
+        type: 'line',
+        source: sourceId,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#6528F7',
+          'line-width': 8,
+          'line-opacity': 0.85,
+          'line-dasharray': [0, 4, 3],
+          'line-gap-width': 1
+        }
+      });
+      
+      routeLinesRef.current.push(layerId);
+      routeLinesRef.current.push(sourceId);
+      
+      return routeCoordinates;
+    } catch (error) {
+      console.error('Error fetching route:', error);
+      
+      const numPoints = 200;
+      const points: [number, number][] = [];
+      
+      const midX = (driverCoords[0] + userCoords[0]) / 2;
+      const midY = (driverCoords[1] + userCoords[1]) / 2;
+      
+      const distance = Math.sqrt(
+        Math.pow(userCoords[0] - driverCoords[0], 2) + 
+        Math.pow(userCoords[1] - driverCoords[1], 2)
+      );
+      
+      const offsetScale = distance * 0.25;
+      const jitter = distance * 0.05;
+      const randomOffset = (Math.random() - 0.5) * jitter;
+      
+      const dx = userCoords[0] - driverCoords[0];
+      const dy = userCoords[1] - driverCoords[1];
+      const perpX = -dy;
+      const perpY = dx;
+      
+      const perpLength = Math.sqrt(perpX * perpX + perpY * perpY);
+      const normPerpX = perpX / perpLength;
+      const normPerpY = perpY / perpLength;
+      
+      const offsetX = normPerpX * offsetScale + randomOffset;
+      const offsetY = normPerpY * offsetScale + randomOffset;
+      
+      const controlPoint1: [number, number] = [
+        midX + offsetX * 0.8, 
+        midY + offsetY * 0.8
+      ];
+      
+      const controlPoint2: [number, number] = [
+        midX + offsetX * 0.3, 
+        midY + offsetY * 0.3
+      ];
+      
+      for (let i = 0; i <= numPoints; i++) {
+        const t = i / numPoints;
+        
+        const omt = 1 - t;
+        const omt2 = omt * omt;
+        const omt3 = omt2 * omt;
+        const t2 = t * t;
+        const t3 = t2 * t;
+        
+        const x = omt3 * driverCoords[0] + 
+                  3 * omt2 * t * controlPoint1[0] + 
+                  3 * omt * t2 * controlPoint2[0] + 
+                  t3 * userCoords[0];
+                  
+        const y = omt3 * driverCoords[1] + 
+                  3 * omt2 * t * controlPoint1[1] + 
+                  3 * omt * t2 * controlPoint2[1] + 
+                  t3 * userCoords[1];
+        
+        points.push([x, y]);
       }
-    });
-    
-    map.current.addLayer({
-      id: layerId,
-      type: 'line',
-      source: sourceId,
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': '#6528F7',
-        'line-width': 8,
-        'line-opacity': 0.85,
-        'line-dasharray': [0, 4, 3],
-        'line-gap-width': 1
-      }
-    });
-    
-    routeLinesRef.current.push(layerId);
-    routeLinesRef.current.push(sourceId);
-    
-    return points;
+      
+      routePointsRef.current = points;
+      
+      map.current.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: points
+          }
+        }
+      });
+      
+      map.current.addLayer({
+        id: layerId,
+        type: 'line',
+        source: sourceId,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#6528F7',
+          'line-width': 8,
+          'line-opacity': 0.85,
+          'line-dasharray': [0, 4, 3],
+          'line-gap-width': 1
+        }
+      });
+      
+      routeLinesRef.current.push(layerId);
+      routeLinesRef.current.push(sourceId);
+      
+      toast.error("Using simplified route", {
+        description: "Couldn't load road route, using approximate path"
+      });
+      
+      return points;
+    }
   }, [mapLoaded]);
 
   useEffect(() => {
@@ -583,6 +641,29 @@ const MapDisplay = ({
       return bearing;
     };
     
+    if (!userMarkerRef.current && map.current) {
+      const destinationEl = document.createElement('div');
+      destinationEl.className = 'destination-marker';
+      destinationEl.innerHTML = `
+        <div class="relative">
+          <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white z-10 relative">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div class="absolute -bottom-1 w-6 h-1 bg-black/20 rounded-full mx-auto left-0 right-0"></div>
+        </div>
+      `;
+      
+      const lastPoint = routePointsRef.current[routePointsRef.current.length - 1];
+      const destinationMarker = new mapboxgl.Marker({ element: destinationEl })
+        .setLngLat(lastPoint)
+        .addTo(map.current);
+      
+      userMarkerRef.current = destinationMarker;
+    }
+
     const animateCar = () => {
       if (currentPointIndexRef.current >= routePointsRef.current.length - 1) {
         if (!driverArrived) {
