@@ -177,7 +177,7 @@ const MapDisplay = ({
     }
   }, [initialUserLocation, mapLoaded]);
 
-  // Function to draw route between driver and user with enhanced styling
+  // Enhanced function to draw route between driver and user
   const drawRoute = useCallback((driverId: number, driverCoords: [number, number], userCoords: [number, number]) => {
     if (!map.current || !mapLoaded) return;
     
@@ -192,16 +192,32 @@ const MapDisplay = ({
       map.current.removeSource(sourceId);
     }
 
-    // Generate more points along the route for smoother animation
+    // Calculate bezier curve points for a more natural path
     const numPoints = 100;
     const points: [number, number][] = [];
     
+    // Midpoint calculation for bezier control point
+    const midX = (driverCoords[0] + userCoords[0]) / 2;
+    const midY = (driverCoords[1] + userCoords[1]) / 2;
+    
+    // Add slight offset to make curve look more like a road path
+    const offsetX = (driverCoords[1] - userCoords[1]) * 0.2; // perpendicular offset
+    const controlPoint: [number, number] = [midX + offsetX, midY];
+    
+    // Generate bezier curve points
     for (let i = 0; i <= numPoints; i++) {
       const t = i / numPoints;
-      points.push([
-        driverCoords[0] + (userCoords[0] - driverCoords[0]) * t,
-        driverCoords[1] + (userCoords[1] - driverCoords[1]) * t
-      ]);
+      
+      // Quadratic bezier curve formula
+      const x = Math.pow(1-t, 2) * driverCoords[0] + 
+               2 * (1-t) * t * controlPoint[0] + 
+               Math.pow(t, 2) * userCoords[0];
+               
+      const y = Math.pow(1-t, 2) * driverCoords[1] + 
+               2 * (1-t) * t * controlPoint[1] + 
+               Math.pow(t, 2) * userCoords[1];
+      
+      points.push([x, y]);
     }
     
     // Store points for animation
@@ -231,7 +247,7 @@ const MapDisplay = ({
       },
       paint: {
         'line-color': '#6528F7', // GetMore purple
-        'line-width': 6,         // Make the line thicker
+        'line-width': 6,         // Bold line
         'line-opacity': 0.8,
       }
     });
@@ -752,3 +768,4 @@ const MapDisplay = ({
 };
 
 export default MapDisplay;
+
