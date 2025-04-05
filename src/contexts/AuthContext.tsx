@@ -12,7 +12,7 @@ interface User {
     street: string;
     city: string;
   };
-  role?: string;
+  role?: string; // Keep the role in our interface since we use it
 }
 
 interface AuthContextType {
@@ -49,16 +49,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Use setTimeout to prevent Supabase auth deadlock issues
         setTimeout(async () => {
           try {
+            // First check if this is a driver
+            const { data: driverData, error: driverError } = await supabase
+              .from('drivers')
+              .select('*')
+              .eq('id', session.user.id)
+              .maybeSingle();
+              
+            if (driverData) {
+              // This is a driver
+              const userProfile: User = {
+                id: session.user.id,
+                name: driverData.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+                email: driverData.email || session.user.email || '',
+                role: 'driver' // Set role as driver
+              };
+              setUser(userProfile);
+              setIsAuthenticated(true);
+              setIsLoading(false);
+              return;
+            }
+
+            // If not a driver, check regular profile
             const { data, error } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
 
             if (error && error.code !== 'PGRST116') {
               throw error;
             }
 
+            // Create user profile from data
             const userProfile: User = {
               id: session.user.id,
               name: data?.name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
@@ -67,7 +90,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 street: data.street || '',
                 city: data.city || ''
               } : undefined,
-              role: data?.role || 'user'
+              // Since profiles table doesn't have a role field, set a default role
+              role: 'user'
             };
 
             setUser(userProfile);
@@ -79,6 +103,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               id: session.user.id,
               name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
               email: session.user.email || '',
+              role: 'user' // Default role
             };
             setUser(userProfile);
             setIsAuthenticated(true);
@@ -120,7 +145,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) throw error;
       
       toast.success('Signed in successfully');
-      return data;
+      // Don't return data, as our type expects void
     } catch (error: any) {
       console.error('Error signing in:', error);
       toast.error('Error signing in', {
