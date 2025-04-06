@@ -4,6 +4,7 @@ import { CreditCard, Smartphone, Calendar, Users, Lock } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
 
 interface PaymentMethod {
   id: string;
@@ -78,14 +79,14 @@ const PaymentMethodSelection = ({ paymentMethod, onPaymentMethodChange }: Paymen
             key={method.id}
             className={`border p-4 rounded-lg flex items-center cursor-pointer transition-all ${
               paymentMethod === method.id 
-                ? 'border-emerald-400 bg-emerald-50 shadow-sm' 
-                : 'border-gray-200 hover:border-emerald-200 hover:bg-emerald-50/50'
+                ? 'border-getmore-purple bg-purple-50 shadow-sm' 
+                : 'border-gray-200 hover:border-getmore-purple hover:bg-purple-50/50'
             }`}
           >
             <RadioGroupItem value={method.id} id={method.id} className="mr-4" />
             <div className="flex items-center flex-1">
               <method.icon className={`h-5 w-5 ${
-                paymentMethod === method.id ? 'text-emerald-600' : 'text-gray-400'
+                paymentMethod === method.id ? 'text-getmore-purple' : 'text-gray-400'
               } mr-3`} />
               <label htmlFor={method.id} className="font-medium cursor-pointer block">
                 {method.name}
@@ -98,7 +99,7 @@ const PaymentMethodSelection = ({ paymentMethod, onPaymentMethodChange }: Paymen
       {/* Bank payment form */}
       {paymentMethod === 'bank' && (
         <div className="mt-6 animate-fade-in">
-          <div className="relative mb-6 p-4 bg-gradient-to-r from-emerald-800 to-emerald-600 rounded-lg shadow-lg text-white">
+          <div className="relative mb-6 p-4 bg-gradient-to-r from-getmore-purple to-getmore-turquoise rounded-lg shadow-lg text-white">
             <div className="absolute top-2 right-2">
               <CreditCard className="h-8 w-8 text-white opacity-80" />
             </div>
@@ -116,59 +117,64 @@ const PaymentMethodSelection = ({ paymentMethod, onPaymentMethodChange }: Paymen
             </div>
           </div>
           
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="card-number">Card Number</Label>
-              <Input 
-                id="card-number" 
-                value={cardNumber} 
-                onChange={handleCardNumberChange}
-                className="font-mono"
-                maxLength={19}
-                placeholder="1234 5678 9012 3456"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="card-name">Cardholder Name</Label>
-              <Input 
-                id="card-name" 
-                value={cardName} 
-                onChange={(e) => setCardName(e.target.value)}
-                placeholder="John Doe"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
+          <Card className="p-5 border border-purple-100">
+            <div className="space-y-4">
               <div>
-                <Label htmlFor="expiry" className="flex items-center">
-                  <Calendar className="w-4 h-4 mr-1" />
-                  Expiry Date
-                </Label>
+                <Label htmlFor="card-number" className="text-getmore-purple">Card Number</Label>
                 <Input 
-                  id="expiry" 
-                  value={expiry} 
-                  onChange={handleExpiryChange}
-                  placeholder="MM/YY"
-                  maxLength={5}
+                  id="card-number" 
+                  value={cardNumber} 
+                  onChange={handleCardNumberChange}
+                  className="font-mono border-2 focus:border-getmore-purple"
+                  maxLength={19}
+                  placeholder="1234 5678 9012 3456"
                 />
               </div>
+              
               <div>
-                <Label htmlFor="cvv" className="flex items-center">
-                  <Lock className="w-4 h-4 mr-1" />
-                  CVV
-                </Label>
+                <Label htmlFor="card-name" className="text-getmore-purple">Cardholder Name</Label>
                 <Input 
-                  id="cvv" 
-                  value={cvv} 
-                  onChange={(e) => setCvv(e.target.value)}
-                  type="password"
-                  maxLength={3}
-                  placeholder="123"
+                  id="card-name" 
+                  value={cardName} 
+                  onChange={(e) => setCardName(e.target.value)}
+                  placeholder="John Doe"
+                  className="border-2 focus:border-getmore-purple"
                 />
               </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="expiry" className="flex items-center text-getmore-purple">
+                    <Calendar className="w-4 h-4 mr-1" />
+                    Expiry Date
+                  </Label>
+                  <Input 
+                    id="expiry" 
+                    value={expiry} 
+                    onChange={handleExpiryChange}
+                    placeholder="MM/YY"
+                    maxLength={5}
+                    className="border-2 focus:border-getmore-purple"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cvv" className="flex items-center text-getmore-purple">
+                    <Lock className="w-4 h-4 mr-1" />
+                    CVV
+                  </Label>
+                  <Input 
+                    id="cvv" 
+                    value={cvv} 
+                    onChange={(e) => setCvv(e.target.value)}
+                    type="password"
+                    maxLength={3}
+                    placeholder="123"
+                    className="border-2 focus:border-getmore-purple"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
+          </Card>
         </div>
       )}
     </div>
