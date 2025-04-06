@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { MapPin, MessageSquare, Phone, Star, X, Headphones, User } from 'lucide-react';
 
-const WaitingAreaModal = ({ isOpen, onClose, driverInfo }) => {
+const WaitingAreaModal = ({ isOpen, onClose, driver }) => {
   const [driverStatus, setDriverStatus] = useState('waiting');
   const [showDriverProfile, setShowDriverProfile] = useState(true);
   const audioRef = useRef(null);
@@ -50,10 +51,10 @@ const WaitingAreaModal = ({ isOpen, onClose, driverInfo }) => {
           <div className="mt-4 flex items-center space-x-4">
             <User className="h-10 w-10 rounded-full bg-gray-200 p-2" />
             <div>
-              <p className="font-medium">{driverInfo.name}</p>
+              <p className="font-medium">{driver.name}</p>
               <div className="flex items-center space-x-2 text-gray-500">
                 <Star className="h-4 w-4" />
-                <span>{driverInfo.rating}</span>
+                <span>{driver.rating}</span>
               </div>
             </div>
           </div>
@@ -69,7 +70,7 @@ const WaitingAreaModal = ({ isOpen, onClose, driverInfo }) => {
         <div className="mt-6 flex justify-between">
           <div className="flex items-center space-x-2">
             <MapPin className="h-5 w-5 text-gray-500" />
-            <span className="text-sm text-gray-500">{driverInfo.location}</span>
+            <span className="text-sm text-gray-500">{driver.location ? `${driver.distance || 'Nearby'}` : driver.phone}</span>
           </div>
 
           <div className="flex items-center space-x-4">
