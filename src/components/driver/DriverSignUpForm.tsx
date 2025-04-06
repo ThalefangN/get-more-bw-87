@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -117,9 +116,10 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
         throw new Error("Failed to create user account");
       }
       
-      // Step 2: Create driver record in our drivers table with the SAME ID as the auth user
+      // Step 2: Create driver record in our drivers table WITHOUT using the same ID
+      // This is the key change - we'll create a driver record with its own UUID
       const driverData = {
-        id: authData.user.id, // This is critical - must match the auth.users id
+        // Remove the ID field so Supabase generates a new UUID
         full_name: values.full_name,
         email: values.email,
         phone: values.phone,
@@ -136,11 +136,6 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
       
       if (driverError) {
         console.error("Driver registration error:", driverError);
-        
-        // Clean up auth user if driver record creation fails
-        // Note: We keep this commented out to avoid deleting the auth account
-        // if there's an issue with the driver record. The user can try again.
-        // await supabase.auth.signOut();
         
         // If specific error related to foreign key, provide a clearer message
         if (driverError.message?.includes('violates foreign key constraint') ||
