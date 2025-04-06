@@ -72,11 +72,12 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
   const [activeTab, setActiveTab] = useState<'map' | 'chat'>('map');
   const [messages, setMessages] = useState<Message[]>(sampleMessages);
   const [newMessage, setNewMessage] = useState('');
-  const [estimatedTime, setEstimatedTime] = useState('5 minutes');
+  const [estimatedTime, setEstimatedTime] = useState('2 minutes');
   const [mapLoaded, setMapLoaded] = useState(false);
   const [showCallOptions, setShowCallOptions] = useState(false);
   const [simulateArrival, setSimulateArrival] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showDriverProfile, setShowDriverProfile] = useState(true);
 
   // Simulate map loading
   useEffect(() => {
@@ -86,9 +87,9 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
     return () => clearTimeout(timer);
   }, []);
 
-  // Simulate countdown for arrival
+  // Simulate countdown for arrival - reduced to 2 minutes (120 seconds)
   useEffect(() => {
-    let seconds = 300; // 5 minutes in seconds
+    let seconds = 120; // 2 minutes in seconds
     const interval = setInterval(() => {
       seconds -= 1;
       if (seconds <= 0) {
@@ -175,6 +176,17 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
     setSimulateArrival(true);
   };
 
+  // Toggle driver profile visibility
+  const toggleDriverProfile = () => {
+    setShowDriverProfile(!showDriverProfile);
+    // Call the global function in MapDisplay to hide/show driver profile
+    if (showDriverProfile) {
+      window.hideDriverProfile(driver.id);
+    } else {
+      window.showDriverProfile(driver.id);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
@@ -248,6 +260,24 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
                     Watch Driver Approach
                   </button>
                 )}
+
+                {/* Add button to toggle driver profile visibility */}
+                <button
+                  onClick={toggleDriverProfile}
+                  className="bg-blue-500 text-white py-2 px-4 rounded-md shadow-md hover:bg-blue-600 transition-colors flex items-center justify-center"
+                >
+                  {showDriverProfile ? (
+                    <>
+                      <X size={16} className="mr-2" />
+                      Hide Driver Profile
+                    </>
+                  ) : (
+                    <>
+                      <User size={16} className="mr-2" />
+                      Show Driver Profile
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           )}

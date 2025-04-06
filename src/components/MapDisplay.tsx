@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -66,7 +67,8 @@ const MapDisplay = ({
   const [journeyProgress, setJourneyProgress] = useState(0);
   const lastUpdateTimeRef = useRef<number>(0);
   const simulationStartTimeRef = useRef<number>(0);
-  const SIMULATION_DURATION_MS = 600000;
+  // Changed from 10 minutes (600000ms) to 2 minutes (120000ms)
+  const SIMULATION_DURATION_MS = 120000;
 
   const cleanupMapResources = useCallback(() => {
     try {
@@ -489,8 +491,9 @@ const MapDisplay = ({
             ${driver.id === selectedDriver?.id && showProfile ? `
             <div class="absolute -top-28 w-44 bg-white p-2 rounded-md shadow-lg z-20 left-1/2 transform -translate-x-1/2">
               <div class="absolute top-1 right-1 cursor-pointer hover:bg-gray-100 p-1 rounded-full z-50" onclick="window.hideDriverProfile(${driver.id})">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="yellow" stroke="orange" stroke-width="1">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
               </div>
               <div class="flex flex-col items-center">
@@ -589,10 +592,18 @@ const MapDisplay = ({
     }
   };
 
+  const showDriverProfile = (driverId: number) => {
+    if (selectedDriver?.id === driverId) {
+      setShowProfile(true);
+    }
+  };
+
   useEffect(() => {
     window.hideDriverProfile = hideDriverProfile;
+    window.showDriverProfile = showDriverProfile;
     return () => {
       delete window.hideDriverProfile;
+      delete window.showDriverProfile;
     };
   }, [selectedDriver]);
 
@@ -674,6 +685,7 @@ const MapDisplay = ({
     const animateCar = () => {
       const currentTime = Date.now();
       const elapsedTime = currentTime - simulationStartTimeRef.current;
+      // Use the reduced simulation time (2 minutes)
       const progress = Math.min(elapsedTime / SIMULATION_DURATION_MS, 1);
       setJourneyProgress(Math.floor(progress * 100));
       
@@ -740,6 +752,7 @@ const MapDisplay = ({
     
     if (simulationActive) {
       const remainingPercent = 100 - journeyProgress;
+      // Calculate remaining time based on 2 minutes duration
       const minutesRemaining = Math.ceil((remainingPercent / 100) * (SIMULATION_DURATION_MS / 60000));
       
       return (
@@ -767,6 +780,32 @@ const MapDisplay = ({
     return null;
   };
 
+  // Add toggle button for driver profile
+  const renderToggleProfileButton = () => {
+    if (!selectedDriver) return null;
+    
+    return (
+      <div className="absolute bottom-4 right-4 z-40">
+        <button 
+          onClick={() => setShowProfile(!showProfile)}
+          className="bg-getmore-purple text-white px-3 py-2 rounded-lg shadow-lg flex items-center"
+        >
+          {showProfile ? (
+            <>
+              <X size={16} className="mr-1" />
+              <span>Hide Driver Profile</span>
+            </>
+          ) : (
+            <>
+              <User size={16} className="mr-1" />
+              <span>Show Driver Profile</span>
+            </>
+          )}
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="relative" style={{ height }}>
       {locationError && (
@@ -788,6 +827,7 @@ const MapDisplay = ({
       )}
       
       {showETA()}
+      {selectedDriver && renderToggleProfileButton()}
       
       <div ref={mapContainer} className="w-full h-full rounded-lg overflow-hidden"></div>
     </div>
@@ -795,3 +835,11 @@ const MapDisplay = ({
 };
 
 export default MapDisplay;
+
+// Add typings for the window object to support the global functions
+declare global {
+  interface Window {
+    hideDriverProfile: (driverId: number) => void;
+    showDriverProfile: (driverId: number) => void;
+  }
+}
