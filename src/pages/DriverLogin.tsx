@@ -4,7 +4,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Car, LogIn, ChevronRight, User, AlertCircle, Mail } from 'lucide-react';
+import { Car, LogIn, ChevronRight, User, AlertCircle, Mail, ArrowLeft } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -187,8 +187,18 @@ const DriverLogin = () => {
       <Navbar />
       <div className="pt-24 pb-16 bg-gray-50 min-h-screen flex items-center">
         <div className="container-custom max-w-lg">
+          <div className="mb-6">
+            <button
+              onClick={() => navigate('/')}
+              className="inline-flex items-center text-gray-600 hover:text-getmore-purple transition-colors"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to home
+            </button>
+          </div>
+          
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="bg-getmore-purple p-6 text-center text-white">
+            <div className="bg-gradient-to-r from-getmore-purple to-purple-600 p-6 text-center text-white">
               <Car size={48} className="mx-auto mb-2" />
               <h1 className="text-2xl font-bold">Driver Login</h1>
               <p className="text-sm opacity-80">Sign in to your driver account</p>
