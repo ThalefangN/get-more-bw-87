@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Car, LogIn, ChevronRight, User, AlertCircle } from 'lucide-react';
+import { Car, LogIn, ChevronRight, User, AlertCircle, Mail } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -32,11 +32,25 @@ const formSchema = z.object({
 
 const DriverLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [resendEmailLoading, setResendEmailLoading] = useState(false);
+  const [emailForVerification, setEmailForVerification] = useState<string | null>(null);
+  const [showVerificationMessage, setShowVerificationMessage] = useState(false);
 
-  // Check if user is already logged in
+  // Check URL parameters for verification status
   useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const verified = queryParams.get('verified');
+    
+    if (verified === 'true') {
+      toast.success("Email verified successfully", {
+        description: "You can now log in to your account."
+      });
+    }
+    
+    // Check if user is already logged in
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
       if (data.session) {
@@ -55,7 +69,7 @@ const DriverLogin = () => {
     };
     
     checkSession();
-  }, [navigate]);
+  }, [navigate, location]);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -65,9 +79,39 @@ const DriverLogin = () => {
     },
   });
 
+  // Function to resend verification email
+  const handleResendVerification = async () => {
+    if (!emailForVerification) return;
+    
+    setResendEmailLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: emailForVerification,
+        options: {
+          emailRedirectTo: window.location.origin + '/driver-login?verified=true'
+        }
+      });
+      
+      if (error) throw error;
+      
+      toast.success("Verification email sent", {
+        description: "Please check your inbox and spam folder."
+      });
+    } catch (error: any) {
+      console.error("Error sending verification email:", error);
+      toast.error("Failed to send verification email", {
+        description: error.message
+      });
+    } finally {
+      setResendEmailLoading(false);
+    }
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     setLoginError(null);
+    setShowVerificationMessage(false);
     
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -75,7 +119,15 @@ const DriverLogin = () => {
         password: values.password,
       });
       
-      if (error) throw error;
+      if (error) {
+        // Check if this is a "Email not confirmed" error
+        if (error.message?.includes('Email not confirmed')) {
+          setEmailForVerification(values.email);
+          setShowVerificationMessage(true);
+          throw new Error("Please verify your email address before logging in.");
+        }
+        throw error;
+      }
       
       if (data) {
         // Fetch the driver details to verify they exist
@@ -150,6 +202,23 @@ const DriverLogin = () => {
                 <Alert variant="destructive" className="mb-6">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{loginError}</AlertDescription>
+                </Alert>
+              )}
+              
+              {showVerificationMessage && (
+                <Alert className="mb-6 bg-amber-50 border-amber-300">
+                  <Mail className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-700">
+                    Please verify your email address before logging in. 
+                    <Button 
+                      variant="link" 
+                      className="text-amber-700 underline p-0 h-auto ml-1"
+                      onClick={handleResendVerification}
+                      disabled={resendEmailLoading}
+                    >
+                      {resendEmailLoading ? "Sending..." : "Resend verification email"}
+                    </Button>
+                  </AlertDescription>
                 </Alert>
               )}
               

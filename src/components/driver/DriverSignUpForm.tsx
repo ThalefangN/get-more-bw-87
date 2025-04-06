@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -97,7 +96,7 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
     setSignupError(null);
     
     try {
-      // Step 1: Create user account first in Supabase Auth
+      // Step 1: Create user account first in Supabase Auth with email confirmation
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
@@ -107,6 +106,7 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
             phone: values.phone,
             role: 'driver'
           },
+          emailRedirectTo: window.location.origin + '/driver-login'
         }
       });
       
@@ -116,21 +116,7 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
         throw new Error("Failed to create user account");
       }
       
-      // Step 2: Create profile record first to satisfy foreign key constraint
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([{
-          id: authData.user.id,
-          email: values.email,
-          name: values.full_name
-        }]);
-        
-      if (profileError) {
-        console.error("Profile creation error:", profileError);
-        throw new Error("Failed to create user profile");
-      }
-      
-      // Step 3: Create driver record in our drivers table
+      // Step 2: Create driver record in our drivers table
       const driverData = {
         id: authData.user.id,
         full_name: values.full_name,
@@ -162,12 +148,10 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
       
       // All steps completed successfully
       toast.success("Application submitted successfully", {
-        description: "Your driver application is now under review.",
+        description: "Please check your email to confirm your account.",
       });
       
-      // Sign out as we need to re-authenticate after email verification
-      await supabase.auth.signOut();
-      
+      // No need to sign out as we want them to verify their email
       onSignUpSuccess();
       
     } catch (error: any) {

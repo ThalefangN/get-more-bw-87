@@ -33,6 +33,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Check URL for auth action, handle email confirmation redirects
+    const handleEmailConfirmation = async () => {
+      const url = window.location.href;
+      if (url.includes('#access_token=')) {
+        const params = new URLSearchParams(url.split('#')[1]);
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        const type = params.get('type');
+        
+        if (accessToken && type === 'recovery') {
+          // Handle password recovery if needed
+          console.log("Password recovery flow detected");
+        } else if (accessToken && refreshToken) {
+          try {
+            // Set the session using the tokens from the URL
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            
+            if (error) throw error;
+            
+            if (data.session) {
+              toast.success("Email verified successfully");
+              
+              // If this is after a driver signup, redirect to driver login
+              if (window.location.pathname.includes('driver')) {
+                setTimeout(() => {
+                  window.location.href = '/driver-login';
+                }, 1000);
+              }
+            }
+          } catch (error) {
+            console.error("Error setting session:", error);
+            toast.error("Failed to verify email. Please try again.");
+          }
+        }
+      }
+    };
+    
+    handleEmailConfirmation();
+    
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
