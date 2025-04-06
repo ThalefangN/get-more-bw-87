@@ -14,7 +14,7 @@ const DriverSignUp = () => {
   const handleSignupSuccess = () => {
     // Navigate to login page with success message
     toast.success("Sign up successful", {
-      description: "Please sign in to access your driver dashboard."
+      description: "Please check your email to verify your account, then sign in to access your driver dashboard."
     });
     
     setTimeout(() => {

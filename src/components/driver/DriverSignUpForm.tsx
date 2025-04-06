@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -106,7 +107,7 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
             phone: values.phone,
             role: 'driver'
           },
-          emailRedirectTo: window.location.origin + '/driver-login'
+          emailRedirectTo: window.location.origin + '/driver-login?verified=true'
         }
       });
       

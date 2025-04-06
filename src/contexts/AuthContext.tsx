@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               // If this is after a driver signup, redirect to driver login
               if (window.location.pathname.includes('driver')) {
                 setTimeout(() => {
-                  window.location.href = '/driver-login';
+                  window.location.href = '/driver-login?verified=true';
                 }, 1000);
               }
             }

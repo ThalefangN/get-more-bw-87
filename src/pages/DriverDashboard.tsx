@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DriverData {
   id: string;
@@ -24,6 +25,7 @@ interface DriverData {
 
 const DriverDashboard = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, logout } = useAuth();
   const [isOnline, setIsOnline] = useState(false);
   const [driverData, setDriverData] = useState<DriverData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,7 +34,7 @@ const DriverDashboard = () => {
   // Effect for auth state changes
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (!session) {
           // Not authenticated, redirect to login
           navigate('/driver-login');
@@ -99,7 +101,7 @@ const DriverDashboard = () => {
         
         // Sign out and redirect to driver signup
         setTimeout(async () => {
-          await supabase.auth.signOut();
+          await logout();
           navigate('/driver-signup');
         }, 2000);
       }
@@ -131,7 +133,7 @@ const DriverDashboard = () => {
     toast.info("Logging out...");
     
     try {
-      await supabase.auth.signOut();
+      await logout();
       localStorage.removeItem('driverProfile');
       navigate('/driver-login');
     } catch (error: any) {

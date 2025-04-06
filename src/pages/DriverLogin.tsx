@@ -20,6 +20,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 const formSchema = z.object({
   email: z.string().email({
@@ -33,6 +34,7 @@ const formSchema = z.object({
 const DriverLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [resendEmailLoading, setResendEmailLoading] = useState(false);
@@ -114,72 +116,67 @@ const DriverLogin = () => {
     setShowVerificationMessage(false);
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: values.email,
-        password: values.password,
-      });
+      // Use login from AuthContext instead of direct Supabase call
+      await login(values.email, values.password);
       
-      if (error) {
-        // Check if this is a "Email not confirmed" error
-        if (error.message?.includes('Email not confirmed')) {
-          setEmailForVerification(values.email);
-          setShowVerificationMessage(true);
-          throw new Error("Please verify your email address before logging in.");
+      // After successful login, check if driver record exists
+      const { data: driverData, error: driverError } = await supabase
+        .from('drivers')
+        .select('*')
+        .eq('email', values.email)
+        .single();
+        
+      if (driverError) {
+        if (driverError.code === 'PGRST116') {
+          // No matching driver record found
+          setLoginError("No driver account associated with this email. Please sign up first.");
+          toast.error("Account not found", {
+            description: "No driver account associated with this email. Please sign up first.",
+          });
+          await supabase.auth.signOut();
+          return;
         }
-        throw error;
+        throw driverError;
       }
       
-      if (data) {
-        // Fetch the driver details to verify they exist
-        const { data: driverData, error: driverError } = await supabase
-          .from('drivers')
-          .select('*')
-          .eq('email', values.email)
-          .single();
-          
-        if (driverError) {
-          if (driverError.code === 'PGRST116') {
-            // No matching driver record found
-            setLoginError("No driver account associated with this email. Please sign up first.");
-            toast.error("Account not found", {
-              description: "No driver account associated with this email. Please sign up first.",
-            });
-            await supabase.auth.signOut();
-            return;
-          }
-          throw driverError;
-        }
-        
-        // Store driver data in local storage for easy access
-        localStorage.setItem('driverProfile', JSON.stringify(driverData));
-        
-        // Check if the account is verified/approved by admin
-        if (driverData.status === 'pending') {
-          toast.info("Account pending verification", {
-            description: "Your driver account is pending verification by our admin team. You can check your status in the dashboard.",
-          });
-        } else if (driverData.status === 'rejected') {
-          toast.error("Account verification failed", {
-            description: "Your driver application was not approved. Please contact support for more information.",
-          });
-          // Even with rejected status, we'll let them log in to see details
-        } else if (driverData.status === 'active') {
-          toast.success("Login successful!", {
-            description: "Welcome back to GetMore BW.",
-          });
-        }
-        
-        // Navigate to the driver dashboard after successful login
-        setTimeout(() => {
-          navigate('/driver-dashboard');
-        }, 1000);
+      // Store driver data in local storage for easy access
+      localStorage.setItem('driverProfile', JSON.stringify(driverData));
+      
+      // Check if the account is verified/approved by admin
+      if (driverData.status === 'pending') {
+        toast.info("Account pending verification", {
+          description: "Your driver account is pending verification by our admin team. You can check your status in the dashboard.",
+        });
+      } else if (driverData.status === 'rejected') {
+        toast.error("Account verification failed", {
+          description: "Your driver application was not approved. Please contact support for more information.",
+        });
+        // Even with rejected status, we'll let them log in to see details
+      } else if (driverData.status === 'active') {
+        toast.success("Login successful!", {
+          description: "Welcome back to GetMore BW.",
+        });
       }
+      
+      // Navigate to the driver dashboard after successful login
+      setTimeout(() => {
+        navigate('/driver-dashboard');
+      }, 1000);
+      
     } catch (error: any) {
       console.error("Login error:", error);
-      setLoginError(error.message || "Please check your credentials and try again.");
-      toast.error("Login failed", {
-        description: error.message || "Please check your credentials and try again.",
-      });
+      
+      // Check if this is a "Email not confirmed" error
+      if (error.message?.includes('Email not confirmed')) {
+        setEmailForVerification(values.email);
+        setShowVerificationMessage(true);
+        setLoginError("Please verify your email address before logging in.");
+      } else {
+        setLoginError(error.message || "Please check your credentials and try again.");
+        toast.error("Login failed", {
+          description: error.message || "Please check your credentials and try again.",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
