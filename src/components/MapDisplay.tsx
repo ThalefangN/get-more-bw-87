@@ -63,11 +63,10 @@ const MapDisplay = ({
   const [showProfile, setShowProfile] = useState(true);
   const allDrivers = [...drivers, ...additionalDrivers];
   
-  // Add progress tracking for simulation
   const [journeyProgress, setJourneyProgress] = useState(0);
   const lastUpdateTimeRef = useRef<number>(0);
   const simulationStartTimeRef = useRef<number>(0);
-  const SIMULATION_DURATION_MS = 600000; // 10 minutes in milliseconds
+  const SIMULATION_DURATION_MS = 600000;
 
   const cleanupMapResources = useCallback(() => {
     try {
@@ -490,8 +489,8 @@ const MapDisplay = ({
             ${driver.id === selectedDriver?.id && showProfile ? `
             <div class="absolute -top-28 w-44 bg-white p-2 rounded-md shadow-lg z-20 left-1/2 transform -translate-x-1/2">
               <div class="absolute top-1 right-1 cursor-pointer hover:bg-gray-100 p-1 rounded-full z-50" onclick="window.hideDriverProfile(${driver.id})">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="yellow" stroke="orange" stroke-width="1">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                 </svg>
               </div>
               <div class="flex flex-col items-center">
@@ -597,7 +596,6 @@ const MapDisplay = ({
     };
   }, [selectedDriver]);
 
-  // Completely revised car movement simulation to be much slower (10 minutes)
   const simulateCarMovement = (driverId: number) => {
     if (!map.current || !selectedDriver) return;
 
@@ -673,16 +671,13 @@ const MapDisplay = ({
       userMarkerRef.current = destinationMarker;
     }
 
-    // New slower animation function based on elapsed time rather than animation frames
     const animateCar = () => {
-      // Calculate progress based on elapsed time
       const currentTime = Date.now();
       const elapsedTime = currentTime - simulationStartTimeRef.current;
       const progress = Math.min(elapsedTime / SIMULATION_DURATION_MS, 1);
       setJourneyProgress(Math.floor(progress * 100));
       
       if (progress >= 1) {
-        // Journey complete
         if (!driverArrived) {
           const lastPoint = routePointsRef.current[routePointsRef.current.length - 1];
           if (driverMarkerRef.current) {
@@ -691,4 +686,112 @@ const MapDisplay = ({
           
           setDriverArrived(true);
           setSimulationActive(false);
-          const audio = new Audio('data:audio/wav;base64,//uQRAAA
+          const audio = new Audio('/arrival-sound.mp3');
+          audio.play().catch(e => console.log('Auto-play prevented:', e));
+          
+          toast.success("Driver has arrived!", {
+            description: `${selectedDriver.name} has arrived at your location.`,
+            duration: 5000
+          });
+          
+          return;
+        }
+      }
+      
+      const routeIndex = Math.floor(progress * (routePointsRef.current.length - 1));
+      const currentPoint = routePointsRef.current[routeIndex];
+      const nextPoint = routePointsRef.current[Math.min(routeIndex + 1, routePointsRef.current.length - 1)];
+      
+      const bearing = calculateBearing(currentPoint, nextPoint);
+      
+      if (animatedCarMarker && map.current) {
+        animatedCarMarker.setLngLat(currentPoint);
+        
+        const markerEl = animatedCarMarker.getElement();
+        if (markerEl) {
+          const carIcon = markerEl.querySelector('svg');
+          if (carIcon) {
+            carIcon.style.transform = `rotate(${bearing}deg)`;
+          }
+        }
+      }
+      
+      if (!driverArrived) {
+        animationRef.current = window.requestAnimationFrame(animateCar);
+      }
+    };
+    
+    animateCar();
+  };
+
+  const showETA = () => {
+    if (!selectedDriver || !simulateArrival) return null;
+    
+    if (driverArrived) {
+      return (
+        <div className="bg-getmore-purple text-white rounded-lg p-3 absolute top-4 left-1/2 transform -translate-x-1/2 shadow-lg z-40">
+          <div className="flex items-center">
+            <Car size={18} className="mr-2" />
+            <span>Driver has arrived!</span>
+          </div>
+        </div>
+      );
+    }
+    
+    if (simulationActive) {
+      const remainingPercent = 100 - journeyProgress;
+      const minutesRemaining = Math.ceil((remainingPercent / 100) * (SIMULATION_DURATION_MS / 60000));
+      
+      return (
+        <div className="bg-white rounded-lg p-3 absolute top-4 left-1/2 transform -translate-x-1/2 shadow-lg z-40">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center">
+              <Car size={18} className="mr-2 text-getmore-purple" />
+              <span>
+                {minutesRemaining <= 1 
+                  ? 'Arriving now' 
+                  : `Arriving in ${minutesRemaining} min`}
+              </span>
+            </div>
+            <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-getmore-purple" 
+                style={{ width: `${journeyProgress}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    return null;
+  };
+
+  return (
+    <div className="relative" style={{ height }}>
+      {locationError && (
+        <div className="absolute inset-0 flex items-center justify-center z-50 bg-gray-100 bg-opacity-80 rounded-lg">
+          <div className="text-center p-4 bg-white rounded-lg shadow-lg">
+            <X className="text-red-500 mx-auto mb-2" size={32} />
+            <p className="text-gray-700">{locationError}</p>
+          </div>
+        </div>
+      )}
+      
+      {geolocating && (
+        <div className="absolute inset-0 flex items-center justify-center z-50 bg-gray-100 bg-opacity-60 rounded-lg">
+          <div className="text-center p-4">
+            <Loader className="text-getmore-purple mx-auto animate-spin mb-2" size={32} />
+            <p className="text-gray-700">Detecting your location...</p>
+          </div>
+        </div>
+      )}
+      
+      {showETA()}
+      
+      <div ref={mapContainer} className="w-full h-full rounded-lg overflow-hidden"></div>
+    </div>
+  );
+};
+
+export default MapDisplay;
