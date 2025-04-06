@@ -178,26 +178,26 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
         <DialogContent className="sm:max-w-lg">
           {step === 'fare' && (
             <div className="py-6">
-              <h2 className="text-2xl font-bold text-center mb-6">Enter Your Fare Budget</h2>
+              <h2 className="text-2xl font-bold text-center mb-6 text-getmore-purple">Enter Your Fare Budget</h2>
               <div className="space-y-4">
                 <div className="text-center mb-8">
-                  <p className="text-gray-600 mb-4">
+                  <p className="text-gray-600 mb-6 bg-purple-50 p-4 rounded-lg shadow-sm border border-purple-100">
                     Enter how much you're willing to pay for your ride. 
-                    Minimum fare is P30.
+                    <span className="block mt-1 font-medium text-getmore-purple">Minimum fare is P30.</span>
                   </p>
                   <div className="relative inline-block">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-bold">P</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-getmore-purple">P</span>
                     <Input
                       type="number"
                       min={30}
                       value={fare}
                       onChange={(e) => setFare(e.target.value)}
                       placeholder="Minimum P30"
-                      className="text-lg pl-8 pr-4 py-6 text-center font-bold w-40"
+                      className="text-lg pl-10 pr-4 py-6 text-center font-bold w-48 rounded-2xl border-2 border-getmore-purple shadow-md focus:ring-2 focus:ring-purple-300 transition-all"
                     />
                   </div>
                   {fare && Number(fare) < 30 && (
-                    <p className="text-red-500 mt-2">Minimum fare is P30</p>
+                    <p className="text-red-500 mt-2 animate-pulse">Minimum fare is P30</p>
                   )}
                 </div>
                 
@@ -205,7 +205,7 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
                   <Button 
                     onClick={handleFareSubmit} 
                     disabled={!fare || Number(fare) < 30}
-                    className="bg-getmore-purple hover:bg-purple-700 px-8 py-6 text-lg"
+                    className="bg-getmore-purple hover:bg-purple-700 px-10 py-6 text-lg rounded-full shadow-lg transition-all transform hover:scale-105 disabled:opacity-60"
                   >
                     Find Drivers
                   </Button>
