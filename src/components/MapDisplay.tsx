@@ -62,6 +62,12 @@ const MapDisplay = ({
   const currentPointIndexRef = useRef(0);
   const [showProfile, setShowProfile] = useState(true);
   const allDrivers = [...drivers, ...additionalDrivers];
+  
+  // Add progress tracking for simulation
+  const [journeyProgress, setJourneyProgress] = useState(0);
+  const lastUpdateTimeRef = useRef<number>(0);
+  const simulationStartTimeRef = useRef<number>(0);
+  const SIMULATION_DURATION_MS = 600000; // 10 minutes in milliseconds
 
   const cleanupMapResources = useCallback(() => {
     try {
@@ -591,13 +597,16 @@ const MapDisplay = ({
     };
   }, [selectedDriver]);
 
+  // Completely revised car movement simulation to be much slower (10 minutes)
   const simulateCarMovement = (driverId: number) => {
     if (!map.current || !selectedDriver) return;
 
     setSimulationActive(true);
     setDriverArrived(false);
+    setJourneyProgress(0);
     
     currentPointIndexRef.current = 0;
+    simulationStartTimeRef.current = Date.now();
     
     const carMarkerEl = document.createElement('div');
     carMarkerEl.className = 'car-marker-animated';
@@ -664,208 +673,22 @@ const MapDisplay = ({
       userMarkerRef.current = destinationMarker;
     }
 
+    // New slower animation function based on elapsed time rather than animation frames
     const animateCar = () => {
-      if (currentPointIndexRef.current >= routePointsRef.current.length - 1) {
+      // Calculate progress based on elapsed time
+      const currentTime = Date.now();
+      const elapsedTime = currentTime - simulationStartTimeRef.current;
+      const progress = Math.min(elapsedTime / SIMULATION_DURATION_MS, 1);
+      setJourneyProgress(Math.floor(progress * 100));
+      
+      if (progress >= 1) {
+        // Journey complete
         if (!driverArrived) {
+          const lastPoint = routePointsRef.current[routePointsRef.current.length - 1];
+          if (driverMarkerRef.current) {
+            driverMarkerRef.current.setLngLat(lastPoint);
+          }
+          
           setDriverArrived(true);
           setSimulationActive(false);
-          const audio = new Audio('data:audio/wav;base64,//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAGDgYtAgAyN+QWaAAihwMWm4G8QQRDiMcCBcH3Cc+CDv/7xA4Tvh9Rz/y8QADBwMWgQAZG/ILNAARQ4GLTcDeIIIhxGOBAuD7hOfBB3/94gcJ3w+o5/5eIAIAAAVwWgQAVQ2ORaIQwEMAJiDg95G4nQL7mQVWI6GwRcfsZAcsKkJvxgxEjzFUgfHoSQ9Qq7KNwqHwuB13MA4a1q/DmBrHgPcmjiGoh//EwC5nGPEmS4RcfkVKOhJf+WOgoxJclFz3kgn//dBA+ya1GhurNn8zb//9NNutNuhz31f////9vt///z+IdAEAAAK4LQIAKobHItEIYCGAExBwe8jcToF9zIKrEdDYIuP2MgOWFSE34wYiR5iqQPj0JIeoVdlG4VD4XA67mAcNa1fhzA1jwHuTRxDUQ//iYBczjHiTJcIuPyKlHQkv/LHQUYkuSi57yQT//uggfZNajQ3Vm//Lz////zs///Oc///nP//8L///yH5BAEAAAEALAAAAAAQABAAAAeCEAEUhDAQolB4Ew8QEVZCwkBkokgVPlkKd8qkKvNlCkYhDwNhGGQMDJ6GGAOlhBkDQsEwoKViGFAIZW+KgpCNhmuMwICQwz5TDQaTxeCEBIYSwnAEJYZChdDY2JgwwkDBMAQlhkLr7OzsQhUSDINK5+fn8xjDf+iIubq5Eri5ucTDxMTIvsjIyiEAOw==');
-          audio.play();
-          
-          toast.success("Your driver has arrived!", {
-            description: `${selectedDriver?.name} has reached your location`
-          });
-          
-          if (userMarkerRef.current) {
-            const userEl = userMarkerRef.current.getElement();
-            userEl.querySelector('.animate-ping')?.classList.add('opacity-90', 'scale-125');
-          }
-          
-          return;
-        }
-      }
-
-      const currentPoint = routePointsRef.current[currentPointIndexRef.current];
-      const nextPoint = routePointsRef.current[currentPointIndexRef.current + 1];
-      
-      if (currentPoint && nextPoint) {
-        const bearing = calculateBearing(currentPoint, nextPoint);
-        
-        animatedCarMarker.setLngLat(currentPoint);
-        
-        const carEl = animatedCarMarker.getElement().querySelector('svg');
-        if (carEl) {
-          carEl.style.transform = `rotate(${bearing}deg)`;
-        }
-        
-        if (map.current && currentPointIndexRef.current % 10 === 0) {
-          map.current.easeTo({
-            center: currentPoint,
-            duration: 1000,
-            easing: (t) => t
-          });
-        }
-        
-        currentPointIndexRef.current++;
-        
-        const totalPoints = routePointsRef.current.length;
-        const progress = currentPointIndexRef.current / totalPoints;
-        
-        let delay = 100;
-        
-        if (progress < 0.2) {
-          delay = 200 - progress * 500;
-        } else if (progress > 0.8) {
-          delay = 100 + (progress - 0.8) * 500;
-        }
-        
-        setTimeout(() => {
-          if (!driverArrived) {
-            animationRef.current = requestAnimationFrame(animateCar);
-          }
-        }, delay);
-      }
-    };
-    
-    animationRef.current = requestAnimationFrame(animateCar);
-  };
-
-  if (geolocating) {
-    return (
-      <div className="bg-gray-100 rounded-xl flex flex-col items-center justify-center" style={{ height }}>
-        <Loader className="w-12 h-12 text-getmore-purple animate-spin mb-4" />
-        <p>Getting your location...</p>
-        <p className="text-sm text-gray-500 mt-2">Please allow location access when prompted</p>
-      </div>
-    );
-  }
-
-  if (locationError && !mapLoaded) {
-    return (
-      <div className="bg-gray-100 rounded-xl flex flex-col items-center justify-center p-6" style={{ height }}>
-        <MapPin className="w-12 h-12 text-red-500 mb-4" />
-        <p className="text-center mb-4">{locationError}</p>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="bg-getmore-purple text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
-        >
-          Try Again
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative rounded-xl overflow-hidden" style={{ height }}>
-      <div ref={mapContainer} className="absolute inset-0" />
-      
-      <div className="absolute bottom-4 right-4 bg-white py-2 px-4 rounded-md shadow-md text-sm z-10">
-        <p className="font-medium">Available Drivers</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <div className="flex items-center"><div className="w-3 h-3 bg-blue-500 rounded-full mr-1"></div><span className="text-xs">Standard</span></div>
-          <div className="flex items-center"><div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div><span className="text-xs">Comfort</span></div>
-          <div className="flex items-center"><div className="w-3 h-3 bg-purple-600 rounded-full mr-1"></div><span className="text-xs">Premium</span></div>
-          <div className="flex items-center"><div className="w-3 h-3 bg-orange-500 rounded-full mr-1"></div><span className="text-xs">SUV</span></div>
-        </div>
-      </div>
-
-      <div className="absolute top-4 left-4 bg-white rounded-md shadow-md z-10 p-2">
-        {selectedDriver ? (
-          <div className="flex items-center">
-            <img src={selectedDriver.image} alt={selectedDriver.name} className="w-8 h-8 rounded-full mr-2 border border-getmore-purple" />
-            <div>
-              <p className="font-medium text-sm">{selectedDriver.name}</p>
-              <p className="text-xs text-gray-500">{selectedDriver.car}</p>
-            </div>
-            <div className="flex ml-2 gap-2">
-              <button 
-                onClick={() => setShowProfile(!showProfile)}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-2 py-1 rounded transition-colors"
-              >
-                {showProfile ? 'Hide' : 'Show'} Profile
-              </button>
-              <button 
-                onClick={() => simulateCarMovement(selectedDriver.id)}
-                disabled={simulationActive}
-                className={`${simulationActive ? 'bg-gray-300' : 'bg-getmore-purple'} text-white text-xs px-2 py-1 rounded hover:bg-purple-700 transition-colors`}
-              >
-                {simulationActive ? 'En Route' : 'Simulate'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">Select a driver to see route</p>
-        )}
-      </div>
-
-      <div className="absolute top-20 right-4 flex flex-col space-y-2 z-10">
-        <button 
-          onClick={() => {
-            if (map.current) {
-              const centerCoordinates: [number, number] = [userLocation.lng, userLocation.lat];
-              
-              map.current.flyTo({
-                center: centerCoordinates,
-                zoom: 14,
-                essential: true
-              });
-            }
-          }}
-          className="bg-white p-2 rounded-full shadow-md hover:bg-gray-100 transition-colors"
-          title="Center on my location"
-        >
-          <MapPin className="h-5 w-5 text-getmore-purple" />
-        </button>
-        
-        <button 
-          onClick={() => {
-            if (map.current) {
-              map.current.zoomIn();
-            }
-          }}
-          className="bg-white p-2 rounded-full shadow-md hover:bg-gray-100 transition-colors"
-          title="Zoom in"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-getmore-purple">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>
-        
-        <button 
-          onClick={() => {
-            if (map.current) {
-              map.current.zoomOut();
-            }
-          }}
-          className="bg-white p-2 rounded-full shadow-md hover:bg-gray-100 transition-colors"
-          title="Zoom out"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-getmore-purple">
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>
-      </div>
-
-      {driverArrived && (
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-4 rounded-lg shadow-xl z-50 animate-scale-in">
-          <div className="text-center">
-            <div className="w-12 h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-2">
-              <Car className="text-green-600" size={24} />
-            </div>
-            <h3 className="text-lg font-bold">Driver Arrived!</h3>
-            <p className="text-gray-600">{selectedDriver?.name} has reached your location</p>
-            <button 
-              onClick={() => setDriverArrived(false)}
-              className="mt-3 bg-getmore-purple text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default MapDisplay;
+          const audio = new Audio('data:audio/wav;base64,//uQRAAA
