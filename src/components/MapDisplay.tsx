@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -216,6 +217,7 @@ const MapDisplay = ({
         }
       });
       
+      // Updated route styling to be a bold straight line instead of dotted
       map.current.addLayer({
         id: layerId,
         type: 'line',
@@ -226,10 +228,9 @@ const MapDisplay = ({
         },
         paint: {
           'line-color': '#6528F7',
-          'line-width': 8,
+          'line-width': 5, // Slightly reduced from 8 to not be too bold
           'line-opacity': 0.85,
-          'line-dasharray': [0, 4, 3],
-          'line-gap-width': 1
+          // Removed line-dasharray to make it a solid line
         }
       });
       
@@ -313,6 +314,7 @@ const MapDisplay = ({
         }
       });
       
+      // Same updated styling for fallback route
       map.current.addLayer({
         id: layerId,
         type: 'line',
@@ -323,10 +325,9 @@ const MapDisplay = ({
         },
         paint: {
           'line-color': '#6528F7',
-          'line-width': 8,
+          'line-width': 5,
           'line-opacity': 0.85,
-          'line-dasharray': [0, 4, 3],
-          'line-gap-width': 1
+          // Removed line-dasharray to make it a solid line
         }
       });
       
@@ -619,9 +620,11 @@ const MapDisplay = ({
     
     const carMarkerEl = document.createElement('div');
     carMarkerEl.className = 'car-marker-animated';
+    
+    // Updated car marker with blinking border animation
     carMarkerEl.innerHTML = `
       <div class="relative">
-        <div class="w-10 h-10 rounded-full bg-getmore-purple flex items-center justify-center border-2 border-white shadow-lg">
+        <div class="w-10 h-10 rounded-full bg-getmore-purple flex items-center justify-center border-2 border-white shadow-lg animate-pulse">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path>
             <circle cx="7" cy="17" r="2"></circle>
@@ -629,6 +632,7 @@ const MapDisplay = ({
             <circle cx="17" cy="17" r="2"></circle>
           </svg>
         </div>
+        <div class="absolute inset-0 w-12 h-12 -ml-1 -mt-1 rounded-full border-2 border-getmore-purple animate-pulse opacity-70"></div>
         <div class="absolute -bottom-1 w-8 h-2 bg-black/20 rounded-full mx-auto left-0 right-0"></div>
       </div>
     `;
