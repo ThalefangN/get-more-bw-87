@@ -117,34 +117,32 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
         throw new Error("Failed to create user account");
       }
       
-      // Modified approach: Instead of trying to insert directly with the same ID,
-      // we'll store the driver information in a separate table without a foreign key constraint
-      const driverData = {
-        user_auth_id: authData.user.id,  // Store as a reference, not as a foreign key
-        full_name: values.full_name,
-        email: values.email,
-        phone: values.phone,
-        id_number: values.id_number,
-        license_number: values.license_number,
-        car_model: values.car_model,
-        car_year: values.car_year,
-        status: 'pending'
-      };
+      // Now use the REST API directly to insert into our new driver_applications table
+      // This avoids TypeScript issues since the table was just created
+      const response = await fetch('https://bilgilserakwnmiugvot.supabase.co/rest/v1/driver_applications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpbGdpbHNlcmFrd25taXVndm90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMyNjUxMzQsImV4cCI6MjA1ODg0MTEzNH0.wFyhEKlju8efTgOuCzF-1p5Gjc3DPzMAhwdyf5Y60sc',
+          'Authorization': `Bearer ${supabase.auth.getSession().then(res => res.data.session?.access_token)}`
+        },
+        body: JSON.stringify({
+          user_auth_id: authData.user.id,
+          full_name: values.full_name,
+          email: values.email,
+          phone: values.phone,
+          id_number: values.id_number,
+          license_number: values.license_number,
+          car_model: values.car_model,
+          car_year: values.car_year,
+          status: 'pending'
+        })
+      });
       
-      // Use driver_applications table which doesn't have the foreign key constraint
-      const { error: driverError } = await supabase
-        .from('driver_applications')
-        .insert([driverData]);
-      
-      if (driverError) {
-        console.error("Driver registration error:", driverError);
-        
-        // If there's still an error, provide a clearer message
-        if (driverError.message?.includes('violates')) {
-          throw new Error("Registration failed. Please try again later or contact support.");
-        }
-        
-        throw driverError;
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Driver registration error:", errorData);
+        throw new Error("Registration failed. Please try again later or contact support.");
       }
       
       // All steps completed successfully
