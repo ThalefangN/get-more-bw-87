@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -78,6 +77,7 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
   const [simulateArrival, setSimulateArrival] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showDriverProfile, setShowDriverProfile] = useState(true);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
 
   // Simulate map loading
   useEffect(() => {
@@ -106,6 +106,16 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
 
     return () => clearInterval(interval);
   }, []);
+
+  // Force map rerender when tab changes to map
+  useEffect(() => {
+    if (activeTab === 'map') {
+      // Force a resize event to ensure map renders correctly
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 100);
+    }
+  }, [activeTab, isOpen]);
 
   // Scroll to bottom of messages
   useEffect(() => {
@@ -181,9 +191,13 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
     setShowDriverProfile(!showDriverProfile);
     // Call the global function in MapDisplay to hide/show driver profile
     if (showDriverProfile) {
-      window.hideDriverProfile(driver.id);
+      if (typeof window.hideDriverProfile === 'function') {
+        window.hideDriverProfile(driver.id);
+      }
     } else {
-      window.showDriverProfile(driver.id);
+      if (typeof window.showDriverProfile === 'function') {
+        window.showDriverProfile(driver.id);
+      }
     }
   };
 
@@ -239,12 +253,13 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
 
         <div className="flex-grow overflow-hidden">
           {activeTab === 'map' && (
-            <div className="h-96 relative">
+            <div className="h-96 relative" ref={mapContainerRef}>
               <MapDisplay 
                 drivers={[mapDriver]} 
                 userLocation={userLocation} 
                 height="100%" 
                 simulateArrival={simulateArrival}
+                showFullScreenButton={false}
               />
               
               <div className="absolute bottom-4 left-4 z-10 flex flex-col space-y-2">

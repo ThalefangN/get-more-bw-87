@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -105,7 +104,6 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
   const [countdown, setCountdown] = useState(5);
   const [showWaitingArea, setShowWaitingArea] = useState(false);
   
-  // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
       setFare('');
@@ -115,16 +113,13 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
     }
   }, [isOpen]);
   
-  // Handle fare submission
   const handleFareSubmit = () => {
     const fareValue = Number(fare);
     
     if (isNaN(fareValue) || fareValue < 30) {
-      // Invalid fare
       return;
     }
     
-    // Filter drivers based on fare
     if (fareValue < 50) {
       setAvailableDrivers(sampleDrivers.slice(0, 3));
     } else if (fareValue < 80) {
@@ -136,13 +131,11 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
     setStep('drivers');
   };
   
-  // Handle driver selection
   const selectDriver = (driver: typeof sampleDrivers[0]) => {
     setSelectedDriver(driver);
     setStep('connecting');
     setCountdown(5);
     
-    // Start countdown
     const timer = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
@@ -155,18 +148,14 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
     }, 1000);
   };
   
-  // Close modal and navigate to book-cab page
   const handleProceedToWaitingArea = () => {
     setShowWaitingArea(true);
   };
   
-  // Handle reporting issues
   const handleReportIssue = () => {
-    // For now, just show an email address
     window.open('mailto:getmorecabs@gmail.com', '_blank');
   };
   
-  // Handle close of waiting area
   const handleWaitingAreaClose = () => {
     setShowWaitingArea(false);
     onClose();
@@ -332,7 +321,6 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
         </DialogContent>
       </Dialog>
       
-      {/* Waiting Area Modal */}
       {showWaitingArea && selectedDriver && (
         <WaitingAreaModal
           isOpen={showWaitingArea}
