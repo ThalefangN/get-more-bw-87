@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -23,6 +22,7 @@ interface MapDisplayProps {
   onDriverClick?: (driver: Driver) => void;
   height?: string;
   simulateArrival?: boolean;
+  showFullScreenButton?: boolean;
 }
 
 const DEFAULT_CENTER = { lat: -24.6282, lng: 25.9231 };
@@ -42,7 +42,8 @@ const MapDisplay = ({
   userLocation: initialUserLocation, 
   onDriverClick, 
   height = "400px",
-  simulateArrival = false 
+  simulateArrival = false,
+  showFullScreenButton = true
 }: MapDisplayProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -67,7 +68,6 @@ const MapDisplay = ({
   const [journeyProgress, setJourneyProgress] = useState(0);
   const lastUpdateTimeRef = useRef<number>(0);
   const simulationStartTimeRef = useRef<number>(0);
-  // Changed from 10 minutes (600000ms) to 2 minutes (120000ms)
   const SIMULATION_DURATION_MS = 120000;
 
   const cleanupMapResources = useCallback(() => {
@@ -685,7 +685,6 @@ const MapDisplay = ({
     const animateCar = () => {
       const currentTime = Date.now();
       const elapsedTime = currentTime - simulationStartTimeRef.current;
-      // Use the reduced simulation time (2 minutes)
       const progress = Math.min(elapsedTime / SIMULATION_DURATION_MS, 1);
       setJourneyProgress(Math.floor(progress * 100));
       
@@ -752,7 +751,6 @@ const MapDisplay = ({
     
     if (simulationActive) {
       const remainingPercent = 100 - journeyProgress;
-      // Calculate remaining time based on 2 minutes duration
       const minutesRemaining = Math.ceil((remainingPercent / 100) * (SIMULATION_DURATION_MS / 60000));
       
       return (
@@ -780,7 +778,6 @@ const MapDisplay = ({
     return null;
   };
 
-  // Add toggle button for driver profile
   const renderToggleProfileButton = () => {
     if (!selectedDriver) return null;
     
@@ -836,7 +833,6 @@ const MapDisplay = ({
 
 export default MapDisplay;
 
-// Add typings for the window object to support the global functions
 declare global {
   interface Window {
     hideDriverProfile: (driverId: number) => void;
