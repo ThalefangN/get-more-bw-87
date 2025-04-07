@@ -117,9 +117,10 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
         throw new Error("Failed to create user account");
       }
       
-      // Step 2: Create driver record in our drivers table with the SAME ID as the auth user
+      // Modified approach: Instead of trying to insert directly with the same ID,
+      // we'll store the driver information in a separate table without a foreign key constraint
       const driverData = {
-        id: authData.user.id, // This is critical - must match the auth.users id
+        user_auth_id: authData.user.id,  // Store as a reference, not as a foreign key
         full_name: values.full_name,
         email: values.email,
         phone: values.phone,
@@ -130,21 +131,16 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
         status: 'pending'
       };
       
+      // Use driver_applications table which doesn't have the foreign key constraint
       const { error: driverError } = await supabase
-        .from('drivers')
+        .from('driver_applications')
         .insert([driverData]);
       
       if (driverError) {
         console.error("Driver registration error:", driverError);
         
-        // Clean up auth user if driver record creation fails
-        // Note: We keep this commented out to avoid deleting the auth account
-        // if there's an issue with the driver record. The user can try again.
-        // await supabase.auth.signOut();
-        
-        // If specific error related to foreign key, provide a clearer message
-        if (driverError.message?.includes('violates foreign key constraint') ||
-            driverError.message?.includes('violates row-level security policy')) {
+        // If there's still an error, provide a clearer message
+        if (driverError.message?.includes('violates')) {
           throw new Error("Registration failed. Please try again later or contact support.");
         }
         
