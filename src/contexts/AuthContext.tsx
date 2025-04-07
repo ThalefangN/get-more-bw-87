@@ -12,7 +12,8 @@ interface User {
     street: string;
     city: string;
   };
-  role?: string; // Keep the role in our interface since we use it
+  role?: string;
+  driverStatus?: string; // Added for driver status tracking
 }
 
 interface AuthContextType {
@@ -91,20 +92,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Use setTimeout to prevent Supabase auth deadlock issues
         setTimeout(async () => {
           try {
-            // First check if this is a driver
-            const { data: driverData, error: driverError } = await supabase
-              .from('drivers')
+            // First check if this is a driver by checking driver application
+            const { data: driverAppData, error: driverAppError } = await supabase
+              .from('driver_applications')
               .select('*')
-              .eq('id', session.user.id)
+              .eq('user_auth_id', session.user.id)
               .maybeSingle();
               
-            if (driverData) {
-              // This is a driver
+            if (driverAppData) {
+              // This user has a driver application
               const userProfile: User = {
                 id: session.user.id,
-                name: driverData.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-                email: driverData.email || session.user.email || '',
-                role: 'driver' // Set role as driver
+                name: driverAppData.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+                email: driverAppData.email || session.user.email || '',
+                role: 'driver',
+                driverStatus: driverAppData.status
               };
               setUser(userProfile);
               setIsAuthenticated(true);
@@ -132,8 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 street: data.street || '',
                 city: data.city || ''
               } : undefined,
-              // Since profiles table doesn't have a role field, set a default role
-              role: 'user'
+              role: session.user.user_metadata?.role || 'user'
             };
 
             setUser(userProfile);
@@ -145,7 +146,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               id: session.user.id,
               name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
               email: session.user.email || '',
-              role: 'user' // Default role
+              role: session.user.user_metadata?.role || 'user'
             };
             setUser(userProfile);
             setIsAuthenticated(true);

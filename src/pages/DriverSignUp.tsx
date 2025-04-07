@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Car, ChevronRight, User } from 'lucide-react';
 import Navbar from '@/components/Navbar';
@@ -9,7 +9,6 @@ import DriverSignUpForm from '@/components/driver/DriverSignUpForm';
 
 const DriverSignUp = () => {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const handleSignupSuccess = () => {
     // Navigate to login page with success message
@@ -26,11 +25,11 @@ const DriverSignUp = () => {
     <>
       <Navbar />
       <div className="pt-24 pb-16 bg-gray-50 min-h-screen">
-        <div className="container-custom max-w-3xl">
+        <div className="container-custom max-w-md">
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="bg-getmore-purple p-6 text-center text-white">
               <Car size={48} className="mx-auto mb-2" />
-              <h1 className="text-2xl font-bold">Driver Application</h1>
+              <h1 className="text-2xl font-bold">Driver Sign Up</h1>
               <p className="text-sm opacity-80">Join GetMore BW as a driver partner</p>
             </div>
             
