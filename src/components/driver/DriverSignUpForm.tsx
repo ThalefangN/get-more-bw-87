@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Check, Loader2, AlertCircle } from 'lucide-react';
+import { Check, Loader2, AlertCircle, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -42,6 +42,9 @@ const formSchema = z.object({
 const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [signupError, setSignupError] = useState<string | null>(null);
+  const [emailForVerification, setEmailForVerification] = useState<string | null>(null);
+  const [showResendButton, setShowResendButton] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -53,9 +56,40 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
     },
   });
 
+  // Function to resend verification email
+  const handleResendVerification = async () => {
+    if (!emailForVerification) return;
+    
+    setIsResending(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: emailForVerification,
+        options: {
+          emailRedirectTo: window.location.origin + '/driver-login?verified=true'
+        }
+      });
+      
+      if (error) throw error;
+      
+      toast.success("Verification email sent", {
+        description: "Please check your inbox and spam folder.",
+      });
+    } catch (error: any) {
+      console.error("Failed to resend verification email:", error);
+      toast.error("Failed to send verification email", {
+        description: error.message || "Please try again later.",
+      });
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     setSignupError(null);
+    setShowResendButton(false);
+    setEmailForVerification(null);
     
     try {
       console.log("Starting driver signup process");
@@ -78,12 +112,27 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
         throw authError;
       }
       
+      // Check if email confirmation is required
+      if (authData?.user && authData.user.identities?.length === 0) {
+        // This usually means the email is already registered
+        throw new Error("An account with this email already exists. Please log in instead.");
+      }
+      
       if (!authData.user?.id) {
         console.error("No user ID returned");
         throw new Error("Failed to create user account");
       }
       
       console.log("Auth user created successfully:", authData.user.id);
+      
+      // Store email for potential resend
+      setEmailForVerification(values.email);
+      
+      // Check if confirmation email is needed
+      if (authData.session === null) {
+        setShowResendButton(true);
+        console.log("Email verification required, no session returned");
+      }
 
       // Create driver application record with anonymous insert
       console.log("Inserting driver application record");
@@ -108,9 +157,9 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
       
       console.log("Driver application created successfully");
       
-      // Success message
+      // Success message with verification instructions
       toast.success("Account created successfully", {
-        description: "Please check your email to confirm your account.",
+        description: "A verification email has been sent. Please check your inbox and spam folder to verify your account.",
       });
       
       onSignUpSuccess();
@@ -119,7 +168,7 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
       console.error("Driver signup error:", error);
       
       // Set a user-friendly error message
-      if (error.message?.includes('duplicate key')) {
+      if (error.message?.includes('duplicate key') || error.message?.includes('already exists')) {
         setSignupError("An account with this email already exists. Please try logging in instead.");
         toast.error("Email already registered", {
           description: "Please try logging in or use a different email address.",
@@ -143,6 +192,26 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{signupError}</AlertDescription>
+          </Alert>
+        )}
+        
+        {/* Email verification resend option */}
+        {showResendButton && emailForVerification && (
+          <Alert className="mb-4 bg-blue-50 border-blue-200">
+            <Mail className="h-4 w-4 text-blue-500" />
+            <AlertDescription className="text-blue-700 flex items-center justify-between flex-wrap gap-2">
+              <span>Please verify your email to complete registration.</span>
+              <Button 
+                type="button"
+                variant="outline" 
+                size="sm"
+                onClick={handleResendVerification}
+                disabled={isResending}
+                className="text-xs border-blue-300 text-blue-700"
+              >
+                {isResending ? "Sending..." : "Resend verification email"}
+              </Button>
+            </AlertDescription>
           </Alert>
         )}
         
@@ -220,7 +289,7 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
         </div>
         
         <FormDescription className="text-center">
-          After creating your account, you'll need to complete your driver profile 
+          After creating your account, you'll need to verify your email and then complete your driver profile 
           with additional information and documents.
         </FormDescription>
         

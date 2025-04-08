@@ -116,6 +116,30 @@ const DriverLogin = () => {
     setShowVerificationMessage(false);
     
     try {
+      // Check if email is verified before login
+      const { data: { users }, error: userError } = await supabase.auth.admin.listUsers({
+        filters: {
+          email: values.email
+        }
+      });
+      
+      // First try to log in
+      const { error: loginError, data: loginData } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password
+      });
+      
+      // Handle email not confirmed error
+      if (loginError && loginError.message?.includes('Email not confirmed')) {
+        setEmailForVerification(values.email);
+        setShowVerificationMessage(true);
+        setLoginError("Please verify your email address before logging in.");
+        setIsLoading(false);
+        return;
+      }
+      
+      if (loginError) throw loginError;
+      
       // Use login from AuthContext instead of direct Supabase call
       await login(values.email, values.password);
       
@@ -210,7 +234,7 @@ const DriverLogin = () => {
             </div>
             
             <div className="p-8">
-              {loginError && (
+              {loginError && !showVerificationMessage && (
                 <Alert variant="destructive" className="mb-6">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{loginError}</AlertDescription>
