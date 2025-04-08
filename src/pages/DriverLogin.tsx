@@ -56,14 +56,14 @@ const DriverLogin = () => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
       if (data.session) {
-        // If session exists, check if driver record exists
-        const { data: driverData } = await supabase
-          .from('drivers')
+        // If session exists, check if driver application exists
+        const { data: driverData, error } = await supabase
+          .from('driver_applications')
           .select('*')
-          .eq('id', data.session.user.id)
-          .single();
+          .eq('user_auth_id', data.session.user.id)
+          .maybeSingle();
           
-        if (driverData) {
+        if (driverData && !error) {
           // Driver already logged in, redirect to dashboard
           navigate('/driver-dashboard');
         }
@@ -119,12 +119,18 @@ const DriverLogin = () => {
       // Use login from AuthContext instead of direct Supabase call
       await login(values.email, values.password);
       
-      // After successful login, check if driver record exists
+      // After successful login, check if driver application exists
+      const { data: currentUser } = await supabase.auth.getUser();
+      
+      if (!currentUser?.user) {
+        throw new Error("Login failed");
+      }
+      
       const { data: driverData, error: driverError } = await supabase
-        .from('drivers')
+        .from('driver_applications')
         .select('*')
-        .eq('email', values.email)
-        .single();
+        .eq('user_auth_id', currentUser.user.id)
+        .maybeSingle();
         
       if (driverError) {
         if (driverError.code === 'PGRST116') {
@@ -139,11 +145,21 @@ const DriverLogin = () => {
         throw driverError;
       }
       
-      // Store driver data in local storage for easy access
-      localStorage.setItem('driverProfile', JSON.stringify(driverData));
+      if (!driverData) {
+        setLoginError("No driver account associated with this email. Please sign up first.");
+        toast.error("Account not found", {
+          description: "No driver account associated with this email. Please sign up first.",
+        });
+        await supabase.auth.signOut();
+        return;
+      }
       
       // Check if the account is verified/approved by admin
-      if (driverData.status === 'pending') {
+      if (driverData.status === 'pending_profile_completion') {
+        toast.info("Profile completion required", {
+          description: "Please complete your profile information to continue with the application process.",
+        });
+      } else if (driverData.status === 'pending') {
         toast.info("Account pending verification", {
           description: "Your driver account is pending verification by our admin team. You can check your status in the dashboard.",
         });
@@ -151,7 +167,6 @@ const DriverLogin = () => {
         toast.error("Account verification failed", {
           description: "Your driver application was not approved. Please contact support for more information.",
         });
-        // Even with rejected status, we'll let them log in to see details
       } else if (driverData.status === 'active') {
         toast.success("Login successful!", {
           description: "Welcome back to GetMore BW.",

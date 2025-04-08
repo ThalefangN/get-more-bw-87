@@ -76,32 +76,29 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
       if (!authData.user?.id) {
         throw new Error("Failed to create user account");
       }
-
-      // Create an entry in driver_applications table with minimal information
-      const response = await fetch('https://bilgilserakwnmiugvot.supabase.co/rest/v1/driver_applications', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpbGdpbHNlcmFrd25taXVndm90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMyNjUxMzQsImV4cCI6MjA1ODg0MTEzNH0.wFyhEKlju8efTgOuCzF-1p5Gjc3DPzMAhwdyf5Y60sc',
-          'Authorization': `Bearer ${supabase.auth.getSession().then(res => res.data.session?.access_token)}`
-        },
-        body: JSON.stringify({
-          user_auth_id: authData.user.id,
-          full_name: values.full_name,
-          email: values.email,
-          phone: "", // We'll collect this later
-          id_number: "", // We'll collect this later
-          license_number: "", // We'll collect this later
-          car_model: "", // We'll collect this later
-          car_year: "", // We'll collect this later
-          status: 'pending_profile_completion'
-        })
-      });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Driver registration error:", errorData);
-        throw new Error("Registration failed. Please try again later or contact support.");
+      console.log("Auth user created successfully:", authData.user.id);
+
+      // Create an entry in driver_applications table using Supabase client
+      const { error: driverError } = await supabase
+        .from('driver_applications')
+        .insert([
+          {
+            user_auth_id: authData.user.id,
+            full_name: values.full_name,
+            email: values.email,
+            phone: "", // We'll collect this later
+            id_number: "", // We'll collect this later
+            license_number: "", // We'll collect this later
+            car_model: "", // We'll collect this later
+            car_year: "", // We'll collect this later
+            status: 'pending_profile_completion'
+          }
+        ]);
+      
+      if (driverError) {
+        console.error("Driver application creation error:", driverError);
+        throw new Error("Registration failed. Please try again later.");
       }
       
       // Success message
@@ -109,7 +106,6 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
         description: "Please check your email to confirm your account.",
       });
       
-      // No need to sign out as we want them to verify their email
       onSignUpSuccess();
       
     } catch (error: any) {
