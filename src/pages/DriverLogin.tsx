@@ -116,12 +116,7 @@ const DriverLogin = () => {
     setShowVerificationMessage(false);
     
     try {
-      // Check if email is verified before login
-      const { data: { users }, error: userError } = await supabase.auth.admin.listUsers({
-        filters: {
-          email: values.email
-        }
-      });
+      // Removed the admin.listUsers call that was causing the TypeScript error
       
       // First try to log in
       const { error: loginError, data: loginData } = await supabase.auth.signInWithPassword({
