@@ -29,6 +29,8 @@ import DriverSignUp from "./pages/DriverSignUp";
 import DriverLogin from "./pages/DriverLogin";
 import DriverTerms from "./pages/DriverTerms";
 import DriverDashboard from "./pages/DriverDashboard";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { StoreProvider } from "@/contexts/StoreContext";
@@ -76,11 +78,14 @@ const App = () => (
                       <Route path="/admin-signup" element={<AdminSignUp />} />
                       <Route path="/admin-signin" element={<AdminSignIn />} />
                       <Route path="/admin-dashboard/*" element={<AdminDashboard />} />
-                      {/* New Driver Routes */}
+                      {/* Driver Routes */}
                       <Route path="/driver-signup" element={<DriverSignUp />} />
                       <Route path="/driver-login" element={<DriverLogin />} />
                       <Route path="/driver-terms" element={<DriverTerms />} />
                       <Route path="/driver-dashboard" element={<DriverDashboard />} />
+                      {/* Password Reset Routes */}
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/reset-password" element={<ResetPassword />} />
                       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>

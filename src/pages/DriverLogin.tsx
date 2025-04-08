@@ -54,19 +54,31 @@ const DriverLogin = () => {
     
     // Check if user is already logged in
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        // If session exists, check if driver application exists
-        const { data: driverData, error } = await supabase
-          .from('driver_applications')
-          .select('*')
-          .eq('user_auth_id', data.session.user.id)
-          .maybeSingle();
-          
-        if (driverData && !error) {
-          // Driver already logged in, redirect to dashboard
-          navigate('/driver-dashboard');
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          console.log("Found existing session, checking for driver application");
+          // If session exists, check if driver application exists
+          const { data: driverData, error } = await supabase
+            .from('driver_applications')
+            .select('*')
+            .eq('user_auth_id', data.session.user.id)
+            .maybeSingle();
+            
+          if (driverData && !error) {
+            console.log("Driver application found, redirecting to dashboard");
+            // Driver already logged in, redirect to dashboard
+            navigate('/driver-dashboard');
+          } else if (error) {
+            console.error("Error checking driver application:", error);
+          } else {
+            console.log("No driver application found for logged in user");
+          }
+        } else {
+          console.log("No existing session found");
         }
+      } catch (err) {
+        console.error("Error checking session:", err);
       }
     };
     
@@ -116,26 +128,32 @@ const DriverLogin = () => {
     setShowVerificationMessage(false);
     
     try {
-      // Removed the admin.listUsers call that was causing the TypeScript error
+      console.log("Attempting to sign in with email:", values.email);
       
-      // First try to log in
+      // First try to log in directly (no admin check needed)
       const { error: loginError, data: loginData } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password
       });
       
       // Handle email not confirmed error
-      if (loginError && loginError.message?.includes('Email not confirmed')) {
-        setEmailForVerification(values.email);
-        setShowVerificationMessage(true);
-        setLoginError("Please verify your email address before logging in.");
-        setIsLoading(false);
-        return;
+      if (loginError) {
+        console.log("Login error:", loginError);
+        
+        if (loginError.message?.includes('Email not confirmed')) {
+          setEmailForVerification(values.email);
+          setShowVerificationMessage(true);
+          setLoginError("Please verify your email address before logging in.");
+          setIsLoading(false);
+          return;
+        }
+        
+        throw loginError;
       }
       
-      if (loginError) throw loginError;
+      console.log("Login successful, now using AuthContext login");
       
-      // Use login from AuthContext instead of direct Supabase call
+      // Use login from AuthContext for any additional processing
       await login(values.email, values.password);
       
       // After successful login, check if driver application exists
@@ -145,6 +163,8 @@ const DriverLogin = () => {
         throw new Error("Login failed");
       }
       
+      console.log("Checking for driver application with user ID:", currentUser.user.id);
+      
       const { data: driverData, error: driverError } = await supabase
         .from('driver_applications')
         .select('*')
@@ -152,6 +172,8 @@ const DriverLogin = () => {
         .maybeSingle();
         
       if (driverError) {
+        console.error("Error fetching driver application:", driverError);
+        
         if (driverError.code === 'PGRST116') {
           // No matching driver record found
           setLoginError("No driver account associated with this email. Please sign up first.");
@@ -165,6 +187,7 @@ const DriverLogin = () => {
       }
       
       if (!driverData) {
+        console.log("No driver data found for this user");
         setLoginError("No driver account associated with this email. Please sign up first.");
         toast.error("Account not found", {
           description: "No driver account associated with this email. Please sign up first.",
@@ -172,6 +195,8 @@ const DriverLogin = () => {
         await supabase.auth.signOut();
         return;
       }
+      
+      console.log("Driver application found with status:", driverData.status);
       
       // Check if the account is verified/approved by admin
       if (driverData.status === 'pending_profile_completion') {
@@ -193,6 +218,7 @@ const DriverLogin = () => {
       }
       
       // Navigate to the driver dashboard after successful login
+      console.log("Login complete, navigating to dashboard");
       setTimeout(() => {
         navigate('/driver-dashboard');
       }, 1000);
@@ -200,11 +226,17 @@ const DriverLogin = () => {
     } catch (error: any) {
       console.error("Login error:", error);
       
-      // Check if this is a "Email not confirmed" error
+      // Handle specific error cases
       if (error.message?.includes('Email not confirmed')) {
         setEmailForVerification(values.email);
         setShowVerificationMessage(true);
         setLoginError("Please verify your email address before logging in.");
+      } else if (error.message?.includes('Invalid login credentials')) {
+        // Clearer error message for invalid credentials
+        setLoginError("The email or password you entered is incorrect. Please try again.");
+        toast.error("Login failed", {
+          description: "The email or password you entered is incorrect. Please try again.",
+        });
       } else {
         setLoginError(error.message || "Please check your credentials and try again.");
         toast.error("Login failed", {
