@@ -79,22 +79,20 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
       
       console.log("Auth user created successfully:", authData.user.id);
 
-      // Create an entry in driver_applications table using Supabase client
+      // Create driver application record
       const { error: driverError } = await supabase
         .from('driver_applications')
-        .insert([
-          {
-            user_auth_id: authData.user.id,
-            full_name: values.full_name,
-            email: values.email,
-            phone: "", // We'll collect this later
-            id_number: "", // We'll collect this later
-            license_number: "", // We'll collect this later
-            car_model: "", // We'll collect this later
-            car_year: "", // We'll collect this later
-            status: 'pending_profile_completion'
-          }
-        ]);
+        .insert({
+          user_auth_id: authData.user.id,
+          full_name: values.full_name,
+          email: values.email,
+          phone: "", // Will be collected later
+          id_number: "", // Will be collected later
+          license_number: "", // Will be collected later
+          car_model: "", // Will be collected later
+          car_year: "", // Will be collected later
+          status: 'pending_profile_completion'
+        });
       
       if (driverError) {
         console.error("Driver application creation error:", driverError);
