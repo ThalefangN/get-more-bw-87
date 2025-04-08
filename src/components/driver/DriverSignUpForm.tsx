@@ -58,6 +58,8 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
     setSignupError(null);
     
     try {
+      console.log("Starting driver signup process");
+      
       // Create user account in Supabase Auth with email confirmation
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.email,
@@ -71,33 +73,40 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
         }
       });
       
-      if (authError) throw authError;
+      if (authError) {
+        console.error("Auth error:", authError);
+        throw authError;
+      }
       
       if (!authData.user?.id) {
+        console.error("No user ID returned");
         throw new Error("Failed to create user account");
       }
       
       console.log("Auth user created successfully:", authData.user.id);
 
-      // Create driver application record
+      // Create driver application record with anonymous insert
+      console.log("Inserting driver application record");
       const { error: driverError } = await supabase
         .from('driver_applications')
         .insert({
           user_auth_id: authData.user.id,
           full_name: values.full_name,
           email: values.email,
-          phone: "", // Will be collected later
-          id_number: "", // Will be collected later
-          license_number: "", // Will be collected later
-          car_model: "", // Will be collected later
-          car_year: "", // Will be collected later
+          phone: "",
+          id_number: "",
+          license_number: "",
+          car_model: "",
+          car_year: "",
           status: 'pending_profile_completion'
         });
       
       if (driverError) {
         console.error("Driver application creation error:", driverError);
-        throw new Error("Registration failed. Please try again later.");
+        throw new Error(`Registration failed: ${driverError.message}`);
       }
+      
+      console.log("Driver application created successfully");
       
       // Success message
       toast.success("Account created successfully", {
@@ -110,11 +119,17 @@ const DriverSignUpForm: React.FC<DriverSignUpFormProps> = ({ onSignUpSuccess }) 
       console.error("Driver signup error:", error);
       
       // Set a user-friendly error message
-      setSignupError(error.message || "Registration failed. Please try again later.");
-      
-      toast.error("Registration failed", {
-        description: error.message || "Please try again later.",
-      });
+      if (error.message?.includes('duplicate key')) {
+        setSignupError("An account with this email already exists. Please try logging in instead.");
+        toast.error("Email already registered", {
+          description: "Please try logging in or use a different email address.",
+        });
+      } else {
+        setSignupError(error.message || "Registration failed. Please try again later.");
+        toast.error("Registration failed", {
+          description: error.message || "Please try again later.",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
