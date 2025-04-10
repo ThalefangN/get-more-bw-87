@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MapPin, MessageSquare, Phone, Send, User, Car, X, PhoneCall, MessageCircle } from 'lucide-react';
+import { MapPin, MessageSquare, Phone, Send, User, Car, X, PhoneCall, MessageCircle, Navigation2 } from 'lucide-react';
 import MapDisplay from '@/components/MapDisplay';
+import { toast } from 'sonner';
 
 interface Driver {
   id: number;
@@ -33,7 +34,6 @@ interface Message {
   isSetswana?: boolean;
 }
 
-// Sample messages with Setswana language
 const sampleMessages: Message[] = [
   {
     id: 1,
@@ -58,7 +58,6 @@ const sampleMessages: Message[] = [
   },
 ];
 
-// Setswana responses for auto-replies
 const setswanaResponses = [
   "Ke santse ke tla. Ke tlaa goroga ka bonako!",
   "Ke kgonne go bona lefelo la gago. Ke mo tseleng.",
@@ -78,8 +77,89 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showDriverProfile, setShowDriverProfile] = useState(true);
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationPermissionState, setLocationPermissionState] = useState<'granted' | 'denied' | 'prompt'>('prompt');
 
-  // Simulate map loading
+  useEffect(() => {
+    const getUserLocation = () => {
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setUserLocation({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            });
+            toast.success("Using your actual location", {
+              description: "The driver will come to your current position"
+            });
+          },
+          (error) => {
+            console.error("Error getting location:", error);
+            toast.error("Couldn't access your location", {
+              description: "Please enable location services in your browser"
+            });
+            
+            if (driver.location) {
+              setUserLocation({
+                lat: driver.location.lat + 0.01,
+                lng: driver.location.lng + 0.01
+              });
+            }
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      } else {
+        toast.error("Location services not available", {
+          description: "Your browser doesn't support geolocation"
+        });
+        
+        if (driver.location) {
+          setUserLocation({
+            lat: driver.location.lat + 0.01,
+            lng: driver.location.lng + 0.01
+          });
+        }
+      }
+    };
+
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+        setLocationPermissionState(result.state as 'granted' | 'denied' | 'prompt');
+        
+        if (result.state === 'granted') {
+          getUserLocation();
+        } else if (result.state === 'prompt') {
+          toast.info("Location access needed", {
+            description: "Allow access to your location for better service",
+            duration: 5000
+          });
+          getUserLocation();
+        } else {
+          toast.error("Location access denied", {
+            description: "Please enable location services in your browser settings",
+            duration: 5000
+          });
+          
+          if (driver.location) {
+            setUserLocation({
+              lat: driver.location.lat + 0.01,
+              lng: driver.location.lng + 0.01
+            });
+          }
+        }
+        
+        result.addEventListener('change', () => {
+          setLocationPermissionState(result.state as 'granted' | 'denied' | 'prompt');
+          if (result.state === 'granted') {
+            getUserLocation();
+          }
+        });
+      });
+    } else {
+      getUserLocation();
+    }
+  }, [driver.location]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setMapLoaded(true);
@@ -87,7 +167,6 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
     return () => clearTimeout(timer);
   }, []);
 
-  // Simulate countdown for arrival - reduced to 2 minutes (120 seconds)
   useEffect(() => {
     let seconds = 120; // 2 minutes in seconds
     const interval = setInterval(() => {
@@ -95,7 +174,6 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
       if (seconds <= 0) {
         clearInterval(interval);
         setEstimatedTime('Arrived');
-        // Auto-simulate arrival when timer completes
         setSimulateArrival(true);
       } else {
         const minutes = Math.floor(seconds / 60);
@@ -107,17 +185,14 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
     return () => clearInterval(interval);
   }, []);
 
-  // Force map rerender when tab changes to map
   useEffect(() => {
     if (activeTab === 'map') {
-      // Force a resize event to ensure map renders correctly
       setTimeout(() => {
         window.dispatchEvent(new Event('resize'));
       }, 100);
     }
   }, [activeTab, isOpen]);
 
-  // Scroll to bottom of messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, activeTab]);
@@ -136,7 +211,6 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
     setMessages([...messages, userMessage]);
     setNewMessage('');
 
-    // Simulate driver response in Setswana after a short delay
     setTimeout(() => {
       const randomResponse = setswanaResponses[Math.floor(Math.random() * setswanaResponses.length)];
       const driverResponse: Message = {
@@ -156,18 +230,16 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
     if (type === 'phone') {
       window.location.href = `tel:${driver.phone}`;
     } else {
-      // WhatsApp link (will open WhatsApp if installed)
       const phoneWithoutPlus = driver.phone.replace('+', '');
       window.open(`https://wa.me/${phoneWithoutPlus}`, '_blank');
     }
   };
 
-  // Convert driver data for MapDisplay
   const mapDriver = {
     id: driver.id,
     name: driver.name,
     car: driver.car,
-    cabType: 'standard', // Default type if not provided
+    cabType: 'standard',
     lat: driver.location?.lat || -24.6282,
     lng: driver.location?.lng || 25.9231,
     rating: driver.rating,
@@ -175,21 +247,12 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
     image: driver.image
   };
 
-  // User location (typically would be obtained from geolocation)
-  const userLocation = {
-    lat: driver.location ? driver.location.lat + 0.01 : -24.6382, // Slightly offset from driver
-    lng: driver.location ? driver.location.lng + 0.01 : -24.9331
-  };
-
-  // Handle manual simulation start
   const handleStartSimulation = () => {
     setSimulateArrival(true);
   };
 
-  // Toggle driver profile visibility
   const toggleDriverProfile = () => {
     setShowDriverProfile(!showDriverProfile);
-    // Call the global function in MapDisplay to hide/show driver profile
     if (showDriverProfile) {
       if (typeof window.hideDriverProfile === 'function') {
         window.hideDriverProfile(driver.id);
@@ -256,7 +319,7 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
             <div className="h-96 relative" ref={mapContainerRef}>
               <MapDisplay 
                 drivers={[mapDriver]} 
-                userLocation={userLocation} 
+                userLocation={userLocation || undefined}
                 height="100%" 
                 simulateArrival={simulateArrival}
                 showFullScreenButton={false}
@@ -276,7 +339,6 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
                   </button>
                 )}
 
-                {/* Add button to toggle driver profile visibility */}
                 <button
                   onClick={toggleDriverProfile}
                   className="bg-blue-500 text-white py-2 px-4 rounded-md shadow-md hover:bg-blue-600 transition-colors flex items-center justify-center"
@@ -294,6 +356,12 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
                   )}
                 </button>
               </div>
+              
+              {locationPermissionState === 'denied' && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-100 text-red-800 px-4 py-2 rounded-md shadow-md z-20 max-w-xs text-center">
+                  <p className="text-sm">Location access required for accurate driver routing</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -371,7 +439,6 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
           )}
         </div>
 
-        {/* Call Options Dialog */}
         {showCallOptions && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center animate-fade-in">
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 animate-scale-in">

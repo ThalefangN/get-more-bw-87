@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Car, Star, MessageSquare, Phone, MapPin } from 'lucide-react';
+import { Car, Star, MessageSquare, Phone, MapPin, Navigation2 } from 'lucide-react';
 import { NavigateFunction } from 'react-router-dom';
 import WaitingAreaModal from './WaitingAreaModal';
+import { toast } from 'sonner';
 
-// Sample drivers data with diverse Tswana names
 const sampleDrivers = [
   { 
     id: 1, 
@@ -103,6 +103,36 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
   const [selectedDriver, setSelectedDriver] = useState<(typeof sampleDrivers)[0] | null>(null);
   const [countdown, setCountdown] = useState(5);
   const [showWaitingArea, setShowWaitingArea] = useState(false);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  
+  useEffect(() => {
+    if (isOpen && step === 'fare') {
+      if ('geolocation' in navigator) {
+        toast.info("Getting your location", {
+          description: "For a better experience, please allow location access"
+        });
+        
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setUserLocation({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            });
+            toast.success("Location found", {
+              description: "We'll match you with nearby drivers"
+            });
+          },
+          (error) => {
+            console.error("Geolocation error:", error);
+            toast.error("Location access denied", {
+              description: "We'll use an approximate location instead"
+            });
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      }
+    }
+  }, [isOpen, step]);
   
   useEffect(() => {
     if (isOpen) {
@@ -132,7 +162,23 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
   };
   
   const selectDriver = (driver: typeof sampleDrivers[0]) => {
-    setSelectedDriver(driver);
+    if (userLocation) {
+      const randomOffset = 0.01 + (Math.random() * 0.02);
+      const randomDirection = Math.random() * Math.PI * 2;
+      
+      const updatedDriver = {
+        ...driver,
+        location: {
+          lat: userLocation.lat + (Math.sin(randomDirection) * randomOffset),
+          lng: userLocation.lng + (Math.cos(randomDirection) * randomOffset)
+        }
+      };
+      
+      setSelectedDriver(updatedDriver);
+    } else {
+      setSelectedDriver(driver);
+    }
+    
     setStep('connecting');
     setCountdown(5);
     
@@ -159,6 +205,31 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
   const handleWaitingAreaClose = () => {
     setShowWaitingArea(false);
     onClose();
+  };
+  
+  const handleRefreshLocation = () => {
+    if ('geolocation' in navigator) {
+      toast.info("Updating your location...");
+      
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+          toast.success("Location updated", {
+            description: "We'll match you with nearby drivers"
+          });
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          toast.error("Location access denied", {
+            description: "We'll use an approximate location instead"
+          });
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
   };
   
   return (
@@ -190,7 +261,7 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
                   )}
                 </div>
                 
-                <div className="flex justify-center pt-4">
+                <div className="flex justify-center gap-3 pt-4">
                   <Button 
                     onClick={handleFareSubmit} 
                     disabled={!fare || Number(fare) < 30}
@@ -198,7 +269,27 @@ const BookingModal = ({ isOpen, onClose, navigate }: BookingModalProps) => {
                   >
                     Find Drivers
                   </Button>
+                  
+                  <Button
+                    onClick={handleRefreshLocation}
+                    variant="outline"
+                    className="rounded-full px-4 py-6"
+                    title="Refresh your location"
+                  >
+                    <Navigation2 className="mr-2" size={18} />
+                    Update Location
+                  </Button>
                 </div>
+                
+                {userLocation ? (
+                  <p className="text-center text-sm text-green-600 mt-2">
+                    ✓ Using your current location
+                  </p>
+                ) : (
+                  <p className="text-center text-sm text-amber-600 mt-2">
+                    ⚠️ Location access needed for more accurate pickups
+                  </p>
+                )}
               </div>
             </div>
           )}

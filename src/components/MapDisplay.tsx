@@ -1,8 +1,7 @@
-
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Car, MapPin, Loader, X, User } from 'lucide-react';
+import { Car, MapPin, Loader, X, User, Navigation2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Driver {
@@ -70,6 +69,7 @@ const MapDisplay = ({
   const lastUpdateTimeRef = useRef<number>(0);
   const simulationStartTimeRef = useRef<number>(0);
   const SIMULATION_DURATION_MS = 120000;
+  const [userLocationPermission, setUserLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
 
   const cleanupMapResources = useCallback(() => {
     try {
@@ -129,42 +129,39 @@ const MapDisplay = ({
   useEffect(() => {
     if (!initialUserLocation) {
       setGeolocating(true);
+      
       if ('geolocation' in navigator) {
-        toast.info("Location access required", {
-          description: "Please allow access to your location for better experience"
-        });
-
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const userPos = {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude
-            };
-            setUserLocation(userPos);
-            setGeolocating(false);
+        if (navigator.permissions) {
+          navigator.permissions.query({ name: 'geolocation' }).then((permissionStatus) => {
+            setUserLocationPermission(permissionStatus.state as 'granted' | 'denied' | 'prompt');
             
-            if (map.current && mapLoaded) {
-              map.current.flyTo({
-                center: [userPos.lng, userPos.lat] as [number, number],
-                zoom: 14,
-                essential: true
+            if (permissionStatus.state === 'granted') {
+              getUserLocation();
+            } else if (permissionStatus.state === 'prompt') {
+              toast.info("Location access required", {
+                description: "Please allow access to your location for cab booking",
+                duration: 5000
+              });
+              getUserLocation();
+            } else {
+              setLocationError('Location access denied. Please enable location services.');
+              setGeolocating(false);
+              toast.error("Location access denied", {
+                description: "Please enable location services in your browser settings",
+                duration: 5000
               });
             }
             
-            toast.success("Location found", {
-              description: "Using your current location"
-            });
-          },
-          (error) => {
-            console.error('Geolocation error:', error);
-            setLocationError('Could not access your location. Using default position.');
-            setGeolocating(false);
-            toast.error("Location error", {
-              description: "Using default location instead"
-            });
-          },
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
+            permissionStatus.onchange = () => {
+              setUserLocationPermission(permissionStatus.state as 'granted' | 'denied' | 'prompt');
+              if (permissionStatus.state === 'granted') {
+                getUserLocation();
+              }
+            };
+          });
+        } else {
+          getUserLocation();
+        }
       } else {
         setLocationError('Geolocation is not supported by your browser. Using default position.');
         setGeolocating(false);
@@ -173,7 +170,65 @@ const MapDisplay = ({
         });
       }
     }
-  }, [initialUserLocation, mapLoaded]);
+  }, [initialUserLocation]);
+
+  const getUserLocation = () => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userPos = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        setUserLocation(userPos);
+        setGeolocating(false);
+        
+        if (map.current && mapLoaded) {
+          map.current.flyTo({
+            center: [userPos.lng, userPos.lat] as [number, number],
+            zoom: 14,
+            essential: true
+          });
+          
+          if (userMarkerRef.current) {
+            userMarkerRef.current.setLngLat([userPos.lng, userPos.lat]);
+          }
+          
+          if (selectedDriver && !simulationActive) {
+            const driverCoords: [number, number] = [selectedDriver.lng, selectedDriver.lat];
+            const userCoords: [number, number] = [userPos.lng, userPos.lat];
+            drawRoute(selectedDriver.id, driverCoords, userCoords);
+          }
+        }
+        
+        toast.success("Location found", {
+          description: "Using your current location"
+        });
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        let errorMessage = 'Could not access your location. Using default position.';
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Location access denied. Please enable location services.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Location information is unavailable. Using default position.';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Location request timed out. Using default position.';
+            break;
+        }
+        
+        setLocationError(errorMessage);
+        setGeolocating(false);
+        toast.error("Location error", {
+          description: errorMessage
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
 
   const drawRoute = useCallback(async (driverId: number, driverCoords: [number, number], userCoords: [number, number]) => {
     if (!map.current || !mapLoaded) return;
@@ -217,7 +272,6 @@ const MapDisplay = ({
         }
       });
       
-      // Updated route styling to be a bold straight line instead of dotted
       map.current.addLayer({
         id: layerId,
         type: 'line',
@@ -227,10 +281,9 @@ const MapDisplay = ({
           'line-cap': 'round'
         },
         paint: {
-          'line-color': '#6528F7',
-          'line-width': 5, // Slightly reduced from 8 to not be too bold
+          'line-color': '#1E90FF',
+          'line-width': 5,
           'line-opacity': 0.85,
-          // Removed line-dasharray to make it a solid line
         }
       });
       
@@ -314,7 +367,6 @@ const MapDisplay = ({
         }
       });
       
-      // Same updated styling for fallback route
       map.current.addLayer({
         id: layerId,
         type: 'line',
@@ -324,10 +376,9 @@ const MapDisplay = ({
           'line-cap': 'round'
         },
         paint: {
-          'line-color': '#6528F7',
+          'line-color': '#1E90FF',
           'line-width': 5,
           'line-opacity': 0.85,
-          // Removed line-dasharray to make it a solid line
         }
       });
       
@@ -382,7 +433,7 @@ const MapDisplay = ({
         const userMarkerEl = document.createElement('div');
         userMarkerEl.className = 'relative';
         userMarkerEl.innerHTML = `
-          <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white z-10 relative">
+          <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white z-10 relative shadow-md">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user">
               <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
@@ -621,7 +672,6 @@ const MapDisplay = ({
     const carMarkerEl = document.createElement('div');
     carMarkerEl.className = 'car-marker-animated';
     
-    // Updated car marker with blinking border animation
     carMarkerEl.innerHTML = `
       <div class="relative">
         <div class="w-10 h-10 rounded-full bg-getmore-purple flex items-center justify-center border-2 border-white shadow-lg animate-pulse">
@@ -668,12 +718,13 @@ const MapDisplay = ({
       destinationEl.className = 'destination-marker';
       destinationEl.innerHTML = `
         <div class="relative">
-          <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white z-10 relative">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
+          <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white z-10 relative shadow-md">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
             </svg>
           </div>
+          <div class="absolute -bottom-8 h-8 w-2 bg-blue-500"></div>
           <div class="absolute -bottom-1 w-6 h-1 bg-black/20 rounded-full mx-auto left-0 right-0"></div>
         </div>
       `;
@@ -807,13 +858,40 @@ const MapDisplay = ({
     );
   };
 
+  const renderRecenterButton = () => {
+    if (!mapLoaded || userLocationPermission === 'denied') return null;
+    
+    return (
+      <div className="absolute bottom-4 left-4 z-40">
+        <button 
+          onClick={getUserLocation}
+          className="bg-blue-500 text-white px-3 py-2 rounded-lg shadow-lg flex items-center"
+        >
+          <Navigation2 size={16} className="mr-1" />
+          <span>Recenter Location</span>
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="relative" style={{ height }}>
       {locationError && (
         <div className="absolute inset-0 flex items-center justify-center z-50 bg-gray-100 bg-opacity-80 rounded-lg">
           <div className="text-center p-4 bg-white rounded-lg shadow-lg">
-            <X className="text-red-500 mx-auto mb-2" size={32} />
+            <AlertCircle className="text-red-500 mx-auto mb-2" size={32} />
             <p className="text-gray-700">{locationError}</p>
+            {userLocationPermission === 'denied' && (
+              <div className="mt-3">
+                <p className="text-sm text-gray-600 mb-2">Please enable location services in your browser settings</p>
+                <button 
+                  onClick={getUserLocation}
+                  className="bg-blue-500 text-white px-3 py-1 rounded text-sm"
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -829,6 +907,7 @@ const MapDisplay = ({
       
       {showETA()}
       {selectedDriver && renderToggleProfileButton()}
+      {renderRecenterButton()}
       
       <div ref={mapContainer} className="w-full h-full rounded-lg overflow-hidden"></div>
     </div>
