@@ -691,11 +691,39 @@ const MapDisplay = ({
       driverMarkerRef.current.remove();
     }
     
-    const animatedCarMarker = new mapboxgl.Marker({ element: carMarkerEl })
-      .setLngLat(routePointsRef.current[0])
-      .addTo(map.current);
+    // Make sure we have at least one valid route point
+    if (!routePointsRef.current || routePointsRef.current.length === 0) {
+      console.error("No route points available for animation");
+      toast.error("Could not simulate driver movement", {
+        description: "Route information is not available"
+      });
+      return;
+    }
     
-    driverMarkerRef.current = animatedCarMarker;
+    // Make sure the first point is valid
+    const firstPoint = routePointsRef.current[0];
+    if (!firstPoint || firstPoint.length < 2 || typeof firstPoint[0] !== 'number' || typeof firstPoint[1] !== 'number') {
+      console.error("Invalid first route point:", firstPoint);
+      toast.error("Could not simulate driver movement", {
+        description: "Invalid route coordinates"
+      });
+      return;
+    }
+    
+    // Add the car marker at the first point of the route
+    try {
+      const animatedCarMarker = new mapboxgl.Marker({ element: carMarkerEl })
+        .setLngLat([firstPoint[0], firstPoint[1]])
+        .addTo(map.current);
+      
+      driverMarkerRef.current = animatedCarMarker;
+    } catch (error) {
+      console.error("Error adding car marker:", error);
+      toast.error("Could not add driver marker", {
+        description: "Please try again later"
+      });
+      return;
+    }
     
     const calculateBearing = (startPoint: [number, number], endPoint: [number, number]): number => {
       const startLat = startPoint[1] * Math.PI / 180;
@@ -729,12 +757,19 @@ const MapDisplay = ({
         </div>
       `;
       
+      // Get the last point of the route for destination
       const lastPoint = routePointsRef.current[routePointsRef.current.length - 1];
-      const destinationMarker = new mapboxgl.Marker({ element: destinationEl })
-        .setLngLat(lastPoint)
-        .addTo(map.current);
-      
-      userMarkerRef.current = destinationMarker;
+      if (lastPoint && lastPoint.length >= 2) {
+        try {
+          const destinationMarker = new mapboxgl.Marker({ element: destinationEl })
+            .setLngLat([lastPoint[0], lastPoint[1]])
+            .addTo(map.current);
+          
+          userMarkerRef.current = destinationMarker;
+        } catch (error) {
+          console.error("Error adding destination marker:", error);
+        }
+      }
     }
 
     const animateCar = () => {
@@ -745,9 +780,14 @@ const MapDisplay = ({
       
       if (progress >= 1) {
         if (!driverArrived) {
+          // Get the last point for the final position
           const lastPoint = routePointsRef.current[routePointsRef.current.length - 1];
-          if (driverMarkerRef.current) {
-            driverMarkerRef.current.setLngLat(lastPoint);
+          if (lastPoint && lastPoint.length >= 2 && driverMarkerRef.current) {
+            try {
+              driverMarkerRef.current.setLngLat([lastPoint[0], lastPoint[1]]);
+            } catch (error) {
+              console.error("Error setting final marker position:", error);
+            }
           }
           
           setDriverArrived(true);
@@ -764,21 +804,41 @@ const MapDisplay = ({
         }
       }
       
-      const routeIndex = Math.floor(progress * (routePointsRef.current.length - 1));
+      const routeLength = routePointsRef.current.length - 1;
+      const routeIndex = Math.min(Math.floor(progress * routeLength), routeLength);
+      
+      // Make sure we have valid points
+      if (routeIndex < 0 || routeIndex >= routePointsRef.current.length) {
+        console.error("Invalid route index:", routeIndex, "for length:", routePointsRef.current.length);
+        return;
+      }
+      
       const currentPoint = routePointsRef.current[routeIndex];
       const nextPoint = routePointsRef.current[Math.min(routeIndex + 1, routePointsRef.current.length - 1)];
       
+      if (!currentPoint || !nextPoint || 
+          currentPoint.length < 2 || nextPoint.length < 2 ||
+          typeof currentPoint[0] !== 'number' || typeof currentPoint[1] !== 'number' ||
+          typeof nextPoint[0] !== 'number' || typeof nextPoint[1] !== 'number') {
+        console.error("Invalid route points at index", routeIndex, currentPoint, nextPoint);
+        return;
+      }
+      
       const bearing = calculateBearing(currentPoint, nextPoint);
       
-      if (animatedCarMarker && map.current) {
-        animatedCarMarker.setLngLat(currentPoint);
-        
-        const markerEl = animatedCarMarker.getElement();
-        if (markerEl) {
-          const carIcon = markerEl.querySelector('svg');
-          if (carIcon) {
-            carIcon.style.transform = `rotate(${bearing}deg)`;
+      if (driverMarkerRef.current && map.current) {
+        try {
+          driverMarkerRef.current.setLngLat([currentPoint[0], currentPoint[1]]);
+          
+          const markerEl = driverMarkerRef.current.getElement();
+          if (markerEl) {
+            const carIcon = markerEl.querySelector('svg');
+            if (carIcon) {
+              carIcon.style.transform = `rotate(${bearing}deg)`;
+            }
           }
+        } catch (error) {
+          console.error("Error updating car marker position:", error);
         }
       }
       
