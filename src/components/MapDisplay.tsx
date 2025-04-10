@@ -71,7 +71,7 @@ const MapDisplay = ({
   const simulationStartTimeRef = useRef<number>(0);
   const SIMULATION_DURATION_MS = 120000;
   const [userLocationPermission, setUserLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
-  const userMarkerIsFixed = useRef(false);
+  const userMarkerIsFixed = useRef(true);
 
   const cleanupMapResources = useCallback(() => {
     try {
@@ -464,19 +464,21 @@ const MapDisplay = ({
     }
     
     const userMarkerEl = document.createElement('div');
-    userMarkerEl.className = 'relative';
+    userMarkerEl.className = 'fixed-user-marker';
     userMarkerEl.innerHTML = `
-      <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white z-10 relative shadow-md">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user">
-          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
-        </svg>
+      <div class="relative">
+        <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white z-50 relative shadow-md">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </div>
+        <div class="absolute top-0 left-0 w-12 h-12 -mt-2 -ml-2 bg-blue-500 rounded-full animate-ping opacity-60"></div>
+        <div class="absolute -bottom-1 w-6 h-1 bg-black/20 rounded-full mx-auto left-0 right-0"></div>
       </div>
-      <div class="absolute top-0 left-0 w-12 h-12 -mt-2 -ml-2 bg-blue-500 rounded-full animate-ping opacity-60"></div>
-      <div class="absolute -bottom-1 w-6 h-1 bg-black/20 rounded-full mx-auto left-0 right-0"></div>
     `;
     
-    // Create the user marker and ensure it's always on top
+    // Create the user marker with higher z-index to ensure it stays on top
     const userMarker = new mapboxgl.Marker({
       element: userMarkerEl,
       anchor: 'bottom',
@@ -486,7 +488,6 @@ const MapDisplay = ({
     .addTo(map.current);
     
     userMarkerRef.current = userMarker;
-    userMarkerIsFixed.current = true;
   };
 
   useEffect(() => {
@@ -517,44 +518,32 @@ const MapDisplay = ({
     }
   }, [simulateArrival, selectedDriver, simulationActive, mapLoaded]);
 
+  // Enhanced map event handlers to keep user marker fixed
   useEffect(() => {
-    if (map.current && mapLoaded) {
-      map.current.on('zoom', () => {
-        if (userMarkerRef.current && userMarkerIsFixed.current) {
-          userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
-        }
-      });
-      
-      map.current.on('drag', () => {
-        if (userMarkerRef.current && userMarkerIsFixed.current) {
-          userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
-        }
-      });
-      
-      map.current.on('move', () => {
-        if (userMarkerRef.current && userMarkerIsFixed.current) {
-          userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
-        }
-      });
-    }
+    if (!map.current || !mapLoaded) return;
     
+    // Function to update user marker position after any map movement
+    const updateUserMarkerPosition = () => {
+      if (userMarkerRef.current && userMarkerIsFixed.current) {
+        userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
+      }
+    };
+    
+    // Add event listeners for all map movement events
+    map.current.on('zoom', updateUserMarkerPosition);
+    map.current.on('drag', updateUserMarkerPosition);
+    map.current.on('move', updateUserMarkerPosition);
+    map.current.on('pitch', updateUserMarkerPosition);
+    map.current.on('rotate', updateUserMarkerPosition);
+    
+    // Cleanup function with proper handler references
     return () => {
       if (map.current) {
-        map.current.off('zoom', () => {
-          if (userMarkerRef.current && userMarkerIsFixed.current) {
-            userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
-          }
-        });
-        map.current.off('drag', () => {
-          if (userMarkerRef.current && userMarkerIsFixed.current) {
-            userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
-          }
-        });
-        map.current.off('move', () => {
-          if (userMarkerRef.current && userMarkerIsFixed.current) {
-            userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
-          }
-        });
+        map.current.off('zoom', updateUserMarkerPosition);
+        map.current.off('drag', updateUserMarkerPosition);
+        map.current.off('move', updateUserMarkerPosition);
+        map.current.off('pitch', updateUserMarkerPosition);
+        map.current.off('rotate', updateUserMarkerPosition);
       }
     };
   }, [mapLoaded, userLocation]);
@@ -883,9 +872,12 @@ const MapDisplay = ({
       return bearing;
     };
     
-    // If user marker doesn't exist, add it to show destination
+    // Make sure the user marker is visible and fixed
     if (!userMarkerRef.current && map.current) {
       addUserMarker();
+    } else if (userMarkerRef.current) {
+      // Make sure user marker is at the correct position
+      userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
     }
 
     const animateCar = () => {
@@ -972,6 +964,11 @@ const MapDisplay = ({
             if (carIcon) {
               carIcon.style.transform = `rotate(${bearing}deg)`;
             }
+          }
+          
+          // Ensure user marker stays fixed during animation
+          if (userMarkerRef.current) {
+            userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
           }
         } catch (error) {
           console.error("Error updating car marker position:", error);
