@@ -540,9 +540,21 @@ const MapDisplay = ({
     
     return () => {
       if (map.current) {
-        map.current.off('zoom');
-        map.current.off('drag');
-        map.current.off('move');
+        map.current.off('zoom', () => {
+          if (userMarkerRef.current && userMarkerIsFixed.current) {
+            userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
+          }
+        });
+        map.current.off('drag', () => {
+          if (userMarkerRef.current && userMarkerIsFixed.current) {
+            userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
+          }
+        });
+        map.current.off('move', () => {
+          if (userMarkerRef.current && userMarkerIsFixed.current) {
+            userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
+          }
+        });
       }
     };
   }, [mapLoaded, userLocation]);
