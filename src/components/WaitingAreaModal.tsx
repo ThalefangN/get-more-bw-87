@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -21,6 +20,7 @@ interface Driver {
   };
   lat?: number;
   lng?: number;
+  userLocation?: { lat: number; lng: number };
 }
 
 interface WaitingAreaModalProps {
@@ -96,6 +96,7 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
       console.log("Using default driver location as none was provided");
     }
 
+    // Get user location for proper map tracking
     const getUserLocation = () => {
       if ('geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(
@@ -105,6 +106,12 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
               lng: position.coords.longitude
             };
             setUserLocation(userPos);
+            
+            // Update driver with user location
+            if (driver && driver.userLocation === undefined) {
+              driver.userLocation = userPos;
+            }
+            
             toast.success("Using your actual location", {
               description: "The driver will come to your current position"
             });
@@ -117,10 +124,16 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
             
             // Create a fallback location slightly offset from driver
             if (driverLocation) {
-              setUserLocation({
+              const fallbackLocation = {
                 lat: driverLocation.lat + 0.01,
                 lng: driverLocation.lng + 0.01
-              });
+              };
+              setUserLocation(fallbackLocation);
+              
+              // Update driver with fallback location
+              if (driver && driver.userLocation === undefined) {
+                driver.userLocation = fallbackLocation;
+              }
             }
           },
           { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -132,10 +145,16 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
         
         // Create a fallback location slightly offset from driver
         if (driverLocation) {
-          setUserLocation({
+          const fallbackLocation = {
             lat: driverLocation.lat + 0.01,
             lng: driverLocation.lng + 0.01
-          });
+          };
+          setUserLocation(fallbackLocation);
+          
+          // Update driver with fallback location
+          if (driver && driver.userLocation === undefined) {
+            driver.userLocation = fallbackLocation;
+          }
         }
       }
     };
@@ -160,10 +179,16 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
           
           // Create a fallback location slightly offset from driver
           if (driverLocation) {
-            setUserLocation({
+            const fallbackLocation = {
               lat: driverLocation.lat + 0.01,
               lng: driverLocation.lng + 0.01
-            });
+            };
+            setUserLocation(fallbackLocation);
+            
+            // Update driver with fallback location
+            if (driver && driver.userLocation === undefined) {
+              driver.userLocation = fallbackLocation;
+            }
           }
         }
         
@@ -266,7 +291,8 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
       lng: driverLocation.lng,
       rating: driver.rating,
       phone: driver.phone,
-      image: driver.image
+      image: driver.image,
+      userLocation: userLocation || undefined
     };
   };
 

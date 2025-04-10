@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -15,6 +14,7 @@ interface Driver {
   rating: number;
   phone: string;
   image: string;
+  userLocation?: { lat: number; lng: number };
 }
 
 interface MapDisplayProps {
@@ -71,6 +71,7 @@ const MapDisplay = ({
   const simulationStartTimeRef = useRef<number>(0);
   const SIMULATION_DURATION_MS = 120000;
   const [userLocationPermission, setUserLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+  const userMarkerIsFixed = useRef(false);
 
   const cleanupMapResources = useCallback(() => {
     try {
@@ -431,27 +432,8 @@ const MapDisplay = ({
         console.log("Map loaded successfully");
         setMapLoaded(true);
         
-        const userMarkerEl = document.createElement('div');
-        userMarkerEl.className = 'relative';
-        userMarkerEl.innerHTML = `
-          <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white z-10 relative shadow-md">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user">
-              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-          </div>
-          <div class="absolute top-0 left-0 w-12 h-12 -mt-2 -ml-2 bg-blue-500 rounded-full animate-ping opacity-60"></div>
-          <div class="absolute -bottom-1 w-6 h-1 bg-black/20 rounded-full mx-auto left-0 right-0"></div>
-        `;
-        
-        if (map.current) {
-          const userMarker = new mapboxgl.Marker({ element: userMarkerEl })
-            .setLngLat([userLocation.lng, userLocation.lat])
-            .addTo(map.current);
-          
-          userMarkerRef.current = userMarker;
-          addDriverMarkers();
-        }
+        addUserMarker();
+        addDriverMarkers();
       });
 
       map.current.on('error', (e) => {
@@ -473,6 +455,39 @@ const MapDisplay = ({
 
     return cleanupMapResources;
   }, [userLocation, cleanupMapResources]);
+
+  const addUserMarker = () => {
+    if (!map.current) return;
+    
+    if (userMarkerRef.current) {
+      userMarkerRef.current.remove();
+    }
+    
+    const userMarkerEl = document.createElement('div');
+    userMarkerEl.className = 'relative';
+    userMarkerEl.innerHTML = `
+      <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white z-10 relative shadow-md">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user">
+          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </div>
+      <div class="absolute top-0 left-0 w-12 h-12 -mt-2 -ml-2 bg-blue-500 rounded-full animate-ping opacity-60"></div>
+      <div class="absolute -bottom-1 w-6 h-1 bg-black/20 rounded-full mx-auto left-0 right-0"></div>
+    `;
+    
+    // Create the user marker and ensure it's always on top
+    const userMarker = new mapboxgl.Marker({
+      element: userMarkerEl,
+      anchor: 'bottom',
+      offset: [0, 0]
+    })
+    .setLngLat([userLocation.lng, userLocation.lat])
+    .addTo(map.current);
+    
+    userMarkerRef.current = userMarker;
+    userMarkerIsFixed.current = true;
+  };
 
   useEffect(() => {
     if (map.current && mapLoaded) {
@@ -501,6 +516,36 @@ const MapDisplay = ({
       simulateCarMovement(selectedDriver.id);
     }
   }, [simulateArrival, selectedDriver, simulationActive, mapLoaded]);
+
+  useEffect(() => {
+    if (map.current && mapLoaded) {
+      map.current.on('zoom', () => {
+        if (userMarkerRef.current && userMarkerIsFixed.current) {
+          userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
+        }
+      });
+      
+      map.current.on('drag', () => {
+        if (userMarkerRef.current && userMarkerIsFixed.current) {
+          userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
+        }
+      });
+      
+      map.current.on('move', () => {
+        if (userMarkerRef.current && userMarkerIsFixed.current) {
+          userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
+        }
+      });
+    }
+    
+    return () => {
+      if (map.current) {
+        map.current.off('zoom');
+        map.current.off('drag');
+        map.current.off('move');
+      }
+    };
+  }, [mapLoaded, userLocation]);
 
   const addDriverMarkers = () => {
     if (!map.current) return;
@@ -828,38 +873,7 @@ const MapDisplay = ({
     
     // If user marker doesn't exist, add it to show destination
     if (!userMarkerRef.current && map.current) {
-      const destinationEl = document.createElement('div');
-      destinationEl.className = 'destination-marker';
-      destinationEl.innerHTML = `
-        <div class="relative">
-          <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white z-10 relative shadow-md">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user">
-              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-          </div>
-          <div class="absolute top-0 left-0 w-12 h-12 -mt-2 -ml-2 bg-blue-500 rounded-full animate-ping opacity-60"></div>
-          <div class="absolute -bottom-1 w-6 h-1 bg-black/20 rounded-full mx-auto left-0 right-0"></div>
-        </div>
-      `;
-      
-      // Get the last point of the route for destination
-      const lastPoint = routePointsRef.current[routePointsRef.current.length - 1];
-      if (lastPoint && 
-          Array.isArray(lastPoint) && 
-          lastPoint.length >= 2 && 
-          typeof lastPoint[0] === 'number' && 
-          typeof lastPoint[1] === 'number') {
-        try {
-          const destinationMarker = new mapboxgl.Marker({ element: destinationEl })
-            .setLngLat(lastPoint)
-            .addTo(map.current);
-          
-          userMarkerRef.current = destinationMarker;
-        } catch (error) {
-          console.error("Error adding destination marker:", error);
-        }
-      }
+      addUserMarker();
     }
 
     const animateCar = () => {
@@ -876,16 +890,12 @@ const MapDisplay = ({
       
       if (progress >= 1) {
         if (!driverArrived) {
-          // Get the last point for the final position
-          const lastPoint = routePointsRef.current[routePointsRef.current.length - 1];
-          if (lastPoint && 
-              Array.isArray(lastPoint) && 
-              lastPoint.length >= 2 && 
-              typeof lastPoint[0] === 'number' && 
-              typeof lastPoint[1] === 'number' && 
-              driverMarkerRef.current) {
+          // Get the user's location for the final position
+          const finalPosition: [number, number] = [userLocation.lng, userLocation.lat];
+          
+          if (driverMarkerRef.current) {
             try {
-              driverMarkerRef.current.setLngLat(lastPoint);
+              driverMarkerRef.current.setLngLat(finalPosition);
             } catch (error) {
               console.error("Error setting final marker position:", error);
             }
