@@ -150,12 +150,14 @@ const BookCab = () => {
                            availableDrivers[Math.floor(Math.random() * availableDrivers.length)] : 
                            mockDriversLocations[0];
     
-    // Ensure driver has the user's real location to drive to
-    if (userLocation) {
-      selectedDriver.userLocation = userLocation;
-    }
+    // Create a copy of the selected driver and add the user's location
+    const driverWithUserLocation = {
+      ...selectedDriver,
+      // Only add userLocation if it exists
+      ...(userLocation && { userLocation })
+    };
     
-    setSelectedDriver(selectedDriver);
+    setSelectedDriver(driverWithUserLocation);
     
     // Start countdown
     let timer = 5;
