@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -445,7 +446,7 @@ const MapDisplay = ({
         
         if (map.current) {
           const userMarker = new mapboxgl.Marker({ element: userMarkerEl })
-            .setLngLat([userLocation.lng, userLocation.lat] as [number, number])
+            .setLngLat([userLocation.lng, userLocation.lat])
             .addTo(map.current);
           
           userMarkerRef.current = userMarker;
@@ -480,12 +481,20 @@ const MapDisplay = ({
   }, [allDrivers, mapLoaded, showProfile]);
 
   useEffect(() => {
-    if (selectedDriver && map.current && mapLoaded) {
-      const driverCoords: [number, number] = [selectedDriver.lng, selectedDriver.lat];
-      const userCoords: [number, number] = [userLocation.lng, userLocation.lat];
-      drawRoute(selectedDriver.id, driverCoords, userCoords);
+    if (map.current && mapLoaded && drivers.length > 0) {
+      // Set the first driver as selected if none is selected
+      if (!selectedDriver) {
+        setSelectedDriver(drivers[0]);
+      }
+      
+      // Draw route between driver and user when user location changes
+      if (selectedDriver && userLocation) {
+        const driverCoords: [number, number] = [selectedDriver.lng, selectedDriver.lat];
+        const userCoords: [number, number] = [userLocation.lng, userLocation.lat];
+        drawRoute(selectedDriver.id, driverCoords, userCoords);
+      }
     }
-  }, [selectedDriver, mapLoaded, userLocation, drawRoute]);
+  }, [selectedDriver, mapLoaded, userLocation, drawRoute, drivers]);
 
   useEffect(() => {
     if (simulateArrival && selectedDriver && !simulationActive && mapLoaded) {
@@ -507,7 +516,14 @@ const MapDisplay = ({
     });
     markersRef.current = [];
     
-    allDrivers.forEach(driver => {
+    // Filter out drivers from additionalDrivers if they're already in main drivers array
+    const mainDriverIds = drivers.map(d => d.id);
+    const filteredAdditionalDrivers = additionalDrivers.filter(d => !mainDriverIds.includes(d.id));
+    
+    // If we have actual drivers from props, use only those if there are any
+    const driversToShow = drivers.length > 0 ? drivers : filteredAdditionalDrivers;
+    
+    driversToShow.forEach(driver => {
       try {
         const markerEl = document.createElement('div');
         markerEl.className = 'driver-marker';
@@ -598,6 +614,12 @@ const MapDisplay = ({
           </div>
         `);
         
+        // Ensure we have valid coordinates
+        if (typeof driver.lng !== 'number' || typeof driver.lat !== 'number') {
+          console.error('Invalid driver coordinates:', driver);
+          return;
+        }
+        
         const driverCoordinates: [number, number] = [driver.lng, driver.lat];
         
         if (map.current) {
@@ -618,6 +640,13 @@ const MapDisplay = ({
             if (onDriverClick) {
               onDriverClick(driver);
             }
+            
+            // Draw route when driver is selected
+            if (map.current && mapLoaded && userLocation) {
+              const driverCoords: [number, number] = [driver.lng, driver.lat];
+              const userCoords: [number, number] = [userLocation.lng, userLocation.lat];
+              drawRoute(driver.id, driverCoords, userCoords);
+            }
           });
 
           if (driver.id !== selectedDriver?.id) {
@@ -636,6 +665,13 @@ const MapDisplay = ({
         console.error('Error adding driver marker:', e);
       }
     });
+    
+    // If we have a selected driver, ensure we have a route drawn to the user
+    if (selectedDriver && map.current && mapLoaded && userLocation) {
+      const driverCoords: [number, number] = [selectedDriver.lng, selectedDriver.lat];
+      const userCoords: [number, number] = [userLocation.lng, userLocation.lat];
+      drawRoute(selectedDriver.id, driverCoords, userCoords);
+    }
   };
 
   const hideDriverProfile = (driverId: number) => {
@@ -660,8 +696,62 @@ const MapDisplay = ({
   }, [selectedDriver]);
 
   const simulateCarMovement = (driverId: number) => {
-    if (!map.current || !selectedDriver) return;
+    if (!map.current || !selectedDriver) {
+      console.error("Map or selected driver not available for animation");
+      return;
+    }
 
+    // Make sure we have a user location to drive to
+    if (!userLocation) {
+      console.error("User location not available for animation");
+      toast.error("User location not available", {
+        description: "Cannot simulate driver approach without a destination"
+      });
+      return;
+    }
+
+    // First ensure we have a route to follow
+    if (!routePointsRef.current || routePointsRef.current.length === 0) {
+      console.log("No route points available, generating route first...");
+      
+      // Get driver and user coordinates
+      const driverCoords: [number, number] = [selectedDriver.lng, selectedDriver.lat];
+      const userCoords: [number, number] = [userLocation.lng, userLocation.lat];
+      
+      // Draw the route first, then start simulation after route is available
+      drawRoute(selectedDriver.id, driverCoords, userCoords).then((points) => {
+        if (points && points.length > 0) {
+          console.log("Route generated, starting simulation");
+          startCarAnimation(driverId);
+        } else {
+          console.error("Failed to generate route for animation");
+          toast.error("Could not generate route", {
+            description: "Please try again or check your network connection"
+          });
+        }
+      }).catch(error => {
+        console.error("Error generating route:", error);
+        toast.error("Route generation failed", {
+          description: "Could not simulate driver movement"
+        });
+      });
+    } else {
+      startCarAnimation(driverId);
+    }
+  };
+  
+  const startCarAnimation = (driverId: number) => {
+    if (!map.current || !selectedDriver) return;
+    
+    // Ensure routePointsRef.current has valid points
+    if (!routePointsRef.current || routePointsRef.current.length === 0) {
+      console.error("No route points available for animation");
+      toast.error("Could not simulate driver movement", {
+        description: "Route information is not available"
+      });
+      return;
+    }
+    
     setSimulationActive(true);
     setDriverArrived(false);
     setJourneyProgress(0);
@@ -691,18 +781,13 @@ const MapDisplay = ({
       driverMarkerRef.current.remove();
     }
     
-    // Make sure we have at least one valid route point
-    if (!routePointsRef.current || routePointsRef.current.length === 0) {
-      console.error("No route points available for animation");
-      toast.error("Could not simulate driver movement", {
-        description: "Route information is not available"
-      });
-      return;
-    }
-    
-    // Make sure the first point is valid
+    // Validate the first point before using it
     const firstPoint = routePointsRef.current[0];
-    if (!firstPoint || firstPoint.length < 2 || typeof firstPoint[0] !== 'number' || typeof firstPoint[1] !== 'number') {
+    if (!firstPoint || 
+        !Array.isArray(firstPoint) || 
+        firstPoint.length < 2 || 
+        typeof firstPoint[0] !== 'number' || 
+        typeof firstPoint[1] !== 'number') {
       console.error("Invalid first route point:", firstPoint);
       toast.error("Could not simulate driver movement", {
         description: "Invalid route coordinates"
@@ -713,7 +798,7 @@ const MapDisplay = ({
     // Add the car marker at the first point of the route
     try {
       const animatedCarMarker = new mapboxgl.Marker({ element: carMarkerEl })
-        .setLngLat([firstPoint[0], firstPoint[1]])
+        .setLngLat(firstPoint)
         .addTo(map.current);
       
       driverMarkerRef.current = animatedCarMarker;
@@ -741,28 +826,33 @@ const MapDisplay = ({
       return bearing;
     };
     
+    // If user marker doesn't exist, add it to show destination
     if (!userMarkerRef.current && map.current) {
       const destinationEl = document.createElement('div');
       destinationEl.className = 'destination-marker';
       destinationEl.innerHTML = `
         <div class="relative">
           <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center border-2 border-white z-10 relative shadow-md">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-              <circle cx="12" cy="10" r="3"></circle>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user">
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
             </svg>
           </div>
-          <div class="absolute -bottom-8 h-8 w-2 bg-blue-500"></div>
+          <div class="absolute top-0 left-0 w-12 h-12 -mt-2 -ml-2 bg-blue-500 rounded-full animate-ping opacity-60"></div>
           <div class="absolute -bottom-1 w-6 h-1 bg-black/20 rounded-full mx-auto left-0 right-0"></div>
         </div>
       `;
       
       // Get the last point of the route for destination
       const lastPoint = routePointsRef.current[routePointsRef.current.length - 1];
-      if (lastPoint && lastPoint.length >= 2) {
+      if (lastPoint && 
+          Array.isArray(lastPoint) && 
+          lastPoint.length >= 2 && 
+          typeof lastPoint[0] === 'number' && 
+          typeof lastPoint[1] === 'number') {
         try {
           const destinationMarker = new mapboxgl.Marker({ element: destinationEl })
-            .setLngLat([lastPoint[0], lastPoint[1]])
+            .setLngLat(lastPoint)
             .addTo(map.current);
           
           userMarkerRef.current = destinationMarker;
@@ -773,6 +863,12 @@ const MapDisplay = ({
     }
 
     const animateCar = () => {
+      // Validate map is still available
+      if (!map.current) {
+        console.log("Map no longer available during animation");
+        return;
+      }
+      
       const currentTime = Date.now();
       const elapsedTime = currentTime - simulationStartTimeRef.current;
       const progress = Math.min(elapsedTime / SIMULATION_DURATION_MS, 1);
@@ -782,9 +878,14 @@ const MapDisplay = ({
         if (!driverArrived) {
           // Get the last point for the final position
           const lastPoint = routePointsRef.current[routePointsRef.current.length - 1];
-          if (lastPoint && lastPoint.length >= 2 && driverMarkerRef.current) {
+          if (lastPoint && 
+              Array.isArray(lastPoint) && 
+              lastPoint.length >= 2 && 
+              typeof lastPoint[0] === 'number' && 
+              typeof lastPoint[1] === 'number' && 
+              driverMarkerRef.current) {
             try {
-              driverMarkerRef.current.setLngLat([lastPoint[0], lastPoint[1]]);
+              driverMarkerRef.current.setLngLat(lastPoint);
             } catch (error) {
               console.error("Error setting final marker position:", error);
             }
@@ -792,8 +893,13 @@ const MapDisplay = ({
           
           setDriverArrived(true);
           setSimulationActive(false);
-          const audio = new Audio('/arrival-sound.mp3');
-          audio.play().catch(e => console.log('Auto-play prevented:', e));
+          // Attempt to play an audio notification
+          try {
+            const audio = new Audio('/arrival-sound.mp3');
+            audio.play().catch(e => console.log('Auto-play prevented:', e));
+          } catch (e) {
+            console.log("Audio playback error:", e);
+          }
           
           toast.success("Driver has arrived!", {
             description: `${selectedDriver.name} has arrived at your location.`,
@@ -804,10 +910,16 @@ const MapDisplay = ({
         }
       }
       
+      // Make sure routePointsRef.current is valid
+      if (!routePointsRef.current || routePointsRef.current.length === 0) {
+        console.error("Route points not available during animation");
+        return;
+      }
+      
       const routeLength = routePointsRef.current.length - 1;
       const routeIndex = Math.min(Math.floor(progress * routeLength), routeLength);
       
-      // Make sure we have valid points
+      // Make sure we have valid points and index
       if (routeIndex < 0 || routeIndex >= routePointsRef.current.length) {
         console.error("Invalid route index:", routeIndex, "for length:", routePointsRef.current.length);
         return;
@@ -816,7 +928,9 @@ const MapDisplay = ({
       const currentPoint = routePointsRef.current[routeIndex];
       const nextPoint = routePointsRef.current[Math.min(routeIndex + 1, routePointsRef.current.length - 1)];
       
+      // Validate points
       if (!currentPoint || !nextPoint || 
+          !Array.isArray(currentPoint) || !Array.isArray(nextPoint) ||
           currentPoint.length < 2 || nextPoint.length < 2 ||
           typeof currentPoint[0] !== 'number' || typeof currentPoint[1] !== 'number' ||
           typeof nextPoint[0] !== 'number' || typeof nextPoint[1] !== 'number') {
@@ -828,7 +942,7 @@ const MapDisplay = ({
       
       if (driverMarkerRef.current && map.current) {
         try {
-          driverMarkerRef.current.setLngLat([currentPoint[0], currentPoint[1]]);
+          driverMarkerRef.current.setLngLat(currentPoint);
           
           const markerEl = driverMarkerRef.current.getElement();
           if (markerEl) {

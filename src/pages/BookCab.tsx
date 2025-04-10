@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Car, MapPin, Clock, Calendar, DollarSign, Check, X, MessageSquare, Phone } from 'lucide-react';
@@ -74,6 +75,7 @@ const BookCab = () => {
   const [connectingToDriver, setConnectingToDriver] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [selectedDriver, setSelectedDriver] = useState<any>(null);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   
   // Check authentication
   useEffect(() => {
@@ -81,6 +83,34 @@ const BookCab = () => {
       navigate('/sign-in', { state: { from: '/book-cab' } });
     }
   }, [isAuthenticated, navigate]);
+
+  // Get user's real location on component mount
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+          toast.success("Location detected", {
+            description: "Using your current location for cab pickup"
+          });
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          toast.error("Couldn't access your location", {
+            description: "Default location will be used. Please enable location permissions for better service."
+          });
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      toast.error("Geolocation not supported", {
+        description: "Your browser doesn't support location services"
+      });
+    }
+  }, []);
 
   // Filter cabs based on fare
   const handleFareChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,6 +149,11 @@ const BookCab = () => {
     const selectedDriver = availableDrivers.length > 0 ? 
                            availableDrivers[Math.floor(Math.random() * availableDrivers.length)] : 
                            mockDriversLocations[0];
+    
+    // Ensure driver has the user's real location to drive to
+    if (userLocation) {
+      selectedDriver.userLocation = userLocation;
+    }
     
     setSelectedDriver(selectedDriver);
     
@@ -190,6 +225,7 @@ const BookCab = () => {
                 
                 <MapDisplay 
                   drivers={mockDriversLocations}
+                  userLocation={userLocation || undefined}
                   onDriverClick={handleDriverClick}
                   height="400px"
                 />
@@ -211,6 +247,11 @@ const BookCab = () => {
                       onChange={(e) => setPickupLocation(e.target.value)}
                       className="w-full"
                     />
+                    {userLocation && (
+                      <p className="text-xs text-green-600 mt-1">
+                        Using your current location for more accurate service
+                      </p>
+                    )}
                   </div>
                   
                   <div>

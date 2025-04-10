@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -11,13 +12,15 @@ interface Driver {
   name: string;
   car: string;
   rating: number;
-  distance: string;
+  distance?: string;
   image: string;
   phone: string;
-  location: {
+  location?: {
     lat: number;
     lng: number;
   };
+  lat?: number;
+  lng?: number;
 }
 
 interface WaitingAreaModalProps {
@@ -73,22 +76,35 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
   const [estimatedTime, setEstimatedTime] = useState('2 minutes');
   const [mapLoaded, setMapLoaded] = useState(false);
   const [showCallOptions, setShowCallOptions] = useState(false);
-  const [simulateArrival, setSimulateArrival] = useState(false);
+  const [simulateArrival, setSimulateArrival] = useState(true); // Set to true by default to automatically start simulation
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showDriverProfile, setShowDriverProfile] = useState(true);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationPermissionState, setLocationPermissionState] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+  const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
+    // Normalize driver location data for consistent access
+    if (driver.location) {
+      setDriverLocation(driver.location);
+    } else if (driver.lat !== undefined && driver.lng !== undefined) {
+      setDriverLocation({ lat: driver.lat, lng: driver.lng });
+    } else {
+      // Default location if driver location is not provided
+      setDriverLocation({ lat: -24.6282, lng: 25.9231 });
+      console.log("Using default driver location as none was provided");
+    }
+
     const getUserLocation = () => {
       if ('geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            setUserLocation({
+            const userPos = {
               lat: position.coords.latitude,
               lng: position.coords.longitude
-            });
+            };
+            setUserLocation(userPos);
             toast.success("Using your actual location", {
               description: "The driver will come to your current position"
             });
@@ -99,10 +115,11 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
               description: "Please enable location services in your browser"
             });
             
-            if (driver.location) {
+            // Create a fallback location slightly offset from driver
+            if (driverLocation) {
               setUserLocation({
-                lat: driver.location.lat + 0.01,
-                lng: driver.location.lng + 0.01
+                lat: driverLocation.lat + 0.01,
+                lng: driverLocation.lng + 0.01
               });
             }
           },
@@ -113,10 +130,11 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
           description: "Your browser doesn't support geolocation"
         });
         
-        if (driver.location) {
+        // Create a fallback location slightly offset from driver
+        if (driverLocation) {
           setUserLocation({
-            lat: driver.location.lat + 0.01,
-            lng: driver.location.lng + 0.01
+            lat: driverLocation.lat + 0.01,
+            lng: driverLocation.lng + 0.01
           });
         }
       }
@@ -140,10 +158,11 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
             duration: 5000
           });
           
-          if (driver.location) {
+          // Create a fallback location slightly offset from driver
+          if (driverLocation) {
             setUserLocation({
-              lat: driver.location.lat + 0.01,
-              lng: driver.location.lng + 0.01
+              lat: driverLocation.lat + 0.01,
+              lng: driverLocation.lng + 0.01
             });
           }
         }
@@ -158,7 +177,7 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
     } else {
       getUserLocation();
     }
-  }, [driver.location]);
+  }, [driver, driverLocation]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -174,7 +193,6 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
       if (seconds <= 0) {
         clearInterval(interval);
         setEstimatedTime('Arrived');
-        setSimulateArrival(true);
       } else {
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = seconds % 60;
@@ -235,18 +253,25 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
     }
   };
 
-  const mapDriver = {
-    id: driver.id,
-    name: driver.name,
-    car: driver.car,
-    cabType: 'standard',
-    lat: driver.location?.lat || -24.6282,
-    lng: driver.location?.lng || 25.9231,
-    rating: driver.rating,
-    phone: driver.phone,
-    image: driver.image
+  // Convert driver data to format expected by MapDisplay
+  const prepareDriverForMap = () => {
+    if (!driverLocation) return null;
+    
+    return {
+      id: driver.id,
+      name: driver.name,
+      car: driver.car,
+      cabType: 'standard',
+      lat: driverLocation.lat,
+      lng: driverLocation.lng,
+      rating: driver.rating,
+      phone: driver.phone,
+      image: driver.image
+    };
   };
 
+  const mapDriver = prepareDriverForMap();
+  
   const handleStartSimulation = () => {
     setSimulateArrival(true);
   };
@@ -317,20 +342,22 @@ const WaitingAreaModal = ({ isOpen, onClose, driver }: WaitingAreaModalProps) =>
         <div className="flex-grow overflow-hidden">
           {activeTab === 'map' && (
             <div className="h-96 relative" ref={mapContainerRef}>
-              <MapDisplay 
-                drivers={[mapDriver]} 
-                userLocation={userLocation || undefined}
-                height="100%" 
-                simulateArrival={simulateArrival}
-                showFullScreenButton={false}
-              />
+              {mapDriver && (
+                <MapDisplay 
+                  drivers={[mapDriver]} 
+                  userLocation={userLocation || undefined}
+                  height="100%" 
+                  simulateArrival={simulateArrival}
+                  showFullScreenButton={false}
+                />
+              )}
               
               <div className="absolute bottom-4 left-4 z-10 flex flex-col space-y-2">
                 <div className="bg-white py-2 px-4 rounded-md shadow-md">
                   <p className="font-semibold">ETA: {estimatedTime}</p>
                 </div>
                 
-                {!simulateArrival && estimatedTime !== 'Arrived' && (
+                {!simulateArrival && (
                   <button 
                     onClick={handleStartSimulation}
                     className="bg-getmore-purple text-white py-2 px-4 rounded-md shadow-md hover:bg-purple-700 transition-colors"
