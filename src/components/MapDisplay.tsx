@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -72,6 +73,8 @@ const MapDisplay = ({
   const SIMULATION_DURATION_MS = 120000;
   const [userLocationPermission, setUserLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
   const userMarkerIsFixed = useRef(true);
+  const routeSourceIdRef = useRef<string>('');
+  const routeLayerIdRef = useRef<string>('');
 
   const cleanupMapResources = useCallback(() => {
     try {
@@ -235,15 +238,23 @@ const MapDisplay = ({
   const drawRoute = useCallback(async (driverId: number, driverCoords: [number, number], userCoords: [number, number]) => {
     if (!map.current || !mapLoaded) return;
     
-    const sourceId = `route-source-${driverId}`;
-    const layerId = `route-layer-${driverId}`;
+    // Generate unique source and layer IDs based on driver ID and timestamp
+    // This helps avoid the "source already exists" error
+    const timestamp = Date.now();
+    const sourceId = `route-source-${driverId}-${timestamp}`;
+    const layerId = `route-layer-${driverId}-${timestamp}`;
     
-    if (map.current.getSource(sourceId)) {
-      if (map.current.getLayer(layerId)) {
-        map.current.removeLayer(layerId);
+    // Remove previous route if it exists
+    if (routeSourceIdRef.current && map.current.getSource(routeSourceIdRef.current)) {
+      if (routeLayerIdRef.current && map.current.getLayer(routeLayerIdRef.current)) {
+        map.current.removeLayer(routeLayerIdRef.current);
       }
-      map.current.removeSource(sourceId);
+      map.current.removeSource(routeSourceIdRef.current);
     }
+    
+    // Store new IDs for later cleanup
+    routeSourceIdRef.current = sourceId;
+    routeLayerIdRef.current = layerId;
 
     try {
       const response = await fetch(
@@ -808,6 +819,7 @@ const MapDisplay = ({
     const carMarkerEl = document.createElement('div');
     carMarkerEl.className = 'car-marker-animated';
     
+    // Enhanced car marker with better animation
     carMarkerEl.innerHTML = `
       <div class="relative">
         <div class="w-10 h-10 rounded-full bg-getmore-purple flex items-center justify-center border-2 border-white shadow-lg animate-pulse">
@@ -818,7 +830,8 @@ const MapDisplay = ({
             <circle cx="17" cy="17" r="2"></circle>
           </svg>
         </div>
-        <div class="absolute inset-0 w-12 h-12 -ml-1 -mt-1 rounded-full border-2 border-getmore-purple animate-pulse opacity-70"></div>
+        <div class="absolute inset-0 w-14 h-14 -ml-2 -mt-2 rounded-full border-4 border-getmore-purple animate-ping opacity-50"></div>
+        <div class="absolute inset-0 w-12 h-12 -ml-1 -mt-1 rounded-full border-2 border-white animate-pulse opacity-70"></div>
         <div class="absolute -bottom-1 w-8 h-2 bg-black/20 rounded-full mx-auto left-0 right-0"></div>
       </div>
     `;
