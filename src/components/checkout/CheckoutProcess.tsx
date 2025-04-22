@@ -134,10 +134,10 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         price: item.price
       }));
 
-      // Insert order into orders table
+      // Insert order into orders table - Fixed the insert method syntax
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
-        .insert([{
+        .insert({
           id: orderId,
           store_id: store?.id || "",
           customer_id: user?.id || "",
@@ -147,7 +147,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
           address: address,
           status: 'pending',
           courier_assigned: selectedCourier.email
-        }], { returning: "representation" });
+        });
 
       if (orderError) {
         console.error("Error placing order:", orderError);
