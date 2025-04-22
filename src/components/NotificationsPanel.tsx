@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Bell, Check, Trash2, ShoppingBag, Truck, Info } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationContext';
@@ -113,6 +112,22 @@ export function NotificationsPanel() {
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                      
+                      {notification.data?.items && (
+                        <div className="mt-2">
+                          <p className="font-bold text-gray-700 mb-1">Order Details</p>
+                          <ul className="pl-4 list-disc text-sm text-gray-600">
+                            {notification.data.items.map((item: any, idx: number) => (
+                              <li key={idx}>
+                                {item.name} × {item.quantity} - P{item.price}
+                              </li>
+                            ))}
+                          </ul>
+                          <p className="font-semibold text-emerald-700 mt-2">
+                            Total: P{notification.data.total}
+                          </p>
+                        </div>
+                      )}
                       
                       {notification.order_id && (
                         <div className="mt-2">

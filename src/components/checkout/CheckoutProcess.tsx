@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -46,7 +45,6 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
   }, [isDialogOpen, orderId]);
   
   useEffect(() => {
-    // Fetch available couriers for use in step review
     const fetchAvailableCouriers = async () => {
       try {
         const { data } = await supabase
@@ -135,24 +133,22 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         price: item.price
       }));
 
-      const { data, error } = await supabase
+      const { data: orderData, error: orderError } = await supabase
         .from('orders')
-        .insert([
-          {
-            id: orderId,
-            store_id: store?.id || "",
-            customer_id: user?.id || "",
-            customer_name: user?.email || "Guest",
-            items: orderItems,
-            total_amount: totalPrice,
-            address: address,
-            status: 'pending',
-            courier_assigned: selectedCourier.email
-          }
-        ]);
+        .insert([{
+          id: orderId,
+          store_id: store?.id || "",
+          customer_id: user?.id || "",
+          customer_name: user?.email || "Guest",
+          items: orderItems,
+          total_amount: totalPrice,
+          address: address,
+          status: 'pending',
+          courier_assigned: selectedCourier.email
+        }]);
 
-      if (error) {
-        console.error("Error placing order:", error);
+      if (orderError) {
+        console.error("Error placing order:", orderError);
         toast({
           title: "Error",
           description: "Failed to place order.",
@@ -162,7 +158,46 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         return;
       }
 
-      // Notify the courier about the new order
+      if (user?.id) {
+        try {
+          await supabase
+            .from('notifications')
+            .insert({
+              user_id: user.id,
+              title: 'Order Confirmed',
+              message: `Your order to ${store?.name || "our store"} has been placed successfully. A courier has been assigned.`,
+              type: 'order_update',
+              order_id: orderId,
+              data: {
+                items: orderItems.map(i => ({
+                  name: i.product_name,
+                  quantity: i.quantity,
+                  price: i.price
+                })),
+                total: totalPrice
+              }
+            });
+        } catch (notifError) {
+          console.error("Error creating order notification:", notifError);
+        }
+
+        try {
+          const emailPayload = {
+            to: user.email,
+            subject: "Order Confirmation",
+            storeName: store?.name,
+            orderId,
+            items: orderItems,
+            total: totalPrice,
+          };
+          await supabase.functions.invoke('send-order-confirmation', {
+            body: JSON.stringify(emailPayload)
+          });
+        } catch (emailErr) {
+          console.error("Order confirmation email error:", emailErr);
+        }
+      }
+
       if (user?.id) {
         try {
           await supabase
@@ -183,7 +218,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
               }
             });
         } catch (notifError) {
-          console.error("Error creating notification:", notifError);
+          console.error("Error creating courier notification:", notifError);
         }
       }
 
