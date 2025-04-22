@@ -134,8 +134,10 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         price: item.price
       }));
 
-      // Insert order into orders table - Fixed the insert method syntax
-      const { data: orderData, error: orderError } = await supabase
+      console.log("Attempting to place order with ID:", orderId);
+      
+      // Insert order into orders table
+      const { error: orderError } = await supabase
         .from('orders')
         .insert({
           id: orderId,
@@ -160,10 +162,12 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         return;
       }
 
+      console.log("Order placed successfully, creating notifications");
+
       // Insert notification for user with order confirmation details
       if (user?.id) {
         try {
-          await supabase
+          const { error: notifError } = await supabase
             .from('notifications')
             .insert({
               user_id: user.id,
@@ -180,12 +184,19 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
                 total: totalPrice,
               }
             });
+            
+          if (notifError) {
+            console.error("Error creating order notification:", notifError);
+          } else {
+            console.log("User notification created successfully");
+          }
         } catch (notifError) {
           console.error("Error creating order notification:", notifError);
         }
 
         // Call edge function to send order confirmation email
         try {
+          console.log("Sending email confirmation");
           const emailPayload = {
             to: user.email,
             subject: "Order Confirmation",
@@ -194,18 +205,25 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
             items: orderItems,
             total: totalPrice,
           };
-          await supabase.functions.invoke('send-order-confirmation', {
+          
+          const { error: emailError } = await supabase.functions.invoke('send-order-confirmation', {
             body: JSON.stringify(emailPayload)
           });
+          
+          if (emailError) {
+            console.error("Failed to send order confirmation email:", emailError);
+          } else {
+            console.log("Email confirmation sent successfully");
+          }
         } catch (emailErr) {
           console.error("Failed to send order confirmation email:", emailErr);
         }
       }
 
       // Insert notification for courier about new assigned order
-      if (user?.id) {
+      if (selectedCourier.id) {
         try {
-          await supabase
+          const { error: notificationError } = await supabase
             .from('notifications')
             .insert({
               user_id: selectedCourier.id,
@@ -217,11 +235,17 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
                 storeId: store?.id || "",
                 storeName: store?.name || "Store",
                 customerAddress: address,
-                customerName: user.email || "Customer",
+                customerName: user?.email || "Customer",
                 itemsCount: cartItems.length,
                 total: totalPrice,
               }
             });
+          
+          if (notificationError) {
+            console.error("Error creating courier notification:", notificationError);
+          } else {
+            console.log("Courier notification created successfully");
+          }
         } catch (notifError) {
           console.error("Error creating courier notification:", notifError);
         }
@@ -231,6 +255,12 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
       clearCart();
       setIsProcessing(false);
       setIsOrderComplete(true);
+      
+      toast({
+        title: "Success",
+        description: "Your order has been placed successfully!",
+        variant: "default",
+      });
 
       setTimeout(() => {
         setIsDialogOpen(false);
