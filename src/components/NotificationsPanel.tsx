@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Bell, Check, Trash2, ShoppingBag, Truck, Info } from 'lucide-react';
+
 import { useNotifications } from '@/contexts/NotificationContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Bell, Check, Trash2, ShoppingBag, Truck, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export function NotificationsPanel() {

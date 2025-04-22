@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
       setOrderId(uuidv4());
     }
   }, [isDialogOpen, orderId]);
-  
+
   useEffect(() => {
     const fetchAvailableCouriers = async () => {
       try {
@@ -51,15 +52,15 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
           .from('couriers')
           .select('*')
           .eq('status', 'active');
-        
+
         if (data) {
           setAvailableCouriers(data as Courier[]);
         }
       } catch (error) {
-        console.error("Error fetching couriers for review:", error);
+        console.error("Error fetching couriers:", error);
       }
     };
-    
+
     fetchAvailableCouriers();
   }, []);
 
@@ -119,13 +120,13 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
     }
 
     setIsProcessing(true);
-    
+
     try {
       const selectedCourier = availableCouriers.find(c => c.id === selectedCourierId);
       if (!selectedCourier) {
         throw new Error("Selected courier not found");
       }
-      
+
       const orderItems = cartItems.map(item => ({
         product_id: item.id,
         product_name: item.name,
@@ -133,6 +134,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         price: item.price
       }));
 
+      // Insert order into orders table
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert([{
@@ -145,7 +147,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
           address: address,
           status: 'pending',
           courier_assigned: selectedCourier.email
-        }]);
+        }], { returning: "representation" });
 
       if (orderError) {
         console.error("Error placing order:", orderError);
@@ -158,6 +160,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         return;
       }
 
+      // Insert notification for user with order confirmation details
       if (user?.id) {
         try {
           await supabase
@@ -165,7 +168,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
             .insert({
               user_id: user.id,
               title: 'Order Confirmed',
-              message: `Your order to ${store?.name || "our store"} has been placed successfully. A courier has been assigned.`,
+              message: `Your order at ${store?.name || "our store"} has been placed successfully.`,
               type: 'order_update',
               order_id: orderId,
               data: {
@@ -174,13 +177,14 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
                   quantity: i.quantity,
                   price: i.price
                 })),
-                total: totalPrice
+                total: totalPrice,
               }
             });
         } catch (notifError) {
           console.error("Error creating order notification:", notifError);
         }
 
+        // Call edge function to send order confirmation email
         try {
           const emailPayload = {
             to: user.email,
@@ -194,10 +198,11 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
             body: JSON.stringify(emailPayload)
           });
         } catch (emailErr) {
-          console.error("Order confirmation email error:", emailErr);
+          console.error("Failed to send order confirmation email:", emailErr);
         }
       }
 
+      // Insert notification for courier about new assigned order
       if (user?.id) {
         try {
           await supabase
@@ -205,7 +210,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
             .insert({
               user_id: selectedCourier.id,
               title: 'New Order Assigned',
-              message: `You have been assigned a new order to deliver to ${address}`,
+              message: `You have been assigned a new order to deliver to ${address}.`,
               type: 'delivery_update',
               order_id: orderId,
               data: {
@@ -213,8 +218,8 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
                 storeName: store?.name || "Store",
                 customerAddress: address,
                 customerName: user.email || "Customer",
-                items: cartItems.length,
-                total: totalPrice
+                itemsCount: cartItems.length,
+                total: totalPrice,
               }
             });
         } catch (notifError) {
@@ -222,6 +227,7 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
         }
       }
 
+      // Clear cart and update UI state accordingly
       clearCart();
       setIsProcessing(false);
       setIsOrderComplete(true);
