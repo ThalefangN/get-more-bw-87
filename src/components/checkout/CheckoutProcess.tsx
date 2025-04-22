@@ -118,6 +118,24 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
       });
       return;
     }
+    
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to place an order.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!store?.id) {
+      toast({
+        title: "Error",
+        description: "Store information is missing.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsProcessing(true);
 
@@ -135,15 +153,17 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
       }));
 
       console.log("Attempting to place order with ID:", orderId);
+      console.log("Store ID:", store.id);
+      console.log("Customer ID:", user.id);
       
       // Insert order into orders table
       const { error: orderError } = await supabase
         .from('orders')
         .insert({
           id: orderId,
-          store_id: store?.id || "",
-          customer_id: user?.id || "",
-          customer_name: user?.email || "Guest",
+          store_id: store.id,
+          customer_id: user.id,
+          customer_name: user.email || "Guest",
           items: orderItems,
           total_amount: totalPrice,
           address: address,
@@ -165,59 +185,57 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
       console.log("Order placed successfully, creating notifications");
 
       // Insert notification for user with order confirmation details
-      if (user?.id) {
-        try {
-          const { error: notifError } = await supabase
-            .from('notifications')
-            .insert({
-              user_id: user.id,
-              title: 'Order Confirmed',
-              message: `Your order at ${store?.name || "our store"} has been placed successfully.`,
-              type: 'order_update',
-              order_id: orderId,
-              data: {
-                items: orderItems.map(i => ({
-                  name: i.product_name,
-                  quantity: i.quantity,
-                  price: i.price
-                })),
-                total: totalPrice,
-              }
-            });
-            
-          if (notifError) {
-            console.error("Error creating order notification:", notifError);
-          } else {
-            console.log("User notification created successfully");
-          }
-        } catch (notifError) {
-          console.error("Error creating order notification:", notifError);
-        }
-
-        // Call edge function to send order confirmation email
-        try {
-          console.log("Sending email confirmation");
-          const emailPayload = {
-            to: user.email,
-            subject: "Order Confirmation",
-            storeName: store?.name,
-            orderId,
-            items: orderItems,
-            total: totalPrice,
-          };
-          
-          const { error: emailError } = await supabase.functions.invoke('send-order-confirmation', {
-            body: JSON.stringify(emailPayload)
+      try {
+        const { error: notifError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: user.id,
+            title: 'Order Confirmed',
+            message: `Your order at ${store.name || "our store"} has been placed successfully.`,
+            type: 'order_update',
+            order_id: orderId,
+            data: {
+              items: orderItems.map(i => ({
+                name: i.product_name,
+                quantity: i.quantity,
+                price: i.price
+              })),
+              total: totalPrice,
+            }
           });
           
-          if (emailError) {
-            console.error("Failed to send order confirmation email:", emailError);
-          } else {
-            console.log("Email confirmation sent successfully");
-          }
-        } catch (emailErr) {
-          console.error("Failed to send order confirmation email:", emailErr);
+        if (notifError) {
+          console.error("Error creating order notification:", notifError);
+        } else {
+          console.log("User notification created successfully");
         }
+      } catch (notifError) {
+        console.error("Error creating order notification:", notifError);
+      }
+
+      // Call edge function to send order confirmation email
+      try {
+        console.log("Sending email confirmation");
+        const emailPayload = {
+          to: user.email,
+          subject: "Order Confirmation",
+          storeName: store.name,
+          orderId,
+          items: orderItems,
+          total: totalPrice,
+        };
+        
+        const { error: emailError } = await supabase.functions.invoke('send-order-confirmation', {
+          body: JSON.stringify(emailPayload)
+        });
+        
+        if (emailError) {
+          console.error("Failed to send order confirmation email:", emailError);
+        } else {
+          console.log("Email confirmation sent successfully");
+        }
+      } catch (emailErr) {
+        console.error("Failed to send order confirmation email:", emailErr);
       }
 
       // Insert notification for courier about new assigned order
@@ -232,10 +250,10 @@ const CheckoutProcess = ({ address, onSuccess }: CheckoutProcessProps) => {
               type: 'delivery_update',
               order_id: orderId,
               data: {
-                storeId: store?.id || "",
-                storeName: store?.name || "Store",
+                storeId: store.id,
+                storeName: store.name || "Store",
                 customerAddress: address,
-                customerName: user?.email || "Customer",
+                customerName: user.email || "Customer",
                 itemsCount: cartItems.length,
                 total: totalPrice,
               }
