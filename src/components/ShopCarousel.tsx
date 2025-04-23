@@ -58,7 +58,6 @@ const ShopCarousel = () => {
     fetchShops();
   }, []);
 
-  // Autoplay logic
   useEffect(() => {
     if (!api) return;
 
