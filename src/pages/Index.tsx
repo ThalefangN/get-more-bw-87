@@ -3,6 +3,7 @@ import React from "react";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import CategoryCarousel from "@/components/CategoryCarousel";
+import ShopCarousel from "@/components/ShopCarousel";
 import HowItWorks from "@/components/HowItWorks";
 import CabSection from "@/components/CabSection";
 import Footer from "@/components/Footer";
@@ -15,6 +16,7 @@ const Index = () => {
       <main className="flex-grow">
         <Hero />
         <CategoryCarousel />
+        <ShopCarousel />
         <ProductGrid />
         <CabSection />
         <HowItWorks />

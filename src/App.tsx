@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -31,6 +30,7 @@ import DriverTerms from "./pages/DriverTerms";
 import DriverDashboard from "./pages/DriverDashboard";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import ShopDetailsPage from "./pages/ShopDetailsPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { StoreProvider } from "@/contexts/StoreContext";
@@ -61,6 +61,7 @@ const App = () => (
                     <Routes>
                       <Route path="/" element={<Index />} />
                       <Route path="/shop" element={<Shop />} />
+                      <Route path="/shop/:shopId" element={<ShopDetailsPage />} />
                       <Route path="/all-products" element={<AllProducts />} />
                       <Route path="/learn-more" element={<LearnMore />} />
                       <Route path="/sign-in" element={<SignIn />} />
