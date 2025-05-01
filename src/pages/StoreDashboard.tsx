@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import StoreNavbar from "@/components/store/StoreNavbar";
@@ -9,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea";
 import ProductForm from "@/components/store/ProductForm";
 import { Product } from "@/contexts/StoreContext";
+import ProductGrid from "@/components/ProductGrid";
 
 const StoreDashboard = () => {
   const { currentStore, isAuthenticated, storeProducts, storeOrders, storeQueries } = useStore();
@@ -165,7 +167,7 @@ const DashboardHome = () => {
 };
 
 const ProductsPage = () => {
-  const { storeProducts, deleteProduct } = useStore();
+  const { storeProducts, deleteProduct, currentStore } = useStore();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(undefined);
   

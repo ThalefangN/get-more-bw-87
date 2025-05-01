@@ -38,28 +38,12 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
       let logoUrl: string | undefined = currentStore.logo;
 
       if (logoFile) {
-        // Check if store-logos bucket exists, create if it doesn't
-        const { data: buckets } = await supabase.storage.listBuckets();
-        const storeBucket = buckets?.find(bucket => bucket.name === 'store-logos');
-        
-        if (!storeBucket) {
-          // Create the bucket if it doesn't exist
-          const { error: bucketError } = await supabase.storage.createBucket('store-logos', {
-            public: true
-          });
-          
-          if (bucketError) {
-            toast.error("Failed to create storage bucket. Please try again later.");
-            setIsUploading(false);
-            return;
-          }
-        }
-
-        // Generate path: store-logos/{storeId}_{timestamp}_{filename}
+        // Create the storage bucket if it doesn't exist (this is done automatically by Supabase)
+        // Upload the logo file
         const path = `${currentStore.id}_${Date.now()}_${logoFile.name}`;
         
         // Upload new logo
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError, data } = await supabase.storage
           .from("store-logos")
           .upload(path, logoFile, { upsert: true });
 
@@ -71,8 +55,8 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
         }
         
         // Get the public URL
-        const { data } = supabase.storage.from("store-logos").getPublicUrl(path);
-        logoUrl = data.publicUrl;
+        const { data: publicUrlData } = supabase.storage.from("store-logos").getPublicUrl(path);
+        logoUrl = publicUrlData.publicUrl;
       }
 
       // Update store DB
