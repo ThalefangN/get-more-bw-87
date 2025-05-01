@@ -1,13 +1,16 @@
+
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import ProductCard from "./ProductCard";
 import { Skeleton } from "./ui/skeleton";
 
 interface ProductGridProps {
-  storeId: string;
+  storeId?: string;
+  category?: string;
+  showAllProducts?: boolean;
 }
 
-const ProductGrid = ({ storeId }: ProductGridProps) => {
+const ProductGrid = ({ storeId, category, showAllProducts = false }: ProductGridProps) => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -15,11 +18,24 @@ const ProductGrid = ({ storeId }: ProductGridProps) => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("products")
-          .select("*")
-          .eq("store_id", storeId)
-          .eq("in_stock", true);
+        let query = supabase.from("products").select("*");
+        
+        // Filter by store if storeId is provided
+        if (storeId) {
+          query = query.eq("store_id", storeId);
+        }
+        
+        // Filter by category if provided
+        if (category) {
+          query = query.eq("category", category);
+        }
+        
+        // Only show in-stock products unless showing all products
+        if (!showAllProducts) {
+          query = query.eq("in_stock", true);
+        }
+        
+        const { data, error } = await query;
 
         if (error) throw error;
         setProducts(data || []);
@@ -31,7 +47,7 @@ const ProductGrid = ({ storeId }: ProductGridProps) => {
     };
 
     fetchProducts();
-  }, [storeId]);
+  }, [storeId, category, showAllProducts]);
 
   if (loading) {
     return (
@@ -50,7 +66,7 @@ const ProductGrid = ({ storeId }: ProductGridProps) => {
   if (products.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-500">No products available from this store.</p>
+        <p className="text-gray-500">No products available.</p>
       </div>
     );
   }

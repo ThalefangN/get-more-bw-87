@@ -17,7 +17,7 @@ const Index = () => {
         <Hero />
         <CategoryCarousel />
         <ShopCarousel />
-        <ProductGrid />
+        <ProductGrid showAllProducts={false} />
         <CabSection />
         <HowItWorks />
       </main>

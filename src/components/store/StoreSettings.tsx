@@ -38,7 +38,6 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
       let logoUrl: string | undefined = currentStore.logo;
 
       if (logoFile) {
-        // Create the storage bucket if it doesn't exist (this is done automatically by Supabase)
         // Upload the logo file
         const path = `${currentStore.id}_${Date.now()}_${logoFile.name}`;
         

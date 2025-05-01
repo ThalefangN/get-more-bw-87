@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import StoreNavbar from "@/components/store/StoreNavbar";
@@ -197,58 +196,8 @@ const ProductsPage = () => {
         <Button onClick={handleAddProduct}>Add Product</Button>
       </div>
       
-      {storeProducts.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {storeProducts.map(product => (
-            <Card key={product.id} className="overflow-hidden">
-              <div className="h-48 overflow-hidden">
-                <img 
-                  src={product.image} 
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{product.name}</CardTitle>
-                  <div className="text-lg font-bold">P{product.price.toFixed(2)}</div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-getmore-purple/10 text-getmore-purple">
-                    {product.category}
-                  </span>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    product.inStock 
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {product.inStock ? 'In Stock' : 'Out of Stock'}
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <p className="text-gray-600 text-sm mb-4 line-clamp-2">{product.description}</p>
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
-                    Edit
-                  </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDeleteProduct(product.id)}>
-                    Delete
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12 bg-white rounded-lg border">
-          <Package className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No products</h3>
-          <p className="mt-1 text-sm text-gray-500">Get started by adding your first product.</p>
-          <div className="mt-6">
-            <Button onClick={handleAddProduct}>Add Product</Button>
-          </div>
-        </div>
+      {currentStore && (
+        <ProductGrid storeId={currentStore.id} showAllProducts={true} />
       )}
       
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
