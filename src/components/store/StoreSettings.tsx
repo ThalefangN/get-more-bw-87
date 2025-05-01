@@ -34,59 +34,49 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
     e.preventDefault();
     setIsUploading(true);
 
-    try {
-      let logoUrl: string | undefined = currentStore.logo;
+    let logoUrl: string | undefined = currentStore.logo;
 
-      if (logoFile) {
-        // Upload the logo file
-        const path = `${currentStore.id}_${Date.now()}_${logoFile.name}`;
-        
-        // Upload new logo
-        const { error: uploadError, data } = await supabase.storage
-          .from("store-logos")
-          .upload(path, logoFile, { upsert: true });
+    if (logoFile) {
+      // Generate path: store-logos/{storeId}/profile.png
+      const path = `store-logos/${currentStore.id}_${Date.now()}_${logoFile.name}`;
+      // Upload new logo
+      const { error: uploadError } = await supabase.storage
+        .from("store-logos")
+        .upload(path, logoFile, { upsert: true });
 
-        if (uploadError) {
-          console.error("Upload error:", uploadError);
-          setIsUploading(false);
-          toast.error("Failed to upload image. Please try again.");
-          return;
-        }
-        
-        // Get the public URL
-        const { data: publicUrlData } = supabase.storage.from("store-logos").getPublicUrl(path);
-        logoUrl = publicUrlData.publicUrl;
-      }
-
-      // Update store DB
-      const updatedName = nameRef.current?.value || currentStore.name;
-      const { error } = await supabase
-        .from("stores")
-        .update({
-          name: updatedName,
-          logo: logoUrl,
-        })
-        .eq("id", currentStore.id);
-
-      if (error) {
-        console.error("Update error:", error);
+      if (uploadError) {
         setIsUploading(false);
-        toast.error("Failed to update store settings.");
+        toast.error("Failed to upload image. Please try another image.");
         return;
       }
-
-      toast.success("Store profile updated!");
-      // Update context and localStorage for immediate UI feedback
-      const updatedStore = { ...currentStore, name: updatedName, logo: logoUrl };
-      login(updatedStore);
-
-      setIsUploading(false);
-      onOpenChange(false);
-    } catch (error) {
-      console.error("Error in handleUpdate:", error);
-      setIsUploading(false);
-      toast.error("An unexpected error occurred.");
+      // Get the public URL
+      const { data } = supabase.storage.from("store-logos").getPublicUrl(path);
+      logoUrl = data.publicUrl;
     }
+
+    // Update store DB
+    const updatedName = nameRef.current?.value || currentStore.name;
+    const { error } = await supabase
+      .from("stores")
+      .update({
+        name: updatedName,
+        logo: logoUrl,
+      })
+      .eq("id", currentStore.id);
+
+    if (error) {
+      setIsUploading(false);
+      toast.error("Failed to update store settings.");
+      return;
+    }
+
+    toast.success("Store profile updated!");
+    // Update context and localStorage for immediate UI feedback
+    const updatedStore = { ...currentStore, name: updatedName, logo: logoUrl };
+    login(updatedStore);
+
+    setIsUploading(false);
+    onOpenChange(false);
   };
 
   return (
@@ -143,7 +133,7 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
               disabled={isUploading}
             />
           </div>
-          
+          {/* Add more fields here such as address, phone, etc. if desired */}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isUploading}>
               Cancel

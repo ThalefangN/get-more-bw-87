@@ -140,22 +140,13 @@ const ShopCarousel = () => {
                   <div
                     className="bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow transform hover:scale-105 transition-transform duration-300"
                     onClick={() => handleShopClick(shop)}
-                    role="button"
-                    aria-label={`View products from ${shop.name}`}
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleShopClick(shop);
-                      }
-                    }}
                   >
                     <div className="h-32 overflow-hidden flex items-center justify-center bg-gray-100">
                       <img
                         src={shop.logo || placeholderImages[index % placeholderImages.length]}
                         alt={shop.name}
                         className="w-full h-full object-contain transition-transform duration-500"
-                        onError={(e) => {
+                        onError={e => {
                           (e.target as HTMLImageElement).src = placeholderImages[index % placeholderImages.length];
                         }}
                       />
