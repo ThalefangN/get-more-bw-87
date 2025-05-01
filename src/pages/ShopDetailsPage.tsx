@@ -24,11 +24,13 @@ const ShopDetailsPage = () => {
     const fetchShop = async () => {
       setLoading(true);
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("stores")
           .select("*")
           .eq("id", shopId)
           .maybeSingle();
+        
+        if (error) throw error;
         
         if (data) setShop(data as ShopDetails);
         else setShop(null);
