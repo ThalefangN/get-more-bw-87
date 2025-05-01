@@ -61,21 +61,17 @@ const ProductGrid = ({ showAllProducts = false, storeId, category }: ProductGrid
             category: product.category,
             description: product.description || '',
             quantity: 1,
-            storeId: product.store_id // Make sure store_id is included
+            storeId: product.store_id 
           }));
           
           setProducts(transformedProducts);
         } else {
-          // If no data is returned, use sample data
-          setProducts(getSampleProducts().filter(p => !category || p.category === category));
+          // If no data is returned or empty result
+          setProducts([]);
         }
       } catch (error) {
         console.error('Error fetching products:', error);
-        toast.error("Failed to load products", {
-          description: "Using sample products instead"
-        });
-        // Fallback to sample data if fetch fails, but respect the category filter
-        setProducts(getSampleProducts().filter(p => !category || p.category === category));
+        setProducts([]);
       } finally {
         setLoading(false);
       }
@@ -186,7 +182,7 @@ const ProductGrid = ({ showAllProducts = false, storeId, category }: ProductGrid
                 : (showAllProducts ? "Browse our complete selection" : "Top picks for you")}
             </p>
           </div>
-          {!showAllProducts && !category && (
+          {!showAllProducts && !category && !storeId && (
             <Link to="/all-products" className="flex items-center text-getmore-purple hover:underline">
               View All
               <ChevronRight size={16} className="ml-1" />
@@ -215,7 +211,13 @@ const ProductGrid = ({ showAllProducts = false, storeId, category }: ProductGrid
         
         {products.length === 0 && !loading && (
           <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No products found {category ? `in ${category}` : ""}</p>
+            <p className="text-gray-500 text-lg">
+              {storeId 
+                ? "This store doesn't have any products yet"
+                : category
+                  ? `No products found in ${category}`
+                  : "No products found"}
+            </p>
             <p className="text-gray-400">Check back later for new products</p>
           </div>
         )}
