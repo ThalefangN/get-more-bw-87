@@ -38,22 +38,43 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
       let logoUrl: string | undefined = currentStore.logo;
 
       if (logoFile) {
-        // Generate path: store-logos/{storeId}/profile.png
-        const path = `store-logos/${currentStore.id}_${Date.now()}_${logoFile.name}`;
+        // Check if the store-logos bucket exists, if not create it
+        const { data: buckets } = await supabase.storage.listBuckets();
+        const storeLogosBucket = buckets?.find(bucket => bucket.name === 'store-logos');
+        
+        if (!storeLogosBucket) {
+          // Create the bucket if it doesn't exist
+          const { error: createBucketError } = await supabase.storage.createBucket('store-logos', { 
+            public: true 
+          });
+          
+          if (createBucketError) {
+            console.error("Bucket creation error:", createBucketError);
+            setIsUploading(false);
+            toast.error("Failed to set up storage. Please try again later.");
+            return;
+          }
+        }
+        
+        // Generate a more unique filename
+        const fileExt = logoFile.name.split('.').pop();
+        const fileName = `${currentStore.id}_${Date.now()}.${fileExt}`;
+        const filePath = fileName;
+        
         // Upload new logo
         const { error: uploadError } = await supabase.storage
           .from("store-logos")
-          .upload(path, logoFile, { upsert: true });
+          .upload(filePath, logoFile, { upsert: true });
 
         if (uploadError) {
           console.error("Storage upload error:", uploadError);
           setIsUploading(false);
-          toast.error("Failed to upload image. Please try another image.");
+          toast.error("Failed to upload image. Please try a smaller image or different format.");
           return;
         }
         
         // Get the public URL
-        const { data } = supabase.storage.from("store-logos").getPublicUrl(path);
+        const { data } = supabase.storage.from("store-logos").getPublicUrl(filePath);
         logoUrl = data.publicUrl;
       }
 

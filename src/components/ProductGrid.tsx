@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import ProductCard from "./ProductCard";
@@ -33,6 +34,8 @@ const ProductGrid = ({ showAllProducts = false, storeId, category }: ProductGrid
     const fetchProducts = async () => {
       setLoading(true);
       try {
+        console.log("Fetching products. Store ID:", storeId, "Category:", category, "In Dashboard:", isStoreDashboard);
+        
         // Fetch products from Supabase
         let query = supabase
           .from('products')
@@ -41,16 +44,19 @@ const ProductGrid = ({ showAllProducts = false, storeId, category }: ProductGrid
         
         // If a specific store is requested, filter products by store
         if (storeId) {
+          console.log("Filtering by store ID:", storeId);
           query = query.eq('store_id', storeId);
         }
         
         // If a specific category is requested, filter products by category
         if (category) {
+          console.log("Filtering by category:", category);
           query = query.eq('category', category);
         }
         
         // Only filter by in_stock when not in dashboard
         if (!isStoreDashboard) {
+          console.log("Filtering by in_stock: true (not in dashboard)");
           query = query.eq('in_stock', true);
         }
         
@@ -65,6 +71,8 @@ const ProductGrid = ({ showAllProducts = false, storeId, category }: ProductGrid
           console.error('Error fetching products:', error);
           throw error;
         }
+        
+        console.log("Products fetched:", data?.length || 0, "products");
         
         if (data && data.length > 0) {
           // Transform the data to match our ExtendedProduct interface
@@ -83,16 +91,33 @@ const ProductGrid = ({ showAllProducts = false, storeId, category }: ProductGrid
           
           setProducts(transformedProducts);
         } else {
+          console.log("No products found, using sample data");
           // If no data is returned, use sample data
-          setProducts(getSampleProducts().filter(p => !category || p.category === category));
+          if (category) {
+            setProducts(getSampleProducts().filter(p => p.category === category));
+          } else if (storeId) {
+            setProducts(getSampleProducts().filter(p => p.storeId === storeId));
+          } else {
+            setProducts(getSampleProducts());
+          }
         }
       } catch (error) {
         console.error('Error fetching products:', error);
         toast.error("Failed to load products", {
           description: "Using sample products instead"
         });
-        // Fallback to sample data if fetch fails, but respect the category filter
-        setProducts(getSampleProducts().filter(p => !category || p.category === category));
+        // Fallback to sample data if fetch fails, but respect the filters
+        let sampleData = getSampleProducts();
+        
+        if (category) {
+          sampleData = sampleData.filter(p => p.category === category);
+        }
+        
+        if (storeId) {
+          sampleData = sampleData.filter(p => p.storeId === storeId);
+        }
+        
+        setProducts(sampleData);
       } finally {
         setLoading(false);
       }
