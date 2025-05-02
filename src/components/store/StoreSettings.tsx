@@ -38,43 +38,34 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
       let logoUrl: string | undefined = currentStore.logo;
 
       if (logoFile) {
-        // Check if the store-logos bucket exists, if not create it
-        const { data: buckets } = await supabase.storage.listBuckets();
-        const storeLogosBucket = buckets?.find(bucket => bucket.name === 'store-logos');
+        // Upload the file directly without checking for bucket existence
+        // Let Supabase handle the bucket availability
         
-        if (!storeLogosBucket) {
-          // Create the bucket if it doesn't exist
-          const { error: createBucketError } = await supabase.storage.createBucket('store-logos', { 
-            public: true 
-          });
-          
-          if (createBucketError) {
-            console.error("Bucket creation error:", createBucketError);
-            setIsUploading(false);
-            toast.error("Failed to set up storage. Please try again later.");
-            return;
-          }
-        }
-        
-        // Generate a more unique filename
+        // Generate a unique filename
         const fileExt = logoFile.name.split('.').pop();
         const fileName = `${currentStore.id}_${Date.now()}.${fileExt}`;
-        const filePath = fileName;
         
-        // Upload new logo
-        const { error: uploadError } = await supabase.storage
+        // Upload the logo file
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from("store-logos")
-          .upload(filePath, logoFile, { upsert: true });
+          .upload(fileName, logoFile, { upsert: true });
 
         if (uploadError) {
           console.error("Storage upload error:", uploadError);
+          
+          // If the error is because the bucket doesn't exist, inform the user
+          if (uploadError.message.includes("does not exist")) {
+            toast.error("Storage bucket doesn't exist. Please contact support.");
+          } else {
+            toast.error("Failed to upload image. Please try a smaller image or different format.");
+          }
+          
           setIsUploading(false);
-          toast.error("Failed to upload image. Please try a smaller image or different format.");
           return;
         }
         
-        // Get the public URL
-        const { data } = supabase.storage.from("store-logos").getPublicUrl(filePath);
+        // Get the public URL if upload was successful
+        const { data } = supabase.storage.from("store-logos").getPublicUrl(fileName);
         logoUrl = data.publicUrl;
       }
 
