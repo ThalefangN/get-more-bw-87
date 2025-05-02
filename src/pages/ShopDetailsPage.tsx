@@ -32,13 +32,17 @@ const ShopDetailsPage = () => {
         );
         if (data) setShop(data as ShopDetails);
         else setShop(null);
-      } catch {
+      } catch (error) {
+        console.error("Error fetching shop details:", error);
         setShop(null);
       } finally {
         setLoading(false);
       }
     };
-    fetchShop();
+    
+    if (shopId) {
+      fetchShop();
+    }
   }, [shopId]);
 
   return (
