@@ -34,70 +34,49 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
     e.preventDefault();
     setIsUploading(true);
 
-    try {
-      let logoUrl: string | undefined = currentStore.logo;
+    let logoUrl: string | undefined = currentStore.logo;
 
-      if (logoFile) {
-        // Upload the file directly without checking for bucket existence
-        // Let Supabase handle the bucket availability
-        
-        // Generate a unique filename
-        const fileExt = logoFile.name.split('.').pop();
-        const fileName = `${currentStore.id}_${Date.now()}.${fileExt}`;
-        
-        // Upload the logo file
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("store-logos")
-          .upload(fileName, logoFile, { upsert: true });
+    if (logoFile) {
+      // Generate path: store-logos/{storeId}/profile.png
+      const path = `store-logos/${currentStore.id}_${Date.now()}_${logoFile.name}`;
+      // Upload new logo
+      const { error: uploadError } = await supabase.storage
+        .from("store-logos")
+        .upload(path, logoFile, { upsert: true });
 
-        if (uploadError) {
-          console.error("Storage upload error:", uploadError);
-          
-          // If the error is because the bucket doesn't exist, inform the user
-          if (uploadError.message.includes("does not exist")) {
-            toast.error("Storage bucket doesn't exist. Please contact support.");
-          } else {
-            toast.error("Failed to upload image. Please try a smaller image or different format.");
-          }
-          
-          setIsUploading(false);
-          return;
-        }
-        
-        // Get the public URL if upload was successful
-        const { data } = supabase.storage.from("store-logos").getPublicUrl(fileName);
-        logoUrl = data.publicUrl;
-      }
-
-      // Update store DB
-      const updatedName = nameRef.current?.value || currentStore.name;
-      const { error } = await supabase
-        .from("stores")
-        .update({
-          name: updatedName,
-          logo: logoUrl,
-        })
-        .eq("id", currentStore.id);
-
-      if (error) {
-        console.error("Store update error:", error);
+      if (uploadError) {
         setIsUploading(false);
-        toast.error("Failed to update store settings.");
+        toast.error("Failed to upload image. Please try another image.");
         return;
       }
-
-      toast.success("Store profile updated!");
-      // Update context and localStorage for immediate UI feedback
-      const updatedStore = { ...currentStore, name: updatedName, logo: logoUrl };
-      login(updatedStore);
-
-      setIsUploading(false);
-      onOpenChange(false);
-    } catch (error) {
-      console.error("Unexpected error:", error);
-      toast.error("An unexpected error occurred. Please try again.");
-      setIsUploading(false);
+      // Get the public URL
+      const { data } = supabase.storage.from("store-logos").getPublicUrl(path);
+      logoUrl = data.publicUrl;
     }
+
+    // Update store DB
+    const updatedName = nameRef.current?.value || currentStore.name;
+    const { error } = await supabase
+      .from("stores")
+      .update({
+        name: updatedName,
+        logo: logoUrl,
+      })
+      .eq("id", currentStore.id);
+
+    if (error) {
+      setIsUploading(false);
+      toast.error("Failed to update store settings.");
+      return;
+    }
+
+    toast.success("Store profile updated!");
+    // Update context and localStorage for immediate UI feedback
+    const updatedStore = { ...currentStore, name: updatedName, logo: logoUrl };
+    login(updatedStore);
+
+    setIsUploading(false);
+    onOpenChange(false);
   };
 
   return (
@@ -154,6 +133,7 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
               disabled={isUploading}
             />
           </div>
+          {/* Add more fields here such as address, phone, etc. if desired */}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isUploading}>
               Cancel
