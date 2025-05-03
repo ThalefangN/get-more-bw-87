@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import ProductGrid from "@/components/ProductGrid";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Image } from "lucide-react";
 
 interface ShopDetails {
   id: string;
@@ -20,6 +21,7 @@ const ShopDetailsPage = () => {
   const { shopId } = useParams();
   const [shop, setShop] = useState<ShopDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     const fetchShop = async () => {
@@ -38,6 +40,7 @@ const ShopDetailsPage = () => {
         
         if (data) {
           setShop(data as ShopDetails);
+          setImgError(false); // Reset image error state when new shop is fetched
         } else {
           setShop(null);
         }
@@ -54,6 +57,11 @@ const ShopDetailsPage = () => {
     }
   }, [shopId]);
 
+  const handleImageError = () => {
+    console.log("Image failed to load");
+    setImgError(true);
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -65,21 +73,17 @@ const ShopDetailsPage = () => {
             ) : shop ? (
               <>
                 <div className="flex-shrink-0 w-32 h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
-                  {shop.logo ? (
+                  {shop.logo && !imgError ? (
                     <img
                       src={shop.logo}
                       alt={shop.name}
                       className="w-full h-full object-contain"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9";
-                      }}
+                      onError={handleImageError}
                     />
                   ) : (
-                    <img
-                      src="https://images.unsplash.com/photo-1618160702438-9b02ab6515c9"
-                      alt={shop.name}
-                      className="w-full h-full object-contain"
-                    />
+                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                      <Image className="h-12 w-12 text-gray-400" />
+                    </div>
                   )}
                 </div>
                 <div>
