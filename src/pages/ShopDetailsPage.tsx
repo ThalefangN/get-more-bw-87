@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductGrid from "@/components/ProductGrid";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ShopDetails {
   id: string;
@@ -23,22 +24,33 @@ const ShopDetailsPage = () => {
     const fetchShop = async () => {
       setLoading(true);
       try {
-        const { data } = await import("@/integrations/supabase/client").then(mod =>
-          mod.supabase
-            .from("stores")
-            .select("*")
-            .eq("id", shopId)
-            .maybeSingle()
-        );
-        if (data) setShop(data as ShopDetails);
-        else setShop(null);
-      } catch {
+        const { data, error } = await supabase
+          .from("stores")
+          .select("*")
+          .eq("id", shopId)
+          .maybeSingle();
+          
+        if (error) {
+          console.error("Error fetching store:", error);
+          toast.error("Could not load store details");
+        }
+        
+        if (data) {
+          setShop(data as ShopDetails);
+        } else {
+          setShop(null);
+        }
+      } catch (error) {
+        console.error("Unexpected error:", error);
         setShop(null);
       } finally {
         setLoading(false);
       }
     };
-    fetchShop();
+    
+    if (shopId) {
+      fetchShop();
+    }
   }, [shopId]);
 
   return (
@@ -48,15 +60,26 @@ const ShopDetailsPage = () => {
         <div className="bg-gray-50 py-8">
           <div className="container-custom flex flex-col md:flex-row gap-5 items-start">
             {loading ? (
-              <div className="animate-pulse w-full h-20">Loading...</div>
+              <div className="animate-pulse w-full h-20">Loading shop details...</div>
             ) : shop ? (
               <>
                 <div className="flex-shrink-0 w-32 h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
-                  <img
-                    src={shop.logo || "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9"}
-                    alt={shop.name}
-                    className="w-full h-full object-contain"
-                  />
+                  {shop.logo ? (
+                    <img
+                      src={shop.logo}
+                      alt={shop.name}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9";
+                      }}
+                    />
+                  ) : (
+                    <img
+                      src="https://images.unsplash.com/photo-1618160702438-9b02ab6515c9"
+                      alt={shop.name}
+                      className="w-full h-full object-contain"
+                    />
+                  )}
                 </div>
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold">{shop.name}</h1>
@@ -68,7 +91,7 @@ const ShopDetailsPage = () => {
                 </div>
               </>
             ) : (
-              <div>No shop found.</div>
+              <div>Shop not found. Please check the URL and try again.</div>
             )}
           </div>
         </div>
