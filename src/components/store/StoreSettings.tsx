@@ -37,28 +37,56 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
     try {
       let logoUrl: string | undefined = currentStore.logo;
 
+      // First, try to update store info without the logo change
+      const updatedName = nameRef.current?.value || currentStore.name;
+      
+      // Only attempt to upload if there's a new logo file
       if (logoFile) {
-        // Generate unique path using timestamp and file name
-        const path = `${currentStore.id}_${Date.now()}_${logoFile.name}`;
-        
-        // Upload new logo
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("store-logos")
-          .upload(path, logoFile, { upsert: true });
+        try {
+          // Check if the store-logos bucket exists
+          const { data: buckets, error: bucketsError } = await supabase
+            .storage
+            .listBuckets();
+            
+          if (bucketsError) {
+            console.error("Error checking buckets:", bucketsError);
+            toast.error("Failed to access storage. Please try again later.");
+            setIsUploading(false);
+            return;
+          }
+          
+          const bucketExists = buckets.some(b => b.name === 'store-logos');
+          
+          if (!bucketExists) {
+            toast.error("Storage is not properly configured. Please contact an administrator.");
+            setIsUploading(false);
+            return;
+          }
 
-        if (uploadError) {
-          toast.error(`Upload error: ${uploadError.message}`);
-          setIsUploading(false);
-          return;
+          // Generate unique path using timestamp and file name
+          const path = `${currentStore.id}_${Date.now()}_${logoFile.name}`;
+          
+          // Upload new logo
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from("store-logos")
+            .upload(path, logoFile, { upsert: true });
+
+          if (uploadError) {
+            console.error("Upload error:", uploadError);
+            toast.error(`Upload error: ${uploadError.message}`);
+            // Continue with the store update even if logo upload fails
+          } else {
+            // Get the public URL if upload succeeded
+            const { data } = supabase.storage.from("store-logos").getPublicUrl(path);
+            logoUrl = data.publicUrl;
+          }
+        } catch (uploadException) {
+          console.error("Logo upload exception:", uploadException);
+          // Continue with store update even if logo upload fails
         }
-        
-        // Get the public URL
-        const { data } = supabase.storage.from("store-logos").getPublicUrl(path);
-        logoUrl = data.publicUrl;
       }
 
-      // Update store in DB
-      const updatedName = nameRef.current?.value || currentStore.name;
+      // Update store in DB regardless of logo upload success
       const { error } = await supabase
         .from("stores")
         .update({
@@ -68,6 +96,7 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
         .eq("id", currentStore.id);
 
       if (error) {
+        console.error("Database update error:", error);
         toast.error(`Database update error: ${error.message}`);
         setIsUploading(false);
         return;

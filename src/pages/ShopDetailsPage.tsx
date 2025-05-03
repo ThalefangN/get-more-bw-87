@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductGrid from "@/components/ProductGrid";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface ShopDetails {
   id: string;
