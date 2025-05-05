@@ -20,6 +20,12 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (currentStore?.logo) {
+      setLogoPreview(currentStore.logo);
+    }
+  }, [currentStore]);
+
   if (!currentStore) return null;
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,7 +100,7 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
         }
       }
 
-      // IMPORTANT: Update the store information using the stores table directly
+      // Update the store information using the stores table directly
       const { error: updateError } = await supabase
         .from("stores")
         .update({
@@ -139,9 +145,9 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
             </label>
             <div className="flex items-center space-x-4">
               <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border">
-                {logoPreview || currentStore.logo ? (
+                {logoPreview ? (
                   <img
-                    src={logoPreview || currentStore.logo}
+                    src={logoPreview}
                     alt="Store Logo"
                     className="w-full h-full object-cover"
                     onError={(e) => {

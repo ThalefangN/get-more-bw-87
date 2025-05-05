@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import StoreNavbar from "@/components/store/StoreNavbar";
@@ -9,10 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea";
 import ProductForm from "@/components/store/ProductForm";
 import { Product } from "@/contexts/StoreContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const StoreDashboard = () => {
-  const { currentStore, isAuthenticated, storeProducts, storeOrders, storeQueries } = useStore();
-  const location = useLocation();
+  const { currentStore, isAuthenticated } = useStore();
   
   if (!isAuthenticated) {
     return <Navigate to="/store-signin" />;
@@ -165,9 +166,73 @@ const DashboardHome = () => {
 };
 
 const ProductsPage = () => {
-  const { storeProducts, deleteProduct } = useStore();
+  const { currentStore, storeProducts, deleteProduct } = useStore();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>([]);
+  
+  useEffect(() => {
+    const fetchStoreProducts = async () => {
+      if (!currentStore?.id) return;
+
+      setIsLoading(true);
+      try {
+        // Fetch products directly from Supabase to ensure we have the latest data
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('store_id', currentStore.id);
+          
+        if (error) {
+          console.error('Error fetching store products:', error);
+          toast.error('Failed to load your products');
+        } else if (data) {
+          // Transform data to match the Product interface
+          const transformedProducts: Product[] = data.map(product => ({
+            id: product.id,
+            storeId: product.store_id,
+            name: product.name,
+            price: Number(product.price),
+            image: product.image,
+            images: product.images || [product.image],
+            category: product.category,
+            description: product.description || '',
+            inStock: product.in_stock,
+            createdAt: new Date(product.created_at)
+          }));
+          setProducts(transformedProducts);
+        }
+      } catch (error) {
+        console.error('Unexpected error fetching products:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStoreProducts();
+    
+    // Set up real-time subscription for product updates
+    const channel = supabase
+      .channel('products-changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'products',
+          filter: `store_id=eq.${currentStore?.id}`
+        }, 
+        (payload) => {
+          console.log('Product change received:', payload);
+          fetchStoreProducts();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentStore?.id]);
   
   const handleAddProduct = () => {
     setSelectedProduct(undefined);
@@ -179,9 +244,27 @@ const ProductsPage = () => {
     setIsAddDialogOpen(true);
   };
   
-  const handleDeleteProduct = (productId: string) => {
+  const handleDeleteProduct = async (productId: string) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
-      deleteProduct(productId);
+      try {
+        // Delete from Supabase first
+        const { error } = await supabase
+          .from('products')
+          .delete()
+          .eq('id', productId);
+          
+        if (error) {
+          throw error;
+        }
+        
+        // Then update local state
+        deleteProduct(productId);
+        // Also update the local products state
+        setProducts(prev => prev.filter(p => p.id !== productId));
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        toast.error('Failed to delete product');
+      }
     }
   };
   
@@ -195,15 +278,37 @@ const ProductsPage = () => {
         <Button onClick={handleAddProduct}>Add Product</Button>
       </div>
       
-      {storeProducts.length > 0 ? (
+      {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {storeProducts.map(product => (
+          {[1, 2, 3, 4].map((_, index) => (
+            <Card key={index} className="overflow-hidden">
+              <div className="h-48 bg-gray-200 animate-pulse"></div>
+              <CardHeader className="pb-2">
+                <div className="h-6 bg-gray-200 animate-pulse w-3/4 mb-2"></div>
+                <div className="h-4 bg-gray-200 animate-pulse w-1/4"></div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="h-4 bg-gray-200 animate-pulse mb-4"></div>
+                <div className="flex justify-end space-x-2">
+                  <div className="h-8 bg-gray-200 animate-pulse w-16"></div>
+                  <div className="h-8 bg-gray-200 animate-pulse w-16"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : products.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {products.map(product => (
             <Card key={product.id} className="overflow-hidden">
               <div className="h-48 overflow-hidden">
                 <img 
                   src={product.image} 
                   alt={product.name}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "https://via.placeholder.com/300?text=Product+Image";
+                  }}
                 />
               </div>
               <CardHeader className="pb-2">
