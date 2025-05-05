@@ -18,36 +18,7 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isBucketReady, setIsBucketReady] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    // Check if the bucket exists when the component mounts
-    const checkBucketExists = async () => {
-      try {
-        const { data: buckets, error } = await supabase.storage.listBuckets();
-        
-        if (error) {
-          console.error("Error checking buckets:", error);
-          toast.error("Failed to check storage configuration");
-          return;
-        }
-        
-        const bucketExists = buckets.some(b => b.name === 'store-logos');
-        setIsBucketReady(bucketExists);
-        
-        if (!bucketExists) {
-          toast.error("Storage not properly configured", {
-            description: "The store-logos bucket doesn't exist. Contact an administrator."
-          });
-        }
-      } catch (err) {
-        console.error("Failed to check bucket status:", err);
-      }
-    };
-    
-    checkBucketExists();
-  }, []);
 
   if (!currentStore) return null;
 
@@ -114,17 +85,13 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
       const updatedName = nameRef.current?.value || currentStore.name;
       let logoUrl = currentStore.logo;
       
-      // Only attempt to upload if there's a new logo and the bucket exists
-      if (logoFile && isBucketReady) {
+      // Only attempt to upload if there's a new logo
+      if (logoFile) {
         const uploadedLogoUrl = await uploadImage(logoFile);
         if (uploadedLogoUrl) {
           logoUrl = uploadedLogoUrl;
           toast.success("Logo uploaded successfully!");
         }
-      } else if (logoFile && !isBucketReady) {
-        toast.error("Cannot upload logo", { 
-          description: "Storage is not properly configured. Your store info will be updated without the logo."
-        });
       }
 
       // Update the store information in the database
@@ -165,18 +132,6 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
           <DialogTitle>Store Settings</DialogTitle>
         </DialogHeader>
         
-        {!isBucketReady && (
-          <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded mb-4 flex items-start">
-            <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium">Storage not configured properly</p>
-              <p className="text-xs mt-1">
-                The store-logos storage bucket is not available. Logo uploads won't work, but you can still update your store name.
-              </p>
-            </div>
-          </div>
-        )}
-        
         <form onSubmit={handleUpdate} className="space-y-6">
           <div>
             <label htmlFor="logo-upload" className="block text-sm font-medium text-gray-700 mb-2">
@@ -200,7 +155,7 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
               </div>
               <label
                 htmlFor="logo-upload"
-                className={`inline-flex items-center gap-2 px-3 py-1.5 ${!isBucketReady ? 'bg-gray-400 cursor-not-allowed' : 'bg-getmore-purple hover:bg-getmore-purple/80 cursor-pointer'} text-white text-xs rounded shadow`}
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-getmore-purple hover:bg-getmore-purple/80 cursor-pointer text-white text-xs rounded shadow"
               >
                 <Upload size={16} />
                 {logoFile ? "Change Logo" : "Upload Logo"}
@@ -210,15 +165,10 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
                   id="logo-upload"
                   className="hidden"
                   onChange={handleLogoChange}
-                  disabled={isUploading || !isBucketReady}
+                  disabled={isUploading}
                 />
               </label>
             </div>
-            {!isBucketReady && (
-              <p className="text-xs text-amber-600 mt-2">
-                Logo uploads are currently disabled due to storage configuration issues.
-              </p>
-            )}
           </div>
 
           <div>
