@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useStore } from "@/contexts/StoreContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Image, Upload, AlertCircle } from "lucide-react";
+import { Image, Upload } from "lucide-react";
 
 interface StoreSettingsProps {
   open: boolean;
@@ -94,7 +94,7 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
         }
       }
 
-      // Update the store information in the database
+      // IMPORTANT: Update the store information using the stores table directly
       const { error: updateError } = await supabase
         .from("stores")
         .update({
