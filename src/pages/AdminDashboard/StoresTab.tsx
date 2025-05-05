@@ -40,6 +40,11 @@ const StoresTab = () => {
     fetchStoreProducts(store.id);
   };
   
+  // Generate a fallback avatar for stores without a logo
+  const generateAvatarUrl = (storeName: string) => {
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(storeName)}&background=8B5CF6&color=fff`;
+  };
+  
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Manage Stores</h2>
@@ -57,7 +62,13 @@ const StoresTab = () => {
               <CardContent className="p-6">
                 <div className="flex items-center">
                   <Avatar className="h-12 w-12 mr-4">
-                    <AvatarImage src={store.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(store.name)}&background=8B5CF6&color=fff`} alt={store.name} />
+                    <AvatarImage 
+                      src={store.logo || generateAvatarUrl(store.name)} 
+                      alt={store.name} 
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = generateAvatarUrl(store.name);
+                      }}
+                    />
                     <AvatarFallback>{store.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
@@ -106,7 +117,13 @@ const StoresTab = () => {
                   <div className="bg-gray-50 p-4 rounded-md space-y-4 border">
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-16 w-16">
-                        <AvatarImage src={selectedStore.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedStore.name)}&background=8B5CF6&color=fff`} alt={selectedStore.name} />
+                        <AvatarImage 
+                          src={selectedStore.logo || generateAvatarUrl(selectedStore.name)} 
+                          alt={selectedStore.name}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = generateAvatarUrl(selectedStore.name);
+                          }} 
+                        />
                         <AvatarFallback>{selectedStore.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div>
@@ -174,6 +191,9 @@ const StoresTab = () => {
                                 src={product.image} 
                                 alt={product.name} 
                                 className="w-full h-full object-cover rounded-md"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = "https://via.placeholder.com/100?text=Product";
+                                }}
                               />
                             </div>
                             <div className="flex-1">

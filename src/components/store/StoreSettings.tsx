@@ -54,8 +54,54 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
+      
+      // Check file size - limit to 5MB
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image too large", {
+          description: "Please select an image smaller than 5MB"
+        });
+        return;
+      }
+      
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast.error("Invalid file type", {
+          description: "Please select an image file"
+        });
+        return;
+      }
+      
       setLogoFile(file);
       setLogoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      // Generate unique path using timestamp and file name to avoid collisions
+      const filePath = `${currentStore.id}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+      
+      // Upload the new logo
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("store-logos")
+        .upload(filePath, file, { 
+          upsert: true,
+          contentType: file.type 
+        });
+
+      if (uploadError) {
+        console.error("Logo upload error:", uploadError);
+        toast.error(`Logo upload failed: ${uploadError.message}`);
+        return null;
+      }
+      
+      // Get the public URL
+      const { data } = supabase.storage.from("store-logos").getPublicUrl(filePath);
+      return data.publicUrl;
+    } catch (uploadError) {
+      console.error("Unexpected upload error:", uploadError);
+      toast.error("Failed to upload logo. Please try again later.");
+      return null;
     }
   };
 
@@ -70,27 +116,10 @@ const StoreSettings = ({ open, onOpenChange }: StoreSettingsProps) => {
       
       // Only attempt to upload if there's a new logo and the bucket exists
       if (logoFile && isBucketReady) {
-        try {
-          // Generate unique path using timestamp and file name to avoid collisions
-          const filePath = `${currentStore.id}/${Date.now()}_${logoFile.name.replace(/\s+/g, '_')}`;
-          
-          // Upload the new logo
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from("store-logos")
-            .upload(filePath, logoFile, { upsert: true });
-
-          if (uploadError) {
-            console.error("Logo upload error:", uploadError);
-            toast.error(`Logo upload failed: ${uploadError.message}`);
-          } else {
-            // Get the public URL
-            const { data } = supabase.storage.from("store-logos").getPublicUrl(filePath);
-            logoUrl = data.publicUrl;
-            toast.success("Logo uploaded successfully!");
-          }
-        } catch (uploadError) {
-          console.error("Unexpected upload error:", uploadError);
-          toast.error("Failed to upload logo. Please try again later.");
+        const uploadedLogoUrl = await uploadImage(logoFile);
+        if (uploadedLogoUrl) {
+          logoUrl = uploadedLogoUrl;
+          toast.success("Logo uploaded successfully!");
         }
       } else if (logoFile && !isBucketReady) {
         toast.error("Cannot upload logo", { 
