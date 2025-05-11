@@ -6,6 +6,7 @@ import CategoryCarousel from "@/components/CategoryCarousel";
 import ShopCarousel from "@/components/ShopCarousel";
 import HowItWorks from "@/components/HowItWorks";
 import CabSection from "@/components/CabSection";
+import Testimonials from "@/components/Testimonials";
 import Footer from "@/components/Footer";
 import ProductGrid from "@/components/ProductGrid";
 
@@ -20,6 +21,7 @@ const Index = () => {
         <ProductGrid />
         <CabSection />
         <HowItWorks />
+        <Testimonials />
       </main>
       <Footer />
     </div>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import StoreNavbar from "@/components/store/StoreNavbar";
@@ -11,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import ProductForm from "@/components/store/ProductForm";
 import { Product } from "@/contexts/StoreContext";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner"; // Added missing import
 
 const StoreDashboard = () => {
   const { currentStore, isAuthenticated } = useStore();
