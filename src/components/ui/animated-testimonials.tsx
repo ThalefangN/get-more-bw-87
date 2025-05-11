@@ -1,7 +1,7 @@
 
 "use client";
 
-import { ArrowLeft, ArrowRight } from "lucide-react"; // Using lucide-react instead of @tabler/icons-react
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
