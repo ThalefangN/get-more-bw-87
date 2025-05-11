@@ -45,11 +45,12 @@ const Profile = () => {
 
         if (data) {
           setUserData({
-            firstName: data.first_name || "",
-            lastName: data.last_name || "",
+            // Fix property names to match what's available in the profiles table
+            firstName: data.name ? data.name.split(' ')[0] : "",
+            lastName: data.name ? data.name.split(' ')[1] || "" : "",
             email: user.email || "",
-            phone: data.phone || "",
-            address: data.address || "",
+            phone: data.phone || "", // Add phone if it exists in the future
+            address: data.street || "", // Use street as address
           });
         }
       } catch (error) {
@@ -76,11 +77,10 @@ const Profile = () => {
       const { error } = await supabase
         .from("profiles")
         .update({
-          first_name: userData.firstName,
-          last_name: userData.lastName,
-          phone: userData.phone,
-          address: userData.address,
-          updated_at: new Date(),
+          name: `${userData.firstName} ${userData.lastName}`.trim(),
+          street: userData.address,
+          // Fix Date to string type issue
+          updated_at: new Date().toISOString(),
         })
         .eq("id", user?.id);
 

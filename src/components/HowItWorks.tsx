@@ -8,19 +8,19 @@ const steps = [
     id: 1,
     title: "Place your order",
     description: "Browse products and add them to your cart. Checkout when you're ready.",
-    icon: <Smartphone size={36} className="text-getmore-turquoise" />
+    icon: <Smartphone size={40} className="text-white" /> // Increased size and changed color to white
   },
   {
     id: 2,
     title: "Wait 10-15 minutes",
     description: "Our couriers will prepare your order and head to your location.",
-    icon: <Clock size={36} className="text-getmore-turquoise" />
+    icon: <Clock size={40} className="text-white" /> // Increased size and changed color to white
   },
   {
     id: 3,
     title: "Receive at your door",
     description: "Your items will be delivered straight to your doorstep.",
-    icon: <Box size={36} className="text-getmore-turquoise" />
+    icon: <Box size={40} className="text-white" /> // Increased size and changed color to white
   }
 ];
 
@@ -48,7 +48,7 @@ const HowItWorks = () => {
                 {step.id}
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="mb-4 bg-white/10 p-4 rounded-full">
+                <div className="mb-4 bg-getmore-turquoise/80 p-5 rounded-full shadow-lg"> {/* Changed background and padding */}
                   {step.icon}
                 </div>
                 <h3 className="text-xl font-semibold mb-3">{step.title}</h3>

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Menu, X, ChevronDown, User, LogOut, ShoppingBag, Home } from "lucide-react";
@@ -34,7 +33,7 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="bg-white shadow-sm py-4 sticky top-0 z-30 w-full">
+      <nav className="bg-white shadow-sm py-4 sticky top-0 z-50 w-full">
         <div className="container-custom flex justify-between items-center">
           <Link to="/" className="flex items-center">
             <span className="text-2xl font-bold text-getmore-purple">Get</span>
@@ -138,7 +137,7 @@ const Navbar = () => {
 
       {/* Mobile menu */}
       {isOpen && (
-        <div className="md:hidden bg-white shadow-lg absolute top-16 left-0 right-0 z-20">
+        <div className="md:hidden bg-white shadow-lg absolute top-16 left-0 right-0 z-40">
           <div className="flex flex-col p-4 space-y-4">
             <Link 
               to="/" 
