@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -31,6 +32,8 @@ import DriverDashboard from "./pages/DriverDashboard";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import ShopDetailsPage from "./pages/ShopDetailsPage";
+import Profile from "./pages/Profile";
+import Orders from "./pages/Orders";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { StoreProvider } from "@/contexts/StoreContext";
@@ -79,6 +82,9 @@ const App = () => (
                       <Route path="/admin-signup" element={<AdminSignUp />} />
                       <Route path="/admin-signin" element={<AdminSignIn />} />
                       <Route path="/admin-dashboard/*" element={<AdminDashboard />} />
+                      {/* User account routes */}
+                      <Route path="/profile" element={<Profile />} />
+                      <Route path="/orders" element={<Orders />} />
                       {/* Driver Routes */}
                       <Route path="/driver-signup" element={<DriverSignUp />} />
                       <Route path="/driver-login" element={<DriverLogin />} />
