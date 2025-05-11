@@ -20,13 +20,7 @@ interface Shop {
   categories?: string[];
 }
 
-const placeholderImages = [
-  "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9",
-  "https://images.unsplash.com/photo-1721322800607-8c38375eef04",
-  "https://images.unsplash.com/photo-1582562124811-c09040d0a901"
-];
-
-// Map store categories to relevant images
+// High-quality placeholder images for different store types
 const categoryImageMap: Record<string, string> = {
   "Groceries": "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1000&auto=format&fit=crop",
   "Beverages": "https://images.unsplash.com/photo-1595981267035-7b04ca84a82d?q=80&w=1000&auto=format&fit=crop",
@@ -47,6 +41,25 @@ const categoryImageMap: Record<string, string> = {
   "Pharmacy": "https://images.unsplash.com/photo-1631549916768-4119b4123a21?q=80&w=1000&auto=format&fit=crop",
   "Supermarket": "https://images.unsplash.com/photo-1601599963565-b7f49deb352a?q=80&w=1000&auto=format&fit=crop",
   "Convenience": "https://images.unsplash.com/photo-1515706886582-54c73c5eaf41?q=80&w=1000&auto=format&fit=crop"
+};
+
+// Additional fallback images organized by common store themes
+const fallbackImages = {
+  general: [
+    "https://images.unsplash.com/photo-1534723452862-4c874018d66d?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1604719312566-8912e9c8a103?q=80&w=1000&auto=format&fit=crop"
+  ],
+  food: [
+    "https://images.unsplash.com/photo-1581931019651-4220ec51bb2d?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1544148103-0773bf10d330?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1534723452862-4c874018d66d?q=80&w=1000&auto=format&fit=crop"
+  ],
+  grocery: [
+    "https://images.unsplash.com/photo-1550989460-0adf9ea622e2?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1588964895597-cfccd6e2dbf9?q=80&w=1000&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1534723452862-4c874018d66d?q=80&w=1000&auto=format&fit=crop"
+  ]
 };
 
 const ShopCarousel = () => {
@@ -119,10 +132,10 @@ const ShopCarousel = () => {
     navigate(`/shop/${shop.id}`);
   };
 
-  // Get appropriate image based on store categories or name
+  // Enhanced function to get appropriate image based on store categories or name
   const getStoreImage = (shop: Shop) => {
-    // First try to use the store's logo if available
-    if (shop.logo && shop.logo.trim().length > 0) {
+    // First try to use the store's logo if available and it's a valid URL
+    if (shop.logo && shop.logo.trim().length > 0 && shop.logo.startsWith("http")) {
       return shop.logo;
     }
     
@@ -138,13 +151,17 @@ const ShopCarousel = () => {
     // If no categories match, try to match based on store name keywords
     const shopName = shop.name.toLowerCase();
     const nameKeywords = [
-      { keywords: ["fruit", "veg", "vegetable", "produce", "green"], img: categoryImageMap["Fruits & Vegetables"] },
-      { keywords: ["meat", "butcher", "poultry", "beef", "chicken"], img: categoryImageMap["Meat"] },
-      { keywords: ["bakery", "bread", "pastry", "cake"], img: categoryImageMap["Bakery"] },
-      { keywords: ["pharmacy", "drug", "medicine"], img: categoryImageMap["Pharmacy"] },
-      { keywords: ["electronic", "device", "gadget", "tech"], img: categoryImageMap["Electronics"] },
-      { keywords: ["super", "market", "grocery"], img: categoryImageMap["Supermarket"] },
-      { keywords: ["convenience", "quick", "express"], img: categoryImageMap["Convenience"] }
+      { keywords: ["fruit", "veg", "vegetable", "produce", "green", "organic"], img: categoryImageMap["Fruits & Vegetables"] },
+      { keywords: ["meat", "butcher", "poultry", "beef", "chicken", "steak"], img: categoryImageMap["Meat"] },
+      { keywords: ["bakery", "bread", "pastry", "cake", "bake", "sweet"], img: categoryImageMap["Bakery"] },
+      { keywords: ["pharmacy", "drug", "medicine", "health", "wellness"], img: categoryImageMap["Pharmacy"] },
+      { keywords: ["electronic", "device", "gadget", "tech", "phone"], img: categoryImageMap["Electronics"] },
+      { keywords: ["super", "market", "grocery", "store", "shop"], img: categoryImageMap["Supermarket"] },
+      { keywords: ["convenience", "quick", "express", "mart", "mini"], img: categoryImageMap["Convenience"] },
+      { keywords: ["dairy", "milk", "cheese", "yogurt"], img: categoryImageMap["Dairy"] },
+      { keywords: ["snack", "chips", "candy", "treat"], img: categoryImageMap["Snacks"] },
+      { keywords: ["beverage", "drink", "soda", "juice"], img: categoryImageMap["Beverages"] },
+      { keywords: ["household", "home", "clean", "supply"], img: categoryImageMap["Household"] }
     ];
     
     for (const entry of nameKeywords) {
@@ -153,9 +170,20 @@ const ShopCarousel = () => {
       }
     }
     
-    // Fallback to placeholder images with a consistent pattern based on store name
-    const index = shop.name.length % placeholderImages.length;
-    return placeholderImages[index];
+    // If no specific category identified, use general fallback by type
+    if (shopName.includes("food") || shopName.includes("meal") || shopName.includes("deli") || shopName.includes("restaurant")) {
+      const index = shop.name.length % fallbackImages.food.length;
+      return fallbackImages.food[index];
+    }
+    
+    if (shopName.includes("market") || shopName.includes("grocery") || shopName.includes("mart")) {
+      const index = shop.name.length % fallbackImages.grocery.length;
+      return fallbackImages.grocery[index];
+    }
+    
+    // Final fallback - use general store images
+    const index = shop.name.length % fallbackImages.general.length;
+    return fallbackImages.general[index];
   };
 
   if (loading) {
@@ -211,8 +239,9 @@ const ShopCarousel = () => {
                         className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
-                          const index = shop.name.length % placeholderImages.length;
-                          target.src = placeholderImages[index];
+                          // If image fails to load, use a fallback from general store images
+                          const index = shop.name.length % fallbackImages.general.length;
+                          target.src = fallbackImages.general[index];
                         }}
                       />
                     </div>
