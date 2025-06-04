@@ -6,7 +6,6 @@
 </div>
 
 <hr/>
-
 <h2>Project Info</h2>
 
 <p>
